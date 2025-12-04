@@ -59,11 +59,12 @@ public class ExcelService {
             Row header = sheet.createRow(0);
             header.createCell(0).setCellValue("Time");
             header.createCell(1).setCellValue("Division");
-            header.createCell(2).setCellValue("Machine");
-            header.createCell(3).setCellValue("Comment");
-            header.createCell(4).setCellValue("Reason 1");
-            header.createCell(5).setCellValue("Reason 2");
-            header.createCell(6).setCellValue("Image");
+            header.createCell(2).setCellValue("Group");     // <-- thêm cột Group
+            header.createCell(3).setCellValue("Machine");
+            header.createCell(4).setCellValue("Comment");
+            header.createCell(5).setCellValue("Reason 1");
+            header.createCell(6).setCellValue("Reason 2");
+            header.createCell(7).setCellValue("Image");
         } else {
             try (InputStream is = Files.newInputStream(excelFilePath)) {
                 workbook = new XSSFWorkbook(is);
@@ -78,10 +79,11 @@ public class ExcelService {
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
         );
         row.createCell(1).setCellValue(safeString(req.getDivision()));
-        row.createCell(2).setCellValue(safeString(req.getMachine()));
-        row.createCell(3).setCellValue(safeString(req.getComment()));
-        row.createCell(4).setCellValue(safeString(req.getReason1()));
-        row.createCell(5).setCellValue(safeString(req.getReason2()));
+        row.createCell(2).setCellValue(safeString(req.getGroup()));    // <-- ghi dữ liệu Group
+        row.createCell(3).setCellValue(safeString(req.getMachine()));
+        row.createCell(4).setCellValue(safeString(req.getComment()));
+        row.createCell(5).setCellValue(safeString(req.getReason1()));
+        row.createCell(6).setCellValue(safeString(req.getReason2()));
 
         CreationHelper helper = workbook.getCreationHelper();
         Drawing<?> drawing = sheet.createDrawingPatriarch();
@@ -96,9 +98,9 @@ public class ExcelService {
                 int pictureIdx = workbook.addPicture(bytes, pictureType);
 
                 ClientAnchor anchor = helper.createClientAnchor();
-                anchor.setCol1(6);
+                anchor.setCol1(7);      // cột ảnh dịch sang phải 1
                 anchor.setRow1(rowNum);
-                anchor.setCol2(7);
+                anchor.setCol2(8);
                 anchor.setRow2(rowNum + 1);
 
                 Picture pict = drawing.createPicture(anchor, pictureIdx);
@@ -106,11 +108,11 @@ public class ExcelService {
             } catch (IOException e) {
                 System.err.println("Failed to insert image to Excel: " + e.getMessage());
                 // fallback: ghi text đường dẫn ảnh
-                row.createCell(6).setCellValue(imageFileName);
+                row.createCell(7).setCellValue(imageFileName);
             }
         } else {
             // Không có ảnh thì để trống ô ảnh
-            row.createCell(6).setCellValue("");
+            row.createCell(7).setCellValue("");
         }
 
         // Ghi file Excel

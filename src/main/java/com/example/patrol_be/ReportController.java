@@ -15,6 +15,7 @@ public class ReportController {
     @PostMapping
     public String saveReport(
             @RequestParam("division") String division,
+            @RequestParam("group") String group,
             @RequestParam("machine") String machine,
             @RequestParam("comment") String comment,
             @RequestParam("reason1") String reason1,
@@ -25,6 +26,7 @@ public class ReportController {
             // Tạo ReportRequest từ các param
             ReportRequest request = new ReportRequest();
             request.setDivision(division);
+            request.setGroup(group);
             request.setMachine(machine);
             request.setComment(comment);
             request.setReason1(reason1);
