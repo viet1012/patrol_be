@@ -4,13 +4,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
-@CrossOrigin(origins = "*", methods = {RequestMethod.POST, RequestMethod.OPTIONS})
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 @RequestMapping("/api/report")
 public class ReportController {
 
     @Autowired
     private ExcelService excelService;
-
 
     @PostMapping
     public String saveReport(
