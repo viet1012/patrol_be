@@ -1,15 +1,29 @@
 package com.example.patrol_be;
 
 
+
 import lombok.Data;
+import java.util.List;
 
 @Data
 public class ReportRequest {
-    private String division;
     private String group;
+
+    private String plant;
+    private String division;
+    private String area;
     private String machine;
+
+
+    private String riskFreq;
+    private String riskProb;
+    private String riskSev;
+    private String riskTotal;
+
     private String comment;
-    private String reason1;
-    private String reason2;
-    private String imageUrl;
+
+    private String check;
+
+    // Danh sách tên file ảnh đã lưu (sẽ được set từ service)
+    private List<String> imageFileNames;
 }

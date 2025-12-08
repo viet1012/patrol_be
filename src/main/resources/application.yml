@@ -5,13 +5,15 @@ spring:
     multipart:
       enabled: true
       max-file-size: 20MB
-      max-request-size: 20MB
+      max-request-size: 100MB
       file-size-threshold: 2MB
 
 server:
   address: 0.0.0.0
   port: 9299
-
+  tomcat:
+    max-http-form-post-size: 100MB
+    max-swallow-size: -1
 #  ssl:
 #    enabled: true
 #    key-store: file:/C:/Users/viet.ta/keystore.p12
