@@ -14,8 +14,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.URI;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse.BodyHandlers;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.beans.factory.annotation.Value;
+
 @Service
 public class ExcelService {
+
 
     private static final Path BASE_DIR = Paths.get(System.getProperty("user.dir"));
     private static final String EXCEL_FILE_NAME = "reports.xlsx";
@@ -23,6 +36,18 @@ public class ExcelService {
 
     private final Path excelFilePath = BASE_DIR.resolve(EXCEL_FILE_NAME);
     private final Path imageFolderPath = BASE_DIR.resolve(IMAGE_FOLDER_NAME);
+
+    //ngu.nguyen 251211
+    private final ObjectMapper mapper = new ObjectMapper();
+    //private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .version(java.net.http.HttpClient.Version.HTTP_1_1)  // Force HTTP/1.1 to avoid HTTP/2 upgrade bug
+            .build();
+    @Value("${lm.url:http://192.168.122.16:1234}") // m?c d?nh IP b?n cung c?p
+    public String lmUrl;
+    @Value("${lm.apiKey:}") // n?u LM Studio c?n api key thì set vào properties, n?u không d? tr?ng
+    public String lmApiKey;
+    //ngu.nguyen 251211 end
 
     public synchronized void appendToExcel(ReportRequest req, MultipartFile[] images) throws IOException {
 
@@ -43,6 +68,22 @@ public class ExcelService {
                 sheet = workbook.getSheetAt(0);
             }
         }
+
+        // ngu.nguyen 251211
+        try {
+            String comment = req.getComment();
+            if (comment != null && !comment.isBlank()) {
+                String translated = translateLLM(comment);
+                if (translated != null && !translated.isBlank()) {
+                    req.setComment(comment + "\n" + translated);
+                }
+            }
+        } catch (Exception ex) {
+            // log nhung không d?ng luu excel
+            ex.printStackTrace();
+        }
+        // ngu.nguyen 251211 end
+
 
         int rowNum = sheet.getLastRowNum() + 1;
         Row row = sheet.createRow(rowNum);
@@ -182,5 +223,73 @@ public class ExcelService {
         f = f.toLowerCase();
         if (f.endsWith(".png")) return Workbook.PICTURE_TYPE_PNG;
         return Workbook.PICTURE_TYPE_JPEG;
+    }
+
+    public String translateLLM(String orgText) throws IOException, InterruptedException {
+        if (orgText == null || orgText.isBlank()) return orgText;
+
+        // System prompt
+        String systemPrompt =
+                "You are a language detection and translation expert. "
+                        + "Detect the primary language of the input text: "
+                        + "If it's Vietnamese, translate it to natural Japanese. "
+                        + "If it's Japanese, translate it to natural Vietnamese. "
+                        + "If it's neither or unclear, return the original text unchanged. "
+                        + "Return ONLY the translated text (or original if no translation). "
+                        + "Use newline (\\n) where appropriate in the output. "
+                        + "Do not include explanations, labels, or the original text.";
+
+        // JSON payload
+        ObjectNode payload = mapper.createObjectNode();
+        payload.put("model", "openai/gpt-oss-20b");
+        payload.put("temperature", 0.2);
+        payload.put("max_tokens", 2000);
+        System.out.println("Payload: " + mapper.writeValueAsString(payload)); // Log the exact JSON
+
+        ArrayNode messages = payload.putArray("messages");
+
+        ObjectNode sysMsg = mapper.createObjectNode();
+        sysMsg.put("role", "system");
+        sysMsg.put("content", systemPrompt);
+        messages.add(sysMsg);
+
+        ObjectNode userMsg = mapper.createObjectNode();
+        userMsg.put("role", "user");
+        userMsg.put("content", orgText);
+        messages.add(userMsg);
+
+        // Endpoint chu?n LM Studio
+        String endpoint = lmUrl.endsWith("/")
+                ? lmUrl + "v1/chat/completions"
+                : lmUrl + "/v1/chat/completions";
+        System.out.println("Calling endpoint: " + endpoint);
+
+        HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload)));
+
+        // N?u server có dùng API Key thì g?n vào (da s? LM Studio không c?n)
+        if (lmApiKey != null && !lmApiKey.isBlank()) {
+            builder.header("Authorization", "Bearer " + lmApiKey);
+        }
+        System.out.println("Before send");
+
+        HttpResponse<String> response =
+                httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() == 200) {
+            JsonNode root = mapper.readTree(response.body());
+            JsonNode content = root.path("choices").path(0).path("message").path("content");
+
+            if (!content.isMissingNode()) {
+                return content.asText().trim();
+            }
+        } else {
+            throw new IOException("LM Studio error " + response.statusCode() + ": " + response.body());
+        }
+        System.out.println("After send - Status: " + response.statusCode());
+
+        return orgText; // fallback
     }
 }
