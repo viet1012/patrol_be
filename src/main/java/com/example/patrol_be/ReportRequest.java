@@ -21,6 +21,7 @@ public class ReportRequest {
     private String riskTotal;
 
     private String comment;
+    private String countermeasure;
 
     private String check;
 

@@ -83,6 +83,18 @@ public class ExcelService {
             // log nhung không d?ng luu excel
             ex.printStackTrace();
         }
+        try {
+            String counter = req.getCountermeasure();
+            if (counter != null && !counter.isBlank()) {
+                String translatedCounter = translateLLM(counter);
+                if (translatedCounter != null && !translatedCounter.isBlank()) {
+                    req.setCountermeasure(counter + "\n" + translatedCounter);
+                }
+            }
+        } catch (Exception ex) {
+            // log nhung không d?ng luu excel
+            ex.printStackTrace();
+        }
         // ngu.nguyen 251211 end
 
 
@@ -125,8 +137,8 @@ public class ExcelService {
         String[] cols = {
                 "Time",
                 "Plant", "Group", "Division", "Area", "Machine",
-                "Risk FREQ", "Risk PROB", "Risk SEV", "Risk TOTAL",
-                "Comment", "Check",
+                "Risk FREQ", "Risk PROB", "Risk SEV", "Risk Level",
+                "Content", "Countermeasure", "Check",
                 "Image 1", "Image 2", "Image 3", "Image 4", "Image 5"
         };
 
@@ -173,6 +185,9 @@ public class ExcelService {
         col++;
 
         row.createCell(col).setCellValue(s(req.getComment()));
+        col++;
+
+        row.createCell(col).setCellValue(s(req.getCountermeasure()));
         col++;
 
         row.createCell(col).setCellValue(s(req.getCheck()));
@@ -231,7 +246,8 @@ public class ExcelService {
 
         // System prompt
         String systemPrompt =
-                "You are a language detection and translation expert. "
+                "You are a professional translator specializing in factory safety patrols and 5S management in mechanical manufacturing plants. "
+                        + "The input text is a comment from a safety inspection or 5S audit report. "
                         + "Detect the primary language of the input text: "
                         + "If it's Vietnamese, translate it to natural Japanese. "
                         + "If it's Japanese, translate it to natural Vietnamese. "
