@@ -30,8 +30,8 @@ import org.springframework.beans.factory.annotation.Value;
 public class ExcelService {
 
 
-//    private static final Path BASE_DIR = Paths.get(System.getProperty("user.dir"));
-    private static final Path BASE_DIR = Path.of("C:/Users/KVH_IT_SM_Ngu/OneDrive - MISUMI Group Inc/patrol_excel");
+    private static final Path BASE_DIR = Paths.get(System.getProperty("user.dir"));
+//    private static final Path BASE_DIR = Path.of("C:/Users/KVH_IT_SM_Ngu/OneDrive - MISUMI Group Inc/patrol_excel");
     private static final String EXCEL_FILE_NAME = "reports.xlsx";
     private static final String IMAGE_FOLDER_NAME = "uploaded_images";
 
@@ -40,7 +40,6 @@ public class ExcelService {
 
     //ngu.nguyen 251211
     private final ObjectMapper mapper = new ObjectMapper();
-    //private final HttpClient httpClient = HttpClient.newHttpClient();
     private final HttpClient httpClient = HttpClient.newBuilder()
             .version(java.net.http.HttpClient.Version.HTTP_1_1)  // Force HTTP/1.1 to avoid HTTP/2 upgrade bug
             .build();
@@ -49,6 +48,14 @@ public class ExcelService {
     @Value("${lm.apiKey:}") // n?u LM Studio c?n api key thì set vào properties, n?u không d? tr?ng
     public String lmApiKey;
     //ngu.nguyen 251211 end
+
+//    private static final Path BASE_DIR = Paths.get("C:\\Users\\diep.nguyen\\OneDrive - ?????????????");
+//    private static final String EXCEL_FILE_NAME = "reports.xlsx";
+//    private static final String IMAGE_FOLDER_NAME = "uploaded_images";
+//
+//    private final Path excelFilePath = BASE_DIR.resolve(EXCEL_FILE_NAME);
+//    private final Path imageFolderPath = BASE_DIR.resolve(IMAGE_FOLDER_NAME);
+
 
     public synchronized void appendToExcel(ReportRequest req, MultipartFile[] images) throws IOException {
 
@@ -138,7 +145,7 @@ public class ExcelService {
                 "Time",
                 "Plant", "Group", "Division", "Area", "Machine",
                 "Risk FREQ", "Risk PROB", "Risk SEV", "Risk Level",
-                "Content", "Countermeasure", "Check",
+                "Content", "Countermeasure", "Check Similar",
                 "Image 1", "Image 2", "Image 3", "Image 4", "Image 5"
         };
 
@@ -202,7 +209,7 @@ public class ExcelService {
         Drawing<?> drawing = sheet.createDrawingPatriarch();
 
         for (int i = 0; i < images.size(); i++) {
-            int col = 12 + i;
+            int col = 13 + i;
             Path imgPath = imageFolderPath.resolve(images.get(i));
 
             try (InputStream is = Files.newInputStream(imgPath)) {
