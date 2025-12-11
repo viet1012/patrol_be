@@ -30,7 +30,8 @@ import org.springframework.beans.factory.annotation.Value;
 public class ExcelService {
 
 
-    private static final Path BASE_DIR = Paths.get(System.getProperty("user.dir"));
+//    private static final Path BASE_DIR = Paths.get(System.getProperty("user.dir"));
+    private static final Path BASE_DIR = Path.of("C:/Users/KVH_IT_SM_Ngu/OneDrive - MISUMI Group Inc/patrol_excel");
     private static final String EXCEL_FILE_NAME = "reports.xlsx";
     private static final String IMAGE_FOLDER_NAME = "uploaded_images";
 
