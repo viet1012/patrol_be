@@ -84,6 +84,7 @@ public class ExcelService {
                 String translated = translateLLM(comment);
                 if (translated != null && !translated.isBlank()) {
                     req.setComment(comment + "\n" + translated);
+                    System.out.println("comment: " + comment + "--" + translated);
                 }
             }
         } catch (Exception ex) {
@@ -96,6 +97,7 @@ public class ExcelService {
                 String translatedCounter = translateLLM(counter);
                 if (translatedCounter != null && !translatedCounter.isBlank()) {
                     req.setCountermeasure(counter + "\n" + translatedCounter);
+                    System.out.println("countermeasure: " + counter + "--" + translatedCounter);
                 }
             }
         } catch (Exception ex) {
@@ -160,23 +162,23 @@ public class ExcelService {
         row.createCell(col++).setCellValue(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
         row.createCell(col).setCellValue(s(req.getPlant()));
-        System.out.println("Plant: " + s(req.getPlant()));
+        //System.out.println("Plant: " + s(req.getPlant()));
         col++;
 
         row.createCell(col).setCellValue(s(req.getGroup()));
-        System.out.println("Group: " + s(req.getGroup()));
+        //System.out.println("Group: " + s(req.getGroup()));
         col++;
 
         row.createCell(col).setCellValue(s(req.getDivision()));
-        System.out.println("Division: " + s(req.getDivision()));
+        //System.out.println("Division: " + s(req.getDivision()));
         col++;
 
         row.createCell(col).setCellValue(s(req.getArea()));
-        System.out.println("Area: " + s(req.getArea()));
+        //System.out.println("Area: " + s(req.getArea()));
         col++;
 
         row.createCell(col).setCellValue(s(req.getMachine()));
-        System.out.println("Machine: " + s(req.getMachine()));
+        //System.out.println("Machine: " + s(req.getMachine()));
         col++;
 
         row.createCell(col).setCellValue(s(req.getRiskFreq()));
@@ -252,16 +254,48 @@ public class ExcelService {
         if (orgText == null || orgText.isBlank()) return orgText;
 
         // System prompt
+//        String systemPrompt =
+//                "You are a professional translator specializing in factory safety patrols and 5S management in mechanical manufacturing plants. "
+//                        + "The input text is a comment from a safety inspection or 5S audit report. "
+//                        + "Detect the primary language of the input text: "
+//                        + "If it's Vietnamese, translate it to natural Japanese. "
+//                        + "If it's Japanese, translate it to natural Vietnamese. "
+//                        + "If it's neither or unclear, return the original text unchanged. "
+//                        + "Return ONLY the translated text (or original if no translation). "
+//                        + "Use newline (\\n) where appropriate in the output. "
+//                        + "Do not include explanations, labels, or the original text.";
+
+//        String systemPrompt =
+//                "You are a professional translator specializing in factory safety patrols and 5S management. "
+//                        + "The input text may be Vietnamese (with or without diacritics) or Japanese. "
+//                        + "First, detect the primary language: "
+//                        + "- If the text is Vietnamese WITHOUT diacritics, restore proper Vietnamese diacritics first. "
+//                        + "- If the text is Vietnamese WITH diacritics, use it as is. "
+//                        + "- If the text is Japanese, keep it. "
+//                        + "After restoring the correct Vietnamese form (if needed), translate: "
+//                        + "- If Vietnamese → translate to natural Japanese. "
+//                        + "- If Japanese → translate to natural Vietnamese. "
+//                        + "If the language is neither or unclear, return the original text unchanged. "
+//                        + "Return ONLY the translated text (or original if no translation). "
+//                        + "Do not include explanations or labels.";
         String systemPrompt =
-                "You are a professional translator specializing in factory safety patrols and 5S management in mechanical manufacturing plants. "
-                        + "The input text is a comment from a safety inspection or 5S audit report. "
-                        + "Detect the primary language of the input text: "
-                        + "If it's Vietnamese, translate it to natural Japanese. "
-                        + "If it's Japanese, translate it to natural Vietnamese. "
-                        + "If it's neither or unclear, return the original text unchanged. "
-                        + "Return ONLY the translated text (or original if no translation). "
-                        + "Use newline (\\n) where appropriate in the output. "
-                        + "Do not include explanations, labels, or the original text.";
+                "You are a professional translator specializing in factory safety patrols, 5S audits, and mechanical manufacturing environments.\n" +
+                        "The input text is a comment from a safety/5S inspection report and can be in one of these languages:\n" +
+                        "• Vietnamese (with or without diacritics)\n" +
+                        "• Japanese\n" +
+                        "• English\n" +
+                        "• Or a mix of the above\n\n" +
+
+                        "Follow these rules exactly:\n" +
+                        "1. First, detect the primary language of the input.\n" +
+                        "2. If the text is Vietnamese WITHOUT proper diacritics (e.g. 'kiem tra may moc'), restore it to correct Vietnamese with full diacritics first.\n" +
+                        "3. Translation rules:\n" +
+                        "   • If the primary language is Japanese → translate to natural, accurate Vietnamese (with correct diacritics).\n" +
+                        "   • If the primary language is ANYTHING ELSE (Vietnamese with/without diacritics, English, mixed, etc.) → translate to natural, professional Japanese used in Japanese manufacturing factories.\n" +
+                        "4. Preserve all technical terms related to safety, 5S (整理・整頓・清掃・清潔・躾), machinery, risk levels, production areas, tools, etc.\n" +
+                        "5. Return ONLY the final translated text. Do not include explanations, labels, quotes, original text, or language names.\n" +
+                        "6. Use newlines (\\n) to maintain the original formatting when needed.";
+
 
         // JSON payload
         ObjectNode payload = mapper.createObjectNode();
@@ -297,7 +331,7 @@ public class ExcelService {
         if (lmApiKey != null && !lmApiKey.isBlank()) {
             builder.header("Authorization", "Bearer " + lmApiKey);
         }
-        System.out.println("Before send");
+        //System.out.println("Before send");
 
         HttpResponse<String> response =
                 httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
