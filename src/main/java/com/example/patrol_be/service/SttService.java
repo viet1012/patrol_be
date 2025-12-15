@@ -50,7 +50,7 @@ public class SttService {
     public int getCurrent(String fac, String grp) {
         LocalDate today = LocalDate.now();
 
-
+        fac = fac.replace(" ", "").trim();
         return repo
                 .findByWorkDateAndFacAndGrp(today, fac, grp)
                 .map(PatrolGroupStt::getCurrentStt)
