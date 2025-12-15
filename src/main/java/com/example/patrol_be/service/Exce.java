@@ -57,7 +57,7 @@ public class Exce {
 
     private Path getExcelFilePathByPlant(String plant) {
         String safePlant = plant == null ? "default" : plant.replaceAll("\\W+", "_");
-        String fileName = "reports_" + safePlant + ".xlsx";
+        String fileName = "Safety_Patrol_" + safePlant + ".xlsx";
         return BASE_DIR.resolve(fileName);
     }
 
