@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 public class AutoCmpService {
     private final AutoCmpRepo repo;
     public List<AutoCmp> search(String keyword) {
-        return repo.findTop10ByInputTextContainingOrderBySortOrderAsc(keyword);
+        return repo.findTop5ByNoteAndInputTextContainingOrderBySortOrderAsc("Content",keyword);
     }
 
     public List<AutoCmp> getAll() {
