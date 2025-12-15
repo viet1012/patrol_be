@@ -94,7 +94,8 @@ public class Exce {
         // 4) Lưu vào database
         PatrolReport rpt = new PatrolReport();
         rpt.setStt(stt);
-        rpt.setGrp(req.getGroup());
+        String grp = req.getGroup().replace(" ", "").trim();
+        rpt.setGrp(grp);
         rpt.setPlant(req.getPlant());
         rpt.setDivision(req.getDivision());
         rpt.setArea(req.getArea());
