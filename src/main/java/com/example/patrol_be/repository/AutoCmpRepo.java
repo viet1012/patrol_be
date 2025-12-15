@@ -1,0 +1,14 @@
+package com.example.patrol_be.repository;
+
+import com.example.patrol_be.model.PatrolGroupStt;
+import com.example.patrol_be.model.AutoCmp;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+
+public interface AutoCmpRepo
+        extends JpaRepository<AutoCmp, Integer> {
+    List<AutoCmp> findTop10ByInputTextContainingOrderBySortOrderAsc(String inputText);
+
+    List<AutoCmp> findAllByOrderBySortOrderAsc();
+
+}
