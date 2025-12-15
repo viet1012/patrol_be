@@ -1,4 +1,4 @@
-package com.example.patrol_be;
+package com.example.patrol_be.controller;
 
 import com.example.patrol_be.model.AutoCmp;
 import com.example.patrol_be.service.AutoCmpService;
@@ -18,6 +18,11 @@ public class AutoCmpController {
     @GetMapping("/search")
     public List<AutoCmp> search(@RequestParam String q) {
         return service.search(q);
+    }
+
+    @GetMapping("/searchCounter")
+    public List<AutoCmp> searchCounter(@RequestParam String q) {
+        return service.searchCounter(q);
     }
 
     @GetMapping("/all")
