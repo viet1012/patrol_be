@@ -54,6 +54,13 @@ public class Exce {
     private String lmApiKey;
 
 
+
+    private Path getExcelFilePathByPlant(String plant) {
+        String safePlant = plant == null ? "default" : plant.replaceAll("\\W+", "_");
+        String fileName = "reports_" + safePlant + ".xlsx";
+        return BASE_DIR.resolve(fileName);
+    }
+
     // ===========================
     // MAIN FUNCTION
     // ===========================
@@ -114,6 +121,9 @@ public class Exce {
         reportRepo.save(rpt);
 
         // 5) Ghi Excel
+        // Xử lý file Excel theo plant
+        Path excelFilePath = getExcelFilePathByPlant(req.getPlant());
+        
         Workbook workbook;
         Sheet sheet;
 
@@ -135,7 +145,7 @@ public class Exce {
         writeTextCells(row, req);
         insertImages(workbook, sheet, rowNum, savedImageNames);
 
-        saveWorkbook(workbook);
+        saveWorkbook(workbook,excelFilePath);
         workbook.close();
     }
 
@@ -240,11 +250,12 @@ public class Exce {
     // ===========================
     // SAVE EXCEL
     // ===========================
-    private void saveWorkbook(Workbook workbook) throws IOException {
-        try (OutputStream os = Files.newOutputStream(excelFilePath, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+    private void saveWorkbook(Workbook workbook, Path path) throws IOException {
+        try (OutputStream os = Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
             workbook.write(os);
         }
     }
+
 
     private String s(String v) {
         return v == null ? "" : v;
