@@ -1,4 +1,5 @@
 package com.example.patrol_be;
+import com.example.patrol_be.service.Exce;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +13,8 @@ import tools.jackson.databind.ObjectMapper;
 public class ReportController {
 
     @Autowired
-    private ExcelService excelService;
+//    private ExcelService excelService;
+    private Exce excelService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> saveReport(

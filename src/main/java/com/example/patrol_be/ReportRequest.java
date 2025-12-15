@@ -7,6 +7,7 @@ import java.util.List;
 
 @Data
 public class ReportRequest {
+    private int stt;
     private String group;
 
     private String plant;

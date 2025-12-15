@@ -18,8 +18,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.URI;
-import java.net.http.HttpRequest.BodyPublishers;
-import java.net.http.HttpResponse.BodyHandlers;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -299,7 +298,7 @@ public class ExcelService {
 
         // JSON payload
         ObjectNode payload = mapper.createObjectNode();
-        payload.put("model", "openai/gpt-oss-20b");
+        payload.put("com/example/patrol_be/model", "openai/gpt-oss-20b");
         payload.put("temperature", 0.2);
         payload.put("max_tokens", 2000);
         System.out.println("Payload: " + mapper.writeValueAsString(payload)); // Log the exact JSON

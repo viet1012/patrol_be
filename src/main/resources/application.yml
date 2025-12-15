@@ -7,6 +7,21 @@ spring:
       max-file-size: 20MB
       max-request-size: 100MB
       file-size-threshold: 2MB
+  jpa:
+    hibernate:
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+  datasource:
+    url: jdbc:sqlserver://192.168.122.2:1433;databaseName=F2Database;encrypt=false;trustServerCertificate=true
+    username: kproduct
+    password: Tanphat@02032013
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    hikari:
+      maximum-pool-size: 40
+      minimum-idle: 5
+      idle-timeout: 30000  # 30s không dùng thì trả connection về pool
+      max-lifetime: 1800000  # 30 phút reset connection
+      connection-timeout: 5000  # 5s timeout nếu không lấy được connection
 
 server:
   address: 0.0.0.0
