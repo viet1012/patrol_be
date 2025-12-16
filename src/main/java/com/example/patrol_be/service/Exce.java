@@ -238,9 +238,11 @@ public class Exce {
                 anchor.setRow1(rowNum);
                 anchor.setCol2(col + 1);
                 anchor.setRow2(rowNum + 1);
+                anchor.setAnchorType(ClientAnchor.AnchorType.MOVE_AND_RESIZE);
 
-                Picture pict = drawing.createPicture(anchor, pictIdx);
-                pict.resize();
+                Picture picture = drawing.createPicture(anchor, pictIdx);
+                picture.resize(1.0);
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
