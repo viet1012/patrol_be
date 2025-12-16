@@ -18,16 +18,19 @@ public class SttService {
 
     @Transactional
     public int next(String fac, String grp) {
+        LocalDate today = LocalDate.now();
 
-        LocalDate today = LocalDate.now(); // 👉 ngày hiện tại
+        // Lo?i b? d?u cách trong fac và grp
+        final String facClean = fac.replace(" ", "").trim();
+        final String grpClean = grp.replace(" ", "").trim();
 
         PatrolGroupStt stt = repo
-                .findByWorkDateAndFacAndGrp(today, fac, grp)
+                .findByWorkDateAndFacAndGrp(today, facClean, grpClean) // ✅ FIX
                 .orElseGet(() -> {
                     PatrolGroupStt s = new PatrolGroupStt();
                     s.setWorkDate(today);
-                    s.setFac(fac);
-                    s.setGrp(grp);
+                    s.setFac(facClean);
+                    s.setGrp(grpClean);
                     s.setCurrentStt(0);
                     return s;
                 });
@@ -37,9 +40,8 @@ public class SttService {
 
         repo.save(stt);
 
-        // 🔥 broadcast realtime theo Fac + Group
         messaging.convertAndSend(
-                "/topic/stt/" + fac + "/" + grp,
+                "/topic/stt/" + facClean + "/" + grpClean,
                 newStt
         );
 
@@ -49,10 +51,11 @@ public class SttService {
     @Transactional
     public int getCurrent(String fac, String grp) {
         LocalDate today = LocalDate.now();
+        final String facClean = fac.replace(" ", "").trim();
+        final String grpClean = grp.replace(" ", "").trim();
 
-        fac = fac.replace(" ", "").trim();
         return repo
-                .findByWorkDateAndFacAndGrp(today, fac, grp)
+                .findByWorkDateAndFacAndGrp(today, facClean, grpClean)
                 .map(PatrolGroupStt::getCurrentStt)
                 .orElse(0);
     }
