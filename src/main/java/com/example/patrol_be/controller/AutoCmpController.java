@@ -16,13 +16,13 @@ public class AutoCmpController {
     private final AutoCmpService service;
 
     @GetMapping("/search")
-    public List<AutoCmp> search(@RequestParam String q) {
-        return service.search(q);
+    public List<AutoCmp> search(@RequestParam String l,@RequestParam String q) {
+        return service.search(l,q);
     }
 
     @GetMapping("/searchCounter")
-    public List<AutoCmp> searchCounter(@RequestParam String q) {
-        return service.searchCounter(q);
+    public List<AutoCmp> searchCounter(@RequestParam String l,@RequestParam String q) {
+        return service.searchCounter(l,q);
     }
 
     @GetMapping("/all")

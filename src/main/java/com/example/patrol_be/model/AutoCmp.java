@@ -11,6 +11,9 @@ public class AutoCmp {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer No;
 
+    @Column(name = "Lang")
+    private String lang;
+
     @Column(name = "InputText")
     private String inputText;
 

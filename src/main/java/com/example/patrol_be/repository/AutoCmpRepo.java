@@ -7,7 +7,8 @@ import java.util.List;
 
 public interface AutoCmpRepo
         extends JpaRepository<AutoCmp, Integer> {
-    List<AutoCmp> findTop5ByNoteAndInputTextContainingOrderBySortOrderAsc(
+    List<AutoCmp> findTop5ByLangAndNoteAndInputTextContainingOrderBySortOrderAsc(
+            String lang,
             String note,
             String inputText);
 
