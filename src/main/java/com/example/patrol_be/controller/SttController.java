@@ -15,7 +15,7 @@ public class SttController {
             @RequestParam String fac,
             @RequestParam String grp
     ) {
-        return sttService.getCurrent(fac, grp);
+        return sttService.getCurrentByFac(fac);
     }
 
 

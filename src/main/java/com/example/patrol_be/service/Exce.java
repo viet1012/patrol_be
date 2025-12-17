@@ -69,9 +69,8 @@ public class Exce {
         if (!Files.exists(imageFolderPath)) Files.createDirectories(imageFolderPath);
 
         // 1) Lấy STT theo group
-        int stt = sttService.next(
-                req.getPlant(),   // Fac / Plant
-                req.getGroup()
+        int stt = sttService.nextByFac(
+                req.getPlant()
         );
         req.setStt(stt);
 
