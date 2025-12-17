@@ -1,20 +1,19 @@
-package com.example.patrol_be;
+package com.example.patrol_be.dto;
+import lombok.*;
 
-
-
-import lombok.Data;
 import java.util.List;
 
 @Data
-public class ReportRequest {
-    private int stt;
-    private String group;
+@AllArgsConstructor
+@NoArgsConstructor
+public class PatrolReportDTO {
 
+    private Integer stt;
+    private String grp;
     private String plant;
     private String division;
     private String area;
     private String machine;
-
 
     private String riskFreq;
     private String riskProb;
@@ -23,9 +22,7 @@ public class ReportRequest {
 
     private String comment;
     private String countermeasure;
+    private String checkInfo;
 
-    private String check;
-
-    // Danh sách tên file ảnh đã lưu (sẽ được set từ service)
-    private List<String> imageFileNames;
+    private List<String> imageNames;
 }

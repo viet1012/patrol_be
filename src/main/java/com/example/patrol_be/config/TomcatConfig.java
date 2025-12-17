@@ -1,4 +1,4 @@
-package com.example.patrol_be;
+package com.example.patrol_be.config;
 import jakarta.servlet.MultipartConfigElement;
 import org.springframework.boot.servlet.MultipartConfigFactory;
 import org.springframework.context.annotation.Bean;

@@ -3,8 +3,7 @@ package com.example.patrol_be.service;
 import com.example.patrol_be.model.PatrolReport;
 import com.example.patrol_be.repository.PatrolReportRepo;
 
-import com.example.patrol_be.ReportRequest;
-import com.example.patrol_be.repository.PatrolReportRepo;
+import com.example.patrol_be.dto.ReportRequest;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.poi.ss.usermodel.*;

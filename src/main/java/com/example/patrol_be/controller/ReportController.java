@@ -1,5 +1,9 @@
-package com.example.patrol_be;
+package com.example.patrol_be.controller;
+import com.example.patrol_be.dto.PatrolReportDTO;
+import com.example.patrol_be.dto.ReportRequest;
 import com.example.patrol_be.service.Exce;
+import com.example.patrol_be.service.PatrolReportService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -7,14 +11,28 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
+
 @RestController
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 @RequestMapping("/api/report")
+@RequiredArgsConstructor
 public class ReportController {
 
     @Autowired
 //    private ExcelService excelService;
     private Exce excelService;
+    private final PatrolReportService service;
+
+    @GetMapping("/search")
+    public List<PatrolReportDTO> search(
+            @RequestParam(required = false) String division,
+            @RequestParam(required = false) String area,
+            @RequestParam(required = false) String machine
+    ) {
+        return service.search(division, area, machine);
+    }
+
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> saveReport(
