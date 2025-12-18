@@ -8,14 +8,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/hse")
+@RequestMapping("/api/patrol_teams")
 @RequiredArgsConstructor
 @CrossOrigin
 public class HsePatrolTeamController {
 
     private final HsePatrolTeamService service;
 
-    @GetMapping("/patrol-teams")
+    @GetMapping
     public List<HsePatrolTeam> getAll() {
         return service.getAll();
     }

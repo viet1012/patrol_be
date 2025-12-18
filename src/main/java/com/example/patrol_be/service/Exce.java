@@ -120,31 +120,31 @@ public class Exce {
 
         // 5) Ghi Excel
         // Xử lý file Excel theo plant
-        Path excelFilePath = getExcelFilePathByPlant(req.getPlant());
-        
-        Workbook workbook;
-        Sheet sheet;
-
-        if (Files.notExists(excelFilePath)) {
-            workbook = new XSSFWorkbook();
-            sheet = workbook.createSheet("Reports");
-            createHeader(sheet);
-        } else {
-            try (InputStream is = Files.newInputStream(excelFilePath)) {
-                workbook = new XSSFWorkbook(is);
-                sheet = workbook.getSheetAt(0);
-            }
-        }
-
-        int rowNum = sheet.getLastRowNum() + 1;
-        Row row = sheet.createRow(rowNum);
-        row.setHeightInPoints(140);
-
-        writeTextCells(row, req);
-        insertImages(workbook, sheet, rowNum, savedImageNames);
-
-        saveWorkbook(workbook,excelFilePath);
-        workbook.close();
+//        Path excelFilePath = getExcelFilePathByPlant(req.getPlant());
+//
+//        Workbook workbook;
+//        Sheet sheet;
+//
+//        if (Files.notExists(excelFilePath)) {
+//            workbook = new XSSFWorkbook();
+//            sheet = workbook.createSheet("Reports");
+//            createHeader(sheet);
+//        } else {
+//            try (InputStream is = Files.newInputStream(excelFilePath)) {
+//                workbook = new XSSFWorkbook(is);
+//                sheet = workbook.getSheetAt(0);
+//            }
+//        }
+//
+//        int rowNum = sheet.getLastRowNum() + 1;
+//        Row row = sheet.createRow(rowNum);
+//        row.setHeightInPoints(140);
+//
+//        writeTextCells(row, req);
+//        insertImages(workbook, sheet, rowNum, savedImageNames);
+//
+//        saveWorkbook(workbook,excelFilePath);
+//        workbook.close();
     }
 
     // ===========================

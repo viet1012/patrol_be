@@ -3,6 +3,8 @@ package com.example.patrol_be.controller;
 import com.example.patrol_be.dto.PatrolReportDTO;
 import com.example.patrol_be.service.PatrolReportService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -10,17 +12,19 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/patrol-report")
 @RequiredArgsConstructor
+@Slf4j
 public class PatrolReportController {
 
-    private final PatrolReportService service;
+    @Autowired
+    private  PatrolReportService service;
 
-    @GetMapping("/search")
+    @GetMapping("/filter")
     public List<PatrolReportDTO> search(
             @RequestParam(required = false) String division,
             @RequestParam(required = false) String area,
             @RequestParam(required = false) String machine
     ) {
-
+        log.info("➡️ Controller called");
         return service.search(division, area, machine);
     }
 }

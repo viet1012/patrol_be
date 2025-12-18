@@ -22,16 +22,7 @@ public class ReportController {
     @Autowired
 //    private ExcelService excelService;
     private Exce excelService;
-    private final PatrolReportService service;
 
-    @GetMapping("/search")
-    public List<PatrolReportDTO> search(
-            @RequestParam(required = false) String division,
-            @RequestParam(required = false) String area,
-            @RequestParam(required = false) String machine
-    ) {
-        return service.search(division, area, machine);
-    }
 
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
