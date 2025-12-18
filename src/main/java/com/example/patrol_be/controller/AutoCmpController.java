@@ -19,10 +19,18 @@ public class AutoCmpController {
     public List<AutoCmp> search(@RequestParam String l,@RequestParam String q) {
         return service.search(l,q);
     }
-
     @GetMapping("/searchCounter")
     public List<AutoCmp> searchCounter(@RequestParam String l,@RequestParam String q) {
         return service.searchCounter(l,q);
+    }
+
+    @GetMapping("/comment")
+    public List<AutoCmp> getAllComment(@RequestParam String l) {
+        return service.getAllComment(l);
+    }
+    @GetMapping("/counter")
+    public List<AutoCmp> getAllCounter(@RequestParam String l) {
+        return service.getAllCounter(l);
     }
 
     @GetMapping("/all")

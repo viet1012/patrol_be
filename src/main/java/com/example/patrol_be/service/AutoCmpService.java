@@ -16,6 +16,12 @@ public class AutoCmpService {
     public List<AutoCmp> searchCounter(String lang, String keyword) {
         return repo.findTop5ByLangAndNoteAndInputTextContainingOrderBySortOrderAsc(lang,"Countermeasure",keyword);
     }
+    public List<AutoCmp> getAllComment(String lang) {
+        return repo.findAllByLangAndNoteOrderBySortOrderAsc(lang,"Content");
+    }
+    public List<AutoCmp> getAllCounter(String lang) {
+        return repo.findAllByLangAndNoteOrderBySortOrderAsc(lang,"Countermeasure");
+    }
 
     public List<AutoCmp> getAll() {
         return repo.findAllByOrderBySortOrderAsc();

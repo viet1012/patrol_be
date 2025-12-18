@@ -12,6 +12,8 @@ public interface AutoCmpRepo
             String note,
             String inputText);
 
+    List<AutoCmp> findAllByLangAndNoteOrderBySortOrderAsc(String lang, String note);
+
     List<AutoCmp> findAllByOrderBySortOrderAsc();
 
 }
