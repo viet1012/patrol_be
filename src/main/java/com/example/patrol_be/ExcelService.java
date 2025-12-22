@@ -253,31 +253,6 @@ public class ExcelService {
     public String translateLLM(String orgText) throws IOException, InterruptedException {
         if (orgText == null || orgText.isBlank()) return orgText;
 
-        // System prompt
-//        String systemPrompt =
-//                "You are a professional translator specializing in factory safety patrols and 5S management in mechanical manufacturing plants. "
-//                        + "The input text is a comment from a safety inspection or 5S audit report. "
-//                        + "Detect the primary language of the input text: "
-//                        + "If it's Vietnamese, translate it to natural Japanese. "
-//                        + "If it's Japanese, translate it to natural Vietnamese. "
-//                        + "If it's neither or unclear, return the original text unchanged. "
-//                        + "Return ONLY the translated text (or original if no translation). "
-//                        + "Use newline (\\n) where appropriate in the output. "
-//                        + "Do not include explanations, labels, or the original text.";
-
-//        String systemPrompt =
-//                "You are a professional translator specializing in factory safety patrols and 5S management. "
-//                        + "The input text may be Vietnamese (with or without diacritics) or Japanese. "
-//                        + "First, detect the primary language: "
-//                        + "- If the text is Vietnamese WITHOUT diacritics, restore proper Vietnamese diacritics first. "
-//                        + "- If the text is Vietnamese WITH diacritics, use it as is. "
-//                        + "- If the text is Japanese, keep it. "
-//                        + "After restoring the correct Vietnamese form (if needed), translate: "
-//                        + "- If Vietnamese → translate to natural Japanese. "
-//                        + "- If Japanese → translate to natural Vietnamese. "
-//                        + "If the language is neither or unclear, return the original text unchanged. "
-//                        + "Return ONLY the translated text (or original if no translation). "
-//                        + "Do not include explanations or labels.";
         String systemPrompt =
                 "You are a professional translator specializing in factory safety patrols, 5S audits, and mechanical manufacturing environments.\n" +
                         "The input text is a comment from a safety/5S inspection report and can be in one of these languages:\n" +

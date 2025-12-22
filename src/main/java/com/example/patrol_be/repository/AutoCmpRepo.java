@@ -16,4 +16,6 @@ public interface AutoCmpRepo
 
     List<AutoCmp> findAllByOrderBySortOrderAsc();
 
+
+
 }
