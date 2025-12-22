@@ -1,30 +1,19 @@
 package com.example.patrol_be.service;
 
 import com.example.patrol_be.model.PatrolReport;
+import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
 import com.example.patrol_be.repository.PatrolReportRepo;
 
 import com.example.patrol_be.dto.ReportRequest;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.compress.utils.IOUtils;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.LocalDate;
 import java.util.*;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.*;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +22,7 @@ public class Exce {
     private final PatrolReportRepo reportRepo;
     private final SttService sttService;
     private final PatrolCommentService patrolCommentService;
+    private final HSEPatrolGroupMasterRepo hsePatrolGroupMasterRepo;
 
     private static final Path BASE_DIR = Paths.get(System.getProperty("user.dir"));
     private static final String EXCEL_FILE_NAME = "reports.xlsx";
@@ -80,12 +70,6 @@ public class Exce {
                 }
             }
 
-//            if (req.getCountermeasure() != null && !req.getCountermeasure().isBlank()) {
-//                String translated = translateLLM(req.getCountermeasure());
-//                if (translated != null) {
-//                    req.setCountermeasure(req.getCountermeasure() + "\n" + translated);
-//                }
-//            }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -109,38 +93,16 @@ public class Exce {
         rpt.setCountermeasure(req.getCountermeasure());
         rpt.setCheckInfo(req.getCheck());
         rpt.setImageNames(String.join(",", savedImageNames));
-        rpt.setPic(req.getPic());
-        rpt.setDueDate(req.getDueDate());
+        rpt.setPic(hsePatrolGroupMasterRepo.findPIC(rpt.getPlant(),rpt.getDivision(), rpt.getArea(), rpt.getMachine()));
+
+        if ("IV".equals(req.getRiskTotal()) || "V".equals(req.getRiskTotal())){
+            rpt.setDueDate((LocalDate.now().plusDays(14)));
+        }
+        else {
+            rpt.setDueDate((LocalDate.now().plusDays(28)));
+        }
 
         reportRepo.save(rpt);
-
-        // 5) Ghi Excel
-        // Xử lý file Excel theo plant
-//        Path excelFilePath = getExcelFilePathByPlant(req.getPlant());
-//
-//        Workbook workbook;
-//        Sheet sheet;
-//
-//        if (Files.notExists(excelFilePath)) {
-//            workbook = new XSSFWorkbook();
-//            sheet = workbook.createSheet("Reports");
-//            createHeader(sheet);
-//        } else {
-//            try (InputStream is = Files.newInputStream(excelFilePath)) {
-//                workbook = new XSSFWorkbook(is);
-//                sheet = workbook.getSheetAt(0);
-//            }
-//        }
-//
-//        int rowNum = sheet.getLastRowNum() + 1;
-//        Row row = sheet.createRow(rowNum);
-//        row.setHeightInPoints(140);
-//
-//        writeTextCells(row, req);
-//        insertImages(workbook, sheet, rowNum, savedImageNames);
-//
-//        saveWorkbook(workbook,excelFilePath);
-//        workbook.close();
     }
 
     // ===========================
@@ -167,90 +129,6 @@ public class Exce {
         return list;
     }
 
-    // ===========================
-    // HEADER
-    // ===========================
-    private void createHeader(Sheet sheet) {
-        Row header = sheet.createRow(0);
-
-        String[] cols = {
-                "Time", "STT", "Plant", "Group", "Division", "Area", "Machine",
-                "Risk FREQ", "Risk PROB", "Risk SEV", "Risk Level",
-                "Content", "Countermeasure", "Check Similar",
-                "Image 1", "Image 2", "Image 3", "Image 4", "Image 5"
-        };
-
-        for (int i = 0; i < cols.length; i++) {
-            sheet.setColumnWidth(i, 25 * 256);
-            header.createCell(i).setCellValue(cols[i]);
-        }
-    }
-
-    // ===========================
-    // WRITE CELLS
-    // ===========================
-    private void writeTextCells(Row row, ReportRequest req) {
-        int col = 0;
-
-        row.createCell(col++).setCellValue(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-        row.createCell(col++).setCellValue(req.getStt());
-        row.createCell(col++).setCellValue(s(req.getPlant()));
-        row.createCell(col++).setCellValue(s(req.getGroup()));
-        row.createCell(col++).setCellValue(s(req.getDivision()));
-        row.createCell(col++).setCellValue(s(req.getArea()));
-        row.createCell(col++).setCellValue(s(req.getMachine()));
-
-        row.createCell(col++).setCellValue(s(req.getRiskFreq()));
-        row.createCell(col++).setCellValue(s(req.getRiskProb()));
-        row.createCell(col++).setCellValue(s(req.getRiskSev()));
-        row.createCell(col++).setCellValue(s(req.getRiskTotal()));
-
-        row.createCell(col++).setCellValue(s(req.getComment()));
-        row.createCell(col++).setCellValue(s(req.getCountermeasure()));
-        row.createCell(col++).setCellValue(s(req.getCheck()));
-    }
-
-    // ===========================
-    // IMAGE INSERT
-    // ===========================
-    private void insertImages(Workbook workbook, Sheet sheet, int rowNum, List<String> images) {
-        if (images.isEmpty()) return;
-
-        CreationHelper helper = workbook.getCreationHelper();
-        Drawing<?> drawing = sheet.createDrawingPatriarch();
-
-        for (int i = 0; i < images.size(); i++) {
-            int col = 14 + i;
-            Path p = imageFolderPath.resolve(images.get(i));
-
-            try (InputStream is = Files.newInputStream(p)) {
-                byte[] bytes = IOUtils.toByteArray(is);
-                int pictIdx = workbook.addPicture(bytes, Workbook.PICTURE_TYPE_JPEG);
-
-                ClientAnchor anchor = helper.createClientAnchor();
-                anchor.setCol1(col);
-                anchor.setRow1(rowNum);
-                anchor.setCol2(col + 1);
-                anchor.setRow2(rowNum + 1);
-                anchor.setAnchorType(ClientAnchor.AnchorType.MOVE_AND_RESIZE);
-
-                Picture picture = drawing.createPicture(anchor, pictIdx);
-                picture.resize(1.0);
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    // ===========================
-    // SAVE EXCEL
-    // ===========================
-    private void saveWorkbook(Workbook workbook, Path path) throws IOException {
-        try (OutputStream os = Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
-            workbook.write(os);
-        }
-    }
 
 
     private String s(String v) {

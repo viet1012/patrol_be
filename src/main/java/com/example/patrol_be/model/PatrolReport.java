@@ -3,6 +3,7 @@ package com.example.patrol_be.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -27,7 +28,7 @@ public class PatrolReport {
     private String riskSev;
     private String riskTotal;
     private String pic;
-    private Date dueDate;
+    private LocalDate dueDate;
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String comment;
 
