@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/patrol-report")
+@RequestMapping("/api/patrol_report")
 @RequiredArgsConstructor
 @Slf4j
 public class PatrolReportController {
@@ -24,7 +24,6 @@ public class PatrolReportController {
             @RequestParam(required = false) String area,
             @RequestParam(required = false) String machine
     ) {
-        log.info("➡️ Controller called");
         return service.search(division, area, machine);
     }
 }

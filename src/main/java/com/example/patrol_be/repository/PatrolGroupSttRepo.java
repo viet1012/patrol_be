@@ -12,45 +12,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-//public interface PatrolGroupSttRepo extends JpaRepository<PatrolGroupStt, Long> {
-//
-//        Optional<PatrolGroupStt> findByWorkDateAndFacAndGrp(
-//                LocalDate workDate,
-//                String fac,
-//                String grp
-//        );
-//
-//        Optional<PatrolGroupStt> findByFacAndGrp(
-//                String fac,
-//                String grp
-//        );
-//
-//        List<PatrolGroupStt> findByFac(String fac);
-//
-//        @Lock(LockModeType.PESSIMISTIC_WRITE)
-//        @Query("""
-//            SELECT MAX(p.currentStt)
-//            FROM PatrolGroupStt p
-//            WHERE p.fac = :fac
-//        """)
-//        Integer findMaxSttForUpdate(@Param("fac") String fac);
-//
-//        @Query("""
-//            SELECT p
-//            FROM PatrolGroupStt p
-//            WHERE p.fac = :fac
-//            ORDER BY p.id DESC
-//        """)
-//        List<PatrolGroupStt> findLatestByFac(@Param("fac") String fac);
-//
-//        @Query("""
-//            SELECT COALESCE(SUM(p.currentStt), 0)
-//            FROM PatrolGroupStt p
-//            WHERE p.fac = :fac
-//        """)
-//        int sumCurrentSttByFac(@Param("fac") String fac);
-//
-//}
 public interface PatrolGroupSttRepo extends JpaRepository<PatrolGroupStt, Long> {
 
         @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -58,14 +19,23 @@ public interface PatrolGroupSttRepo extends JpaRepository<PatrolGroupStt, Long> 
             SELECT p
             FROM PatrolGroupStt p
             WHERE p.fac = :fac
+              AND p.type = :type
         """)
-        Optional<PatrolGroupStt> findForUpdateByFac(@Param("fac") String fac);
+        Optional<PatrolGroupStt> findForUpdateByFacAndType(
+                @Param("fac") String fac,
+                @Param("type") String type
+        );
 
         @Query("""
             SELECT p.currentStt
             FROM PatrolGroupStt p
             WHERE p.fac = :fac
+              AND p.type = :type
         """)
-        Optional<Integer> getCurrentByFac(@Param("fac") String fac);
+        Optional<Integer> getCurrentByFacAndType(
+                @Param("fac") String fac,
+                @Param("type") String type
+        );
+
 
 }

@@ -68,8 +68,9 @@ public class Exce {
         if (!Files.exists(imageFolderPath)) Files.createDirectories(imageFolderPath);
 
         // 1) Lấy STT theo group
-        int stt = sttService.nextByFac(
-                req.getPlant()
+        int stt = sttService.nextByFacAndType(
+                req.getPlant(),
+                req.getType()
         );
         req.setStt(stt);
 
@@ -99,6 +100,8 @@ public class Exce {
         // 4) Lưu vào database
         PatrolReport rpt = new PatrolReport();
         rpt.setStt(stt);
+        rpt.setType(req.getType());
+
         String grp = req.getGroup().replace(" ", "").trim();
         rpt.setGrp(grp);
         rpt.setPlant(req.getPlant());

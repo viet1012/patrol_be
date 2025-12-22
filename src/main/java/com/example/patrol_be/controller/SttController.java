@@ -13,15 +13,10 @@ public class SttController {
     @GetMapping("/crt")
     public int getCurrent(
             @RequestParam String fac,
-            @RequestParam String grp
+            @RequestParam String type
     ) {
-        return sttService.getCurrentByFac(fac);
+        return sttService.getCurrentByFacAndType(fac,type);
     }
 
 
-//    /** ➕ TĂNG STT + TRẢ VỀ STT MỚI */
-//    @PostMapping("/{group}/next")
-//    public int nextStt(@PathVariable String group) {
-//        return sttService.next(group);
-//    }
 }

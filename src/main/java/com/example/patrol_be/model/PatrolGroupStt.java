@@ -21,8 +21,8 @@ public class PatrolGroupStt {
     @Column(nullable = false)
     private String fac;
 
-//    @Column(nullable = false)
-//    private String grp;
+    @Column(nullable = false)
+    private String type;
 
     @Column(nullable = false)
     private int currentStt;

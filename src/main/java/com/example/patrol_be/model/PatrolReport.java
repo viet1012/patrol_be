@@ -13,7 +13,7 @@ public class PatrolReport {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
+    private String type;
     private Integer stt;
     private String grp;
     private String plant;

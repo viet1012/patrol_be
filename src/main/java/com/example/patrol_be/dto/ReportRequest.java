@@ -9,6 +9,7 @@ import java.util.List;
 public class ReportRequest {
     private int stt;
     private String group;
+    private String type;
 
     private String plant;
     private String division;
