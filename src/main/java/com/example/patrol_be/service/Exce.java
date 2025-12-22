@@ -80,6 +80,16 @@ public class Exce {
         // 3) Dịch comment / countermeasure
         try {
             if (req.getComment() != null && !req.getComment().isBlank()) {
+                ///  ngu.nguyen 251219: Cài if nếu [Note]='Content' And [Lang]='VI'/'JP' có trong CSDL thì lấy từ CSDL
+                /// if (...)
+//                SELECT TOP 1 InputText
+//                FROM HSE_Patrol_Comment pa
+//                INNER JOIN
+//                (SELECT Sort_Order, IIF(Lang='JP','VI','JP') as Lang
+//                FROM HSE_Patrol_Comment
+//                WHERE [InputText] = N'カッターナイフの使用が安全でない') as tb
+//                ON pa.Sort_Order = tb.Sort_Order AND pa.Lang = tb.Lang
+
                 String translated = translateLLM(req.getComment());
                 if (translated != null) {
                     req.setComment(req.getComment() + "\n" + translated);
