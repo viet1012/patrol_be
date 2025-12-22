@@ -32,6 +32,7 @@ public class Exce {
 
     private final PatrolReportRepo reportRepo;
     private final SttService sttService;
+    private final PatrolCommentService patrolCommentService;
 
     private static final Path BASE_DIR = Paths.get(System.getProperty("user.dir"));
     private static final String EXCEL_FILE_NAME = "reports.xlsx";
@@ -39,19 +40,6 @@ public class Exce {
 
     private final Path excelFilePath = BASE_DIR.resolve(EXCEL_FILE_NAME);
     private final Path imageFolderPath = BASE_DIR.resolve(IMAGE_FOLDER_NAME);
-
-    // LLM
-    private final ObjectMapper mapper = new ObjectMapper();
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .build();
-
-    @Value("${lm.url:http://192.168.122.16:1234}")
-    private String lmUrl;
-
-    @Value("${lm.apiKey:}")
-    private String lmApiKey;
-
 
 
     private Path getExcelFilePathByPlant(String plant) {
@@ -80,28 +68,24 @@ public class Exce {
         // 3) Dịch comment / countermeasure
         try {
             if (req.getComment() != null && !req.getComment().isBlank()) {
-                ///  ngu.nguyen 251219: Cài if nếu [Note]='Content' And [Lang]='VI'/'JP' có trong CSDL thì lấy từ CSDL
-                /// if (...)
-//                SELECT TOP 1 InputText
-//                FROM HSE_Patrol_Comment pa
-//                INNER JOIN
-//                (SELECT Sort_Order, IIF(Lang='JP','VI','JP') as Lang
-//                FROM HSE_Patrol_Comment
-//                WHERE [InputText] = N'カッターナイフの使用が安全でない') as tb
-//                ON pa.Sort_Order = tb.Sort_Order AND pa.Lang = tb.Lang
-
-                String translated = translateLLM(req.getComment());
+                String translated = patrolCommentService.getTranslateDefault(req.getComment());
                 if (translated != null) {
                     req.setComment(req.getComment() + "\n" + translated);
                 }
             }
-
             if (req.getCountermeasure() != null && !req.getCountermeasure().isBlank()) {
-                String translated = translateLLM(req.getCountermeasure());
+                String translated = patrolCommentService.getTranslateDefault(req.getCountermeasure());
                 if (translated != null) {
                     req.setCountermeasure(req.getCountermeasure() + "\n" + translated);
                 }
             }
+
+//            if (req.getCountermeasure() != null && !req.getCountermeasure().isBlank()) {
+//                String translated = translateLLM(req.getCountermeasure());
+//                if (translated != null) {
+//                    req.setCountermeasure(req.getCountermeasure() + "\n" + translated);
+//                }
+//            }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -125,6 +109,8 @@ public class Exce {
         rpt.setCountermeasure(req.getCountermeasure());
         rpt.setCheckInfo(req.getCheck());
         rpt.setImageNames(String.join(",", savedImageNames));
+        rpt.setPic(req.getPic());
+        rpt.setDueDate(req.getDueDate());
 
         reportRepo.save(rpt);
 
@@ -271,55 +257,5 @@ public class Exce {
         return v == null ? "" : v;
     }
 
-    // ===========================
-    // LLM TRANSLATE
-    // ===========================
-    public String translateLLM(String text) throws IOException, InterruptedException {
-        if (text == null || text.isBlank()) return text;
 
-        String systemPrompt =
-                "Translate 5S/safety patrol comments between Vietnamese ↔ Japanese automatically.\n"
-                        + "Detect language first.\n"
-                        + "If Japanese → translate to Vietnamese.\n"
-                        + "Else → translate to natural Japanese.\n"
-                        + "Return ONLY the translation.";
-
-        ObjectNode payload = mapper.createObjectNode();
-        payload.put("model", "openai/gpt-oss-20b");
-        payload.put("temperature", 0.2);
-        payload.put("max_tokens", 2000);
-
-        ArrayNode messages = payload.putArray("messages");
-
-        ObjectNode sys = mapper.createObjectNode();
-        sys.put("role", "system");
-        sys.put("content", systemPrompt);
-        messages.add(sys);
-
-        ObjectNode usr = mapper.createObjectNode();
-        usr.put("role", "user");
-        usr.put("content", text);
-        messages.add(usr);
-
-        String endpoint = lmUrl + "/v1/chat/completions";
-
-        HttpRequest.Builder req = HttpRequest.newBuilder()
-                .uri(URI.create(endpoint))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(payload.toString()));
-
-        if (lmApiKey != null && !lmApiKey.isBlank()) {
-            req.header("Authorization", "Bearer " + lmApiKey);
-        }
-
-        HttpResponse<String> resp = httpClient.send(req.build(), HttpResponse.BodyHandlers.ofString());
-
-        if (resp.statusCode() == 200) {
-            JsonNode root = mapper.readTree(resp.body());
-            String result = root.path("choices").path(0).path("message").path("content").asText();
-            return result.trim();
-        }
-
-        return text;
-    }
 }

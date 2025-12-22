@@ -3,6 +3,8 @@ package com.example.patrol_be.dto;
 
 
 import lombok.Data;
+
+import java.util.Date;
 import java.util.List;
 
 @Data
@@ -20,6 +22,9 @@ public class ReportRequest {
     private String riskProb;
     private String riskSev;
     private String riskTotal;
+
+    private String pic;
+    private Date dueDate;
 
     private String comment;
     private String countermeasure;

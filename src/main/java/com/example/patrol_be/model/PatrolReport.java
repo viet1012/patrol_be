@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.*;
 
 @Entity
 @Table(name = "F2_Patrol_Report")
@@ -25,7 +26,8 @@ public class PatrolReport {
     private String riskProb;
     private String riskSev;
     private String riskTotal;
-
+    private String pic;
+    private Date dueDate;
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String comment;
 
