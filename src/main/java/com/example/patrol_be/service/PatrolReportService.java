@@ -5,6 +5,7 @@ import com.example.patrol_be.repository.PatrolReportRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -17,12 +18,14 @@ public class PatrolReportService {
     public List<PatrolReportDTO> search(
             String division,
             String area,
-            String machine
+            String machine,
+            String type
     ) {
         return repo.search(
                         normalize(division),
                         normalize(area),
-                        normalize(machine)
+                        normalize(machine),
+                        normalize(type)
                 ).stream()
                 .map(this::mapToDto)
                 .toList();
@@ -43,7 +46,8 @@ public class PatrolReportService {
                 (String) r[10],                 // comment
                 (String) r[11],                 // countermeasure
                 (String) r[12],                 // checkInfo
-                splitImages((String) r[13])     // imageNames
+                (LocalDateTime) r[13],          // checkInfo
+                splitImages((String) r[14])     // imageNames
         );
     }
 

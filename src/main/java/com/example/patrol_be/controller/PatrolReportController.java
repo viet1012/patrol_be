@@ -22,8 +22,10 @@ public class PatrolReportController {
     public List<PatrolReportDTO> search(
             @RequestParam(required = false) String division,
             @RequestParam(required = false) String area,
-            @RequestParam(required = false) String machine
+            @RequestParam(required = false) String machine,
+            @RequestParam(required = false) String type
+
     ) {
-        return service.search(division, area, machine);
+        return service.search(division, area, machine, type);
     }
 }

@@ -1,6 +1,7 @@
 package com.example.patrol_be.dto;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -23,6 +24,7 @@ public class PatrolReportDTO {
     private String comment;
     private String countermeasure;
     private String checkInfo;
+    private LocalDateTime dueDate;
 
     private List<String> imageNames;
 }

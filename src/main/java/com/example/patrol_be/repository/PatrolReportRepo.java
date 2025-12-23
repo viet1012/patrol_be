@@ -10,7 +10,7 @@ import java.util.List;
 public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 
     @Query(value = """
-    SELECT 
+    SELECT
         stt,
         grp,
         plant,
@@ -24,9 +24,11 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
         comment,
         countermeasure,
         checkInfo,
+        dueDate,
         imageNames
     FROM F2_Patrol_Report
-    WHERE (:division IS NULL OR LTRIM(RTRIM(division)) LIKE LTRIM(RTRIM(:division)))
+    WHERE (:type IS NULL OR LTRIM(RTRIM(type)) = LTRIM(RTRIM(:type)))
+      AND  (:division IS NULL OR LTRIM(RTRIM(division)) LIKE LTRIM(RTRIM(:division)))
       AND (:area IS NULL OR LTRIM(RTRIM(area)) LIKE LTRIM(RTRIM(:area)))
       AND (:machine IS NULL OR LTRIM(RTRIM(machine)) LIKE LTRIM(RTRIM(:machine)))
     ORDER BY stt DESC
@@ -34,7 +36,9 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
     List<Object[]> search(
             @Param("division") String division,
             @Param("area") String area,
-            @Param("machine") String machine
+            @Param("machine") String machine,
+            @Param("type") String type
+
     );
 
 }
