@@ -11,6 +11,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 
     @Query(value = """
     SELECT
+        id,
         stt,
         grp,
         plant,

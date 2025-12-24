@@ -8,7 +8,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class PatrolReportDTO {
-
+    private Integer id;
     private Integer stt;
     private String grp;
     private String plant;

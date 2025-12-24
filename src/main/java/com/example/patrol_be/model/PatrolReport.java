@@ -29,6 +29,7 @@ public class PatrolReport {
     private String riskTotal;
     private String pic;
     private LocalDate dueDate;
+
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String comment;
 
