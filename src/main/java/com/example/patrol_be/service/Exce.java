@@ -104,6 +104,7 @@ public class Exce {
         else {
             rpt.setDueDate((LocalDate.now().plusDays(28)));
         }
+        rpt.setAt_status("Wait");
 
         reportRepo.save(rpt);
     }

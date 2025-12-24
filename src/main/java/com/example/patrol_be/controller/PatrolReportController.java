@@ -1,6 +1,8 @@
 package com.example.patrol_be.controller;
 
+import com.example.patrol_be.dto.AtUpdateDTO;
 import com.example.patrol_be.dto.PatrolReportDTO;
+import com.example.patrol_be.dto.ReportRequest;
 import com.example.patrol_be.dto.UpdateReportImageDTO;
 import com.example.patrol_be.service.PatrolReportService;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.List;
@@ -45,6 +48,20 @@ public class PatrolReportController {
         return ResponseEntity.ok(
                 Map.of("newImage", newImageName)
         );
+    }
+
+
+    @PutMapping("/{id}/update_at")
+    public ResponseEntity<?> updateAt(
+            @PathVariable Long id,
+            @RequestParam("data") String dto,
+            @RequestParam(value = "images", required = false)
+            List<MultipartFile> images
+    ) throws IOException {
+        AtUpdateDTO atUpdateDTO = new ObjectMapper().readValue(dto, AtUpdateDTO.class);
+
+        service.updateAtInfo(id, atUpdateDTO, images);
+        return ResponseEntity.ok("AT updated successfully");
     }
 
 }

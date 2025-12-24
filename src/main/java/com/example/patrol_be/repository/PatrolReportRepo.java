@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
@@ -42,4 +43,24 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 
     );
 
+
+    @Modifying
+    @Query(value = """
+        UPDATE F2_Patrol_Report
+        SET 
+            at_imageNames = :imageNames,
+            at_comment    = :comment,
+            at_date       = :date,
+            at_pic        = :pic,
+            at_status     = :status
+        WHERE id = :id
+        """, nativeQuery = true)
+    int updateAtInfo(
+            @Param("id") Long id,
+            @Param("imageNames") String imageNames,
+            @Param("comment") String comment,
+            @Param("date") LocalDateTime date,
+            @Param("pic") String pic,
+            @Param("status") String status
+    );
 }

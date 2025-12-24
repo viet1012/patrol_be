@@ -1,8 +1,10 @@
 package com.example.patrol_be.service;
 
+import com.example.patrol_be.dto.AtUpdateDTO;
 import com.example.patrol_be.dto.PatrolReportDTO;
 import com.example.patrol_be.model.PatrolReport;
 import com.example.patrol_be.repository.PatrolReportRepo;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -149,6 +151,61 @@ public class PatrolReportService {
         } catch (Exception e) {
             // không throw để tránh rollback DB
             System.err.println("Failed to delete old image: " + imageName);
+        }
+    }
+
+
+    @Transactional
+    public void updateAtInfo(
+            Long reportId,
+            AtUpdateDTO dto,
+            List<MultipartFile> images
+    ) throws IOException {
+
+        PatrolReport report = repo.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("Report not found"));
+
+        // ===== SAVE IMAGE FILES =====
+        List<String> newImages = new ArrayList<>();
+
+        if (images != null && !images.isEmpty()) {
+            if (!Files.exists(imageFolderPath)) {
+                Files.createDirectories(imageFolderPath);
+            }
+
+            for (MultipartFile file : images) {
+                if (file == null || file.isEmpty()) continue;
+
+                String ext = ".jpg";
+                if (file.getOriginalFilename() != null &&
+                        file.getOriginalFilename().contains(".")) {
+                    ext = file.getOriginalFilename()
+                            .substring(file.getOriginalFilename().lastIndexOf("."));
+                }
+
+                String fileName = System.currentTimeMillis()
+                        + "_" + UUID.randomUUID() + ext;
+
+                Path savePath = imageFolderPath.resolve(fileName);
+                file.transferTo(savePath.toFile());
+
+                newImages.add(fileName);
+            }
+        }
+
+        String imageNames = String.join(",", newImages);
+        String atStatus = "Done";
+        int updated = repo.updateAtInfo(
+                reportId,
+                imageNames,
+                dto.getAtComment(),
+                LocalDateTime.now(),
+                dto.getAtPic(),
+                atStatus
+        );
+
+        if (updated == 0) {
+            throw new RuntimeException("Update AT failed, id=" + reportId);
         }
     }
 
