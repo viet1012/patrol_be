@@ -43,4 +43,22 @@ public class PatrolReport {
     private String imageNames;
 
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    /// PATROL_AFTER
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String at_imageNames;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String at_comment;
+    private LocalDate at_date;
+    private String at_pic;
+    private String at_status;
+
+    /// HSE_CHECK
+    private String hse_judge;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String hse_imageNames;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String hse_comment;
+    private LocalDate hse_date;
+
 }

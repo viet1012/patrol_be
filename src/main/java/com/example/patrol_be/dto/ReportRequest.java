@@ -2,8 +2,10 @@ package com.example.patrol_be.dto;
 
 
 
+import jakarta.persistence.Column;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 
@@ -34,4 +36,17 @@ public class ReportRequest {
 
     // Danh sách tên file ảnh đã lưu (sẽ được set từ service)
     private List<String> imageFileNames;
+
+    /// PATROL_AFTER
+    private String at_imageNames;
+    private String at_comment;
+    private LocalDate at_date;
+    private String at_pic;
+    private String at_status;
+
+    /// HSE_CHECK
+    private String hse_judge;
+    private String hse_imageNames;
+    private String hse_comment;
+    private LocalDate hse_date;
 }
