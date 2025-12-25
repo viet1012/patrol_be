@@ -7,16 +7,24 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class CorsConfig {
+
     @Bean
-    public WebMvcConfigurer corsConfigurer2() {
+    public WebMvcConfigurer corsConfigurerz() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
+
+                // API
                 registry.addMapping("/api/**")
-                        .allowedOriginPatterns("*") // ✅ CHUẨN
+                        .allowedOriginPatterns("*")
                         .allowedMethods("*")
-                        .allowedHeaders("*")
-                        .allowCredentials(false);
+                        .allowedHeaders("*");
+
+                // 🔥 STATIC IMAGE (BẮT BUỘC)
+                registry.addMapping("/images/**")
+                        .allowedOriginPatterns("*")
+                        .allowedMethods("GET")
+                        .allowedHeaders("*");
             }
         };
     }
