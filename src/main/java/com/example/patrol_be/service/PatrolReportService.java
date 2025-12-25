@@ -47,24 +47,38 @@ public class PatrolReportService {
 
     private PatrolReportDTO mapToDto(Object[] r) {
         return new PatrolReportDTO(
-                ((Number) r[0]).intValue(),
-                ((Number) r[1]).intValue(),     // stt
-                (String) r[2],                  // grp
-                (String) r[3],                  // plant
-                (String) r[4],                  // division
-                (String) r[5],                  // area
-                (String) r[6],                  // machine
-                (String) r[7],                  // riskFreq
-                (String) r[8],                  // riskProb
-                (String) r[9],                  // riskSev
-                (String) r[10],                  // riskTotal
-                (String) r[11],                 // comment
-                (String) r[12],                 // countermeasure
-                (String) r[13],                 // checkInfo
-                (LocalDateTime) r[14],          // checkInfo
-                splitImages((String) r[15])     // imageNames
+                ((Number) r[0]).intValue(),              // id
+                ((Number) r[1]).intValue(),              // stt
+                (String) r[2],                           // type
+                (String) r[3],                           // grp
+                (String) r[4],                           // plant
+                (String) r[5],                           // division
+                (String) r[6],                           // area
+                (String) r[7],                           // machine
+                (String) r[8],                           // riskFreq
+                (String) r[9],                           // riskProb
+                (String) r[10],                          // riskSev
+                (String) r[11],                          // riskTotal
+                (String) r[12],                          // comment
+                (String) r[13],                          // countermeasure
+                (String) r[14],                          // checkInfo
+                splitImages((String) r[15]),             // imageNames
+                (LocalDateTime) r[16],                    // createdAt
+                (String) r[17],                          // pic
+                (LocalDateTime) r[18],                    // dueDate
+                splitImages((String) r[19]),             // at_imageNames
+                (String) r[20],                          // at_comment
+                (LocalDateTime) r[21],                    // at_date
+                (String) r[22],                          // at_pic
+                (String) r[23],                          // at_status
+                (String) r[24],                          // hse_judge
+                splitImages((String) r[25]),             // hse_imageNames
+                (String) r[26],                          // hse_comment
+                (LocalDateTime) r[27],                    // hse_date
+                (String) r[28]                           // load_status
         );
     }
+
 
     private List<String> splitImages(String value) {
         if (value == null || value.isBlank()) return List.of();

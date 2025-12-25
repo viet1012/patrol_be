@@ -14,6 +14,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
     SELECT
         id,
         stt,
+        type,
         grp,
         plant,
         division,
@@ -26,11 +27,23 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
         comment,
         countermeasure,
         checkInfo,
+        imageNames,
+        createdAt,
+        pic,
         dueDate,
-        imageNames
+        at_imageNames,
+        at_comment,
+        at_date,
+        at_pic,
+        at_status,
+        hse_judge,
+        hse_imageNames,
+        hse_comment,
+        hse_date,
+        load_status
     FROM F2_Patrol_Report
     WHERE (:type IS NULL OR LTRIM(RTRIM(type)) = LTRIM(RTRIM(:type)))
-      AND  (:division IS NULL OR LTRIM(RTRIM(division)) LIKE LTRIM(RTRIM(:division)))
+      AND (:division IS NULL OR LTRIM(RTRIM(division)) LIKE LTRIM(RTRIM(:division)))
       AND (:area IS NULL OR LTRIM(RTRIM(area)) LIKE LTRIM(RTRIM(:area)))
       AND (:machine IS NULL OR LTRIM(RTRIM(machine)) LIKE LTRIM(RTRIM(:machine)))
     ORDER BY stt DESC
@@ -40,14 +53,14 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
             @Param("area") String area,
             @Param("machine") String machine,
             @Param("type") String type
-
     );
+
 
 
     @Modifying
     @Query(value = """
         UPDATE F2_Patrol_Report
-        SET 
+        SET
             at_imageNames = :imageNames,
             at_comment    = :comment,
             at_date       = :date,
