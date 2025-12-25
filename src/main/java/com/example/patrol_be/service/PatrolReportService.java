@@ -28,6 +28,7 @@ public class PatrolReportService {
     private static final String IMAGE_FOLDER_NAME = "uploaded_images";
     private final Path imageFolderPath = BASE_DIR.resolve(IMAGE_FOLDER_NAME);
 
+    private final PatrolCommentService patrolCommentService;
 
     public List<PatrolReportDTO> search(
             String division,
@@ -207,12 +208,33 @@ public class PatrolReportService {
             }
         }
 
+        String finalComment = dto.getAtComment();
+        try {
+            if (finalComment != null && !finalComment.isBlank()) {
+
+                System.out.println("?? Original comment:");
+                System.out.println(finalComment);
+
+                String translated = patrolCommentService.getTranslateDefault(finalComment);
+
+                System.out.println("?? Translated comment:");
+                System.out.println(translated);
+
+                if (translated != null) {
+                    finalComment += "\n" + translated;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace(); // ? in l?i luôn cho d? debug
+        }
+
+
         String imageNames = String.join(",", newImages);
         String atStatus = "Done";
         int updated = repo.updateAtInfo(
                 reportId,
                 imageNames,
-                dto.getAtComment(),
+                finalComment,
                 LocalDateTime.now(),
                 dto.getAtPic(),
                 atStatus
