@@ -9,4 +9,5 @@ public class HSEPatrolGroupMasterDTO {
     private String fac;
     private String area;
     private String macId;
+    private String pic;
 }

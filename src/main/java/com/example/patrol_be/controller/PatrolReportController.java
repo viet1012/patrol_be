@@ -25,16 +25,29 @@ public class PatrolReportController {
 
     @Autowired
     private  PatrolReportService service;
-
     @GetMapping("/filter")
-    public List<PatrolReportDTO> search(
+    public ResponseEntity<?> filter(
+            @RequestParam(required = false) String plant,
+            @RequestParam(required = false) String grp,
+            @RequestParam(required = false) String type,
             @RequestParam(required = false) String division,
             @RequestParam(required = false) String area,
             @RequestParam(required = false) String machine,
-            @RequestParam(required = false) String type
+            @RequestParam(required = false) String afStatus,
+            @RequestParam(required = false) String pic
 
     ) {
-        return service.search(division, area, machine, type);
+
+
+        return ResponseEntity.ok(
+                service.search(plant,division, area, machine, type, grp, afStatus, pic)
+        );
+    }
+
+    private String normalize(String v) {
+        if (v == null) return null;
+        v = v.trim();
+        return v.isEmpty() ? null : v;
     }
 
 
@@ -50,7 +63,30 @@ public class PatrolReportController {
         );
     }
 
+    // ================== DELETE IMAGE ==================
+    @DeleteMapping("/{id}/delete_image")
+    public ResponseEntity<?> deleteImage(
+            @PathVariable Long id,
+            @RequestParam String image
+    ) {
+        service.deleteImage(id, image);
+        return ResponseEntity.ok("Image deleted successfully");
+    }
 
+
+    // ================== ADD IMAGE ==================
+    @PostMapping("/{id}/add_image")
+    public ResponseEntity<?> addImage(
+            @PathVariable Long id,
+            @RequestParam MultipartFile image
+    ) throws IOException {
+        String newImageName = service.addImage(id, image);
+        return ResponseEntity.ok(
+                Map.of("newImage", newImageName)
+        );
+    }
+
+    // ================== REPLACE IMAGE ==================
     @PutMapping("/{id}/update_at")
     public ResponseEntity<?> updateAt(
             @PathVariable Long id,

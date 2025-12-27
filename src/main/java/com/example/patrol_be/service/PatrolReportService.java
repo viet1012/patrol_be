@@ -31,16 +31,25 @@ public class PatrolReportService {
     private final PatrolCommentService patrolCommentService;
 
     public List<PatrolReportDTO> search(
+            String plant,
             String division,
             String area,
             String machine,
-            String type
+            String type,
+            String afStatus,
+            String grp,
+            String pic
     ) {
         return repo.search(
+                        normalize(plant),
                         normalize(division),
                         normalize(area),
                         normalize(machine),
-                        normalize(type)
+                        normalize(type),
+                        normalize(afStatus),
+                        normalize(grp),
+                        normalize(pic)
+
                 ).stream()
                 .map(this::mapToDto)
                 .toList();
@@ -169,6 +178,57 @@ public class PatrolReportService {
         }
     }
 
+    @Transactional
+    public void deleteImage(Long reportId, String imageName) {
+
+        PatrolReport report = repo.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("Report not found"));
+
+        String imageNames = report.getImageNames();
+        if (imageNames == null || imageNames.isBlank()) {
+            throw new RuntimeException("No images to delete");
+        }
+
+        List<String> images = new ArrayList<>(
+                Arrays.stream(imageNames.split(","))
+                        .map(String::trim)
+                        .toList()
+        );
+
+        boolean removed = images.remove(imageName);
+        if (!removed) {
+            throw new RuntimeException("Image not found in report");
+        }
+
+        // Update DB
+        report.setImageNames(String.join(",", images));
+        repo.save(report);
+
+        // Delete file
+        deleteImageFile(imageName);
+    }
+
+    @Transactional
+    public String addImage(Long reportId, MultipartFile image) throws IOException {
+
+        PatrolReport report = repo.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("Report not found"));
+
+        // Save image file
+        String newImageName = saveSingleImage(image);
+
+        String imageNames = report.getImageNames();
+
+        if (imageNames == null || imageNames.isBlank()) {
+            report.setImageNames(newImageName);
+        } else {
+            report.setImageNames(imageNames + "," + newImageName);
+        }
+
+        repo.save(report);
+
+        return newImageName;
+    }
 
     @Transactional
     public void updateAtInfo(

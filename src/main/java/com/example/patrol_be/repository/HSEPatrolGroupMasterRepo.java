@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-public interface HSEPatrolGroupMasterRepo     extends JpaRepository<HSEPatrolGroupMaster, Long> {
+public interface HSEPatrolGroupMasterRepo extends JpaRepository<HSEPatrolGroupMaster, Long> {
 
     @Query(value = """
         SELECT 

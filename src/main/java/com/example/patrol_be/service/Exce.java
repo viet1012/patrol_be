@@ -80,8 +80,8 @@ public class Exce {
         rpt.setStt(stt);
         rpt.setType(req.getType());
 
-        String grp = req.getGroup().replace(" ", "").trim();
-        rpt.setGrp(grp);
+//        String grp = req.getGroup().replace(" ", "").trim();
+        rpt.setGrp(req.getGroup());
         rpt.setPlant(req.getPlant());
         rpt.setDivision(req.getDivision());
         rpt.setArea(req.getArea());

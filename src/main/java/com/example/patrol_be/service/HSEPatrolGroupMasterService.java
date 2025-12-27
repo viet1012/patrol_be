@@ -16,7 +16,8 @@ public class HSEPatrolGroupMasterService {
                         (String) r[0],
                         (String) r[1],
                         (String) r[2],
-                        (String) r[3]
+                        (String) r[3],
+                        (String) r[4]
                 ))
                 .toList();
     }
