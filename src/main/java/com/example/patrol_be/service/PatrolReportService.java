@@ -297,7 +297,10 @@ public class PatrolReportService {
                 finalComment,
                 LocalDateTime.now(),
                 dto.getAtPic(),
-                atStatus
+                atStatus,
+                dto.getUserAfter(),
+                LocalDateTime.now()
+
         );
 
         if (updated == 0) {

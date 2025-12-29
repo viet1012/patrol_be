@@ -36,6 +36,7 @@ public class ReportRequest {
 
     // Danh sách tên file ảnh đã lưu (sẽ được set từ service)
     private List<String> imageFileNames;
+    private String userCreate;
 
     /// PATROL_AFTER
     private String at_imageNames;

@@ -44,6 +44,14 @@ public class PatrolReport {
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String User_Create;
+
+    /// PATROL_EDIT
+    private LocalDateTime DT_Edit;
+    private String User_Edit;
+
+
     /// PATROL_AFTER
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String at_imageNames;
@@ -53,6 +61,9 @@ public class PatrolReport {
     private String at_pic;
     private String at_status;
 
+    private LocalDateTime DT_After;
+    private String User_After;
+
     /// HSE_CHECK
     private String hse_judge;
     @Column(columnDefinition = "NVARCHAR(MAX)")
@@ -61,4 +72,6 @@ public class PatrolReport {
     private String hse_comment;
     private LocalDate hse_date;
 
+    private LocalDateTime DT_Judge;
+    private String User_Judge;
 }

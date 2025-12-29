@@ -99,21 +99,26 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 
     @Modifying
     @Query(value = """
-        UPDATE F2_Patrol_Report
-        SET
-            at_imageNames = :imageNames,
-            at_comment    = :comment,
-            at_date       = :date,
-            at_pic        = :pic,
-            at_status     = :status
-        WHERE id = :id
-        """, nativeQuery = true)
+    UPDATE F2_Patrol_Report
+    SET
+        at_imageNames = :imageNames,
+        at_comment    = :comment,
+        at_date       = :atDate,
+        at_pic        = :pic,
+        at_status     = :status,
+        User_After    = :User_After,
+        DT_After      = :DT_After
+    WHERE id = :id
+    """, nativeQuery = true)
     int updateAtInfo(
             @Param("id") Long id,
             @Param("imageNames") String imageNames,
             @Param("comment") String comment,
-            @Param("date") LocalDateTime date,
+            @Param("atDate") LocalDateTime atDate,
             @Param("pic") String pic,
-            @Param("status") String status
+            @Param("status") String status,
+            @Param("User_After") String updBy,
+            @Param("DT_After") LocalDateTime updDt
     );
+
 }
