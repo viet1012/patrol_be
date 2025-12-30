@@ -3,6 +3,8 @@ package com.example.patrol_be.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "HSE_Patrol_Account")
 @Getter
@@ -18,4 +20,10 @@ public class PatrolAccount {
 
     @Column(name = "Pass", nullable = false)
     private String pass;
+
+    @Column(name = "NewDT")
+    private LocalDateTime newDT;
+
+    @Column(name = "UpdDT")
+    private LocalDateTime updDT;
 }
