@@ -19,6 +19,9 @@ public class HsePatrolTeam {
     @Column(name = "Plant")
     private String plant;
 
+    @Column(name = "Fac")
+    private String fac;
+
     @Column(name = "Grp")
     private String grp;
 
@@ -54,4 +57,7 @@ public class HsePatrolTeam {
 
     @Column(name = "Note")
     private String note;
+
+    @Column(name = "Type")
+    private String type;
 }
