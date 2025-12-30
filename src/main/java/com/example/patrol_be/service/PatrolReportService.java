@@ -297,9 +297,7 @@ public class PatrolReportService {
                 finalComment,
                 LocalDateTime.now(),
                 dto.getAtPic(),
-                atStatus,
-                dto.getUserAfter(),
-                LocalDateTime.now()
+                atStatus
 
         );
 

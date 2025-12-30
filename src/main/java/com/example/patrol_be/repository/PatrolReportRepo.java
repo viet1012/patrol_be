@@ -34,7 +34,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
             at_imageNames,
             at_comment,
             at_date,
-            at_pic,
+            at_user,
             at_status,
             hse_judge,
             hse_imageNames,
@@ -104,10 +104,8 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
         at_imageNames = :imageNames,
         at_comment    = :comment,
         at_date       = :atDate,
-        at_pic        = :pic,
-        at_status     = :status,
-        User_After    = :User_After,
-        DT_After      = :DT_After
+        at_user        = :pic,
+        at_status     = :status
     WHERE id = :id
     """, nativeQuery = true)
     int updateAtInfo(
@@ -116,9 +114,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
             @Param("comment") String comment,
             @Param("atDate") LocalDateTime atDate,
             @Param("pic") String pic,
-            @Param("status") String status,
-            @Param("User_After") String updBy,
-            @Param("DT_After") LocalDateTime updDt
+            @Param("status") String status
     );
 
 }

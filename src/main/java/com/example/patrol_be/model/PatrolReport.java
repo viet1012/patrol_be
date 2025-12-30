@@ -45,11 +45,11 @@ public class PatrolReport {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(columnDefinition = "NVARCHAR(MAX)")
-    private String User_Create;
+    private String patrol_user;
 
     /// PATROL_EDIT
-    private LocalDateTime DT_Edit;
-    private String User_Edit;
+    private LocalDateTime edit_date;
+    private String edit_user;
 
 
     /// PATROL_AFTER
@@ -58,11 +58,8 @@ public class PatrolReport {
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String at_comment;
     private LocalDate at_date;
-    private String at_pic;
     private String at_status;
-
-    private LocalDateTime DT_After;
-    private String User_After;
+    private String at_user;
 
     /// HSE_CHECK
     private String hse_judge;
@@ -71,7 +68,5 @@ public class PatrolReport {
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String hse_comment;
     private LocalDate hse_date;
-
-    private LocalDateTime DT_Judge;
-    private String User_Judge;
+    private String hse_user;
 }

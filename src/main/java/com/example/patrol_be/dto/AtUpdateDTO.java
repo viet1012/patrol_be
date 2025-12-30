@@ -9,6 +9,5 @@ import java.time.LocalDateTime;
 public class AtUpdateDTO  {
     private String atComment;
     private String atPic;
-    private String userAfter;
 
 }
