@@ -1,6 +1,7 @@
 package com.example.patrol_be.service;
 
 import com.example.patrol_be.dto.AtUpdateDTO;
+import com.example.patrol_be.dto.PatrolEditDTO;
 import com.example.patrol_be.dto.PatrolReportDTO;
 import com.example.patrol_be.model.PatrolReport;
 import com.example.patrol_be.repository.PatrolReportRepo;
@@ -274,13 +275,7 @@ public class PatrolReportService {
         try {
             if (finalComment != null && !finalComment.isBlank()) {
 
-                System.out.println("?? Original comment:");
-                System.out.println(finalComment);
-
                 String translated = patrolCommentService.getTranslateDefault(finalComment);
-
-                System.out.println("?? Translated comment:");
-                System.out.println(translated);
 
                 if (translated != null) {
                     finalComment += "\n" + translated;
@@ -306,6 +301,65 @@ public class PatrolReportService {
         if (updated == 0) {
             throw new RuntimeException("Update AT failed, id=" + reportId);
         }
+    }
+
+
+    @Transactional
+    public void updateCommentCountermeasure(
+            Long reportId,
+            PatrolEditDTO dto,
+            List<MultipartFile> newImages
+    ) throws IOException {
+
+        PatrolReport report = repo.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("Report not found"));
+
+        // ===== 1️⃣ UPDATE COMMENT & COUNTERMEASURE =====
+        if (dto.getComment() != null) {
+            report.setComment(dto.getComment().trim());
+        }
+
+        if (dto.getCountermeasure() != null) {
+            report.setCountermeasure(dto.getCountermeasure().trim());
+        }
+
+        report.setEdit_date(LocalDateTime.now());
+        report.setEdit_user(dto.getEditUser());
+
+        // ===== 2️⃣ HANDLE IMAGE LIST =====
+        List<String> images = new ArrayList<>();
+
+        if (report.getImageNames() != null && !report.getImageNames().isBlank()) {
+            images.addAll(
+                    Arrays.stream(report.getImageNames().split(","))
+                            .map(String::trim)
+                            .toList()
+            );
+        }
+
+        // ===== 3️⃣ DELETE IMAGES =====
+        if (dto.getDeleteImages() != null) {
+            for (String img : dto.getDeleteImages()) {
+                if (images.remove(img)) {
+                    deleteImageFile(img);
+                }
+            }
+        }
+
+        // ===== 4️⃣ ADD NEW IMAGES =====
+        if (newImages != null && !newImages.isEmpty()) {
+            for (MultipartFile file : newImages) {
+                if (file == null || file.isEmpty()) continue;
+
+                String newImageName = saveSingleImage(file);
+                images.add(newImageName);
+            }
+        }
+
+        // ===== 5️⃣ SAVE IMAGE NAMES =====
+        report.setImageNames(images.isEmpty() ? null : String.join(",", images));
+
+        repo.save(report);
     }
 
 }
