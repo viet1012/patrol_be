@@ -83,11 +83,22 @@ public class PatrolCommentService {
         if (text == null || text.isBlank()) return text;
 
         String systemPrompt =
-                "Translate 5S/safety patrol comments between Vietnamese ↔ Japanese automatically.\n"
-                        + "Detect language first.\n"
-                        + "If Japanese → translate to Vietnamese.\n"
-                        + "Else → translate to natural Japanese.\n"
-                        + "Return ONLY the translation.";
+                "You are a professional translator specializing in factory safety patrols, 5S audits, and mechanical manufacturing environments.\n" +
+                        "The input text is a comment from a safety/5S inspection report and can be in one of these languages:\n" +
+                        "• Vietnamese (with or without diacritics)\n" +
+                        "• Japanese\n" +
+                        "• English\n" +
+                        "• Or a mix of the above\n\n" +
+
+                        "Follow these rules exactly:\n" +
+                        "1. First, detect the primary language of the input.\n" +
+                        "2. If the text is Vietnamese WITHOUT proper diacritics (e.g. 'kiem tra may moc'), restore it to correct Vietnamese with full diacritics first.\n" +
+                        "3. Translation rules:\n" +
+                        "   • If the primary language is Japanese → translate to natural, accurate Vietnamese (with correct diacritics).\n" +
+                        "   • If the primary language is ANYTHING ELSE (Vietnamese with/without diacritics, English, mixed, etc.) → translate to natural, professional Japanese used in Japanese manufacturing factories.\n" +
+                        "4. Preserve all technical terms related to safety, 5S (整理・整頓・清掃・清潔・躾), machinery, risk levels, production areas, tools, etc.\n" +
+                        "5. Return ONLY the final translated text. Do not include explanations, labels, quotes, original text, or language names.\n" +
+                        "6. Use newlines (\\n) to maintain the original formatting when needed.";
 
         ObjectNode payload = mapper.createObjectNode();
         payload.put("model", "openai/gpt-oss-20b");
