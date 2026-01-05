@@ -50,7 +50,12 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
       AND (:area IS NULL OR LTRIM(RTRIM(area)) LIKE '%' + LTRIM(RTRIM(:area)) + '%')
       AND (:machine IS NULL OR LTRIM(RTRIM(machine)) LIKE '%' + LTRIM(RTRIM(:machine)) + '%')
       AND (:afStatus IS NULL OR ',' + :afStatus + ',' LIKE '%,' + LTRIM(RTRIM(at_status)) + ',%')
-      AND (:pic IS NULL OR pic COLLATE Vietnamese_CI_AI LIKE '%' + :pic + '%')
+      AND (
+        :pic IS NULL
+        OR (LTRIM(RTRIM(:pic)) = '' AND (pic IS NULL OR LTRIM(RTRIM(pic)) = ''))
+        OR (LTRIM(RTRIM(:pic)) <> '' AND LTRIM(RTRIM(pic)) COLLATE Vietnamese_CI_AI LIKE '%' + LTRIM(RTRIM(:pic)) + '%')
+           )
+            
       AND (:patrolUser IS NULL OR LTRIM(RTRIM(patrol_user)) LIKE '%' + LTRIM(RTRIM(:patrolUser)) + '%')
     ORDER BY stt DESC
 """, nativeQuery = true)

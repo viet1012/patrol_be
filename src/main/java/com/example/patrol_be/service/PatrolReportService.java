@@ -50,7 +50,7 @@ public class PatrolReportService {
                         normalize(type),
                         normalize(afStatus),
                         normalize(grp),
-                        normalize(pic),
+                        normalizeKeepEmpty(pic),
                         patrolUser
 
                 ).stream()
@@ -102,6 +102,11 @@ public class PatrolReportService {
 
     private String normalize(String v) {
         return (v == null || v.isBlank()) ? null : v.trim();
+    }
+
+    // ✅ giữ empty string (để filter pic rỗng)
+    private String normalizeKeepEmpty(String v) {
+        return v == null ? null : v.trim();
     }
 
     public String  replaceImage(
