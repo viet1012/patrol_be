@@ -1,6 +1,7 @@
 package com.example.patrol_be.controller;
 
 import com.example.patrol_be.dto.*;
+import com.example.patrol_be.service.PatrolPivotService;
 import com.example.patrol_be.service.PatrolReportService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,10 @@ public class PatrolReportController {
 
     @Autowired
     private  PatrolReportService service;
+
+    @Autowired
+    private  PatrolPivotService pivotService;
+
     @GetMapping("/filter")
     public ResponseEntity<?> filter(
             @RequestParam(required = false) String plant,
@@ -43,10 +48,12 @@ public class PatrolReportController {
         );
     }
 
-    private String normalize(String v) {
-        if (v == null) return null;
-        v = v.trim();
-        return v.isEmpty() ? null : v;
+    @GetMapping("/pivot")
+    public PatrolRiskPivotResponseDTO pivot(
+            @RequestParam String plant,
+            @RequestParam(name = "at_status") String atStatus
+    ) {
+        return pivotService.getPivot(plant, atStatus);
     }
 
 
