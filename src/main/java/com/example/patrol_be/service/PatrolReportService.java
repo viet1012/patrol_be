@@ -346,6 +346,9 @@ public class PatrolReportService {
             String m = dto.getMachine().trim();
             report.setMachine(m.equalsIgnoreCase("<Null>") || m.isEmpty() ? null : m);
         }
+        if (dto.getPic() != null) {
+            report.setPic(dto.getPic().trim());
+        }
 
         report.setEdit_date(LocalDateTime.now());
         report.setEdit_user(dto.getEditUser());
