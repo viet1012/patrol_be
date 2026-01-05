@@ -310,7 +310,7 @@ public class PatrolReportService {
 
 
     @Transactional
-    public void updateCommentCountermeasure(
+    public void updateReport(
             Long reportId,
             PatrolEditDTO dto,
             List<MultipartFile> newImages
@@ -326,6 +326,25 @@ public class PatrolReportService {
 
         if (dto.getCountermeasure() != null) {
             report.setCountermeasure(dto.getCountermeasure().trim());
+        }
+
+        // ===== ✅ 1.5️⃣ UPDATE META FIELDS =====
+        if (dto.getGrp() != null) {
+            report.setGrp(dto.getGrp().trim());
+        }
+        if (dto.getPlant() != null) {
+            report.setPlant(dto.getPlant().trim());
+        }
+        if (dto.getDivision() != null) {
+            report.setDivision(dto.getDivision().trim());
+        }
+        if (dto.getArea() != null) {
+            report.setArea(dto.getArea().trim());
+        }
+        if (dto.getMachine() != null) {
+            // nếu muốn convert "<Null>" => null
+            String m = dto.getMachine().trim();
+            report.setMachine(m.equalsIgnoreCase("<Null>") || m.isEmpty() ? null : m);
         }
 
         report.setEdit_date(LocalDateTime.now());
@@ -366,5 +385,6 @@ public class PatrolReportService {
 
         repo.save(report);
     }
+
 
 }

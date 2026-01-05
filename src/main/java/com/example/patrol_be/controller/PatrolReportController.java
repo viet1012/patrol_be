@@ -108,7 +108,7 @@ public class PatrolReportController {
     ) throws IOException {
         PatrolEditDTO atUpdateDTO = new ObjectMapper().readValue(dto, PatrolEditDTO.class);
 
-        service.updateCommentCountermeasure(id, atUpdateDTO, images);
+        service.updateReport(id, atUpdateDTO, images);
         return ResponseEntity.ok().build();
     }
 

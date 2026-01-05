@@ -13,4 +13,10 @@ public class PatrolEditDTO {
 
     // danh sách ảnh cần xóa (tên file)
     private List<String> deleteImages;
+
+    private String grp;
+    private String plant;
+    private String division;
+    private String area;
+    private String machine;
 }
