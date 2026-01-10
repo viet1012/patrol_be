@@ -23,12 +23,8 @@ public interface HSEPatrolGroupMasterRepo extends JpaRepository<HSEPatrolGroupMa
         SELECT TOP 1 LTRIM(RTRIM(REPLACE(PIC, CHAR(160), ''))) AS pic
         FROM HSE_Patrol_Group_Master
         WHERE LTRIM(RTRIM(REPLACE(Plant, CHAR(160), ''))) = :plant
-            AND LTRIM(RTRIM(REPLACE(Grp, CHAR(160), ''))) = :fac
-            AND LTRIM(RTRIM(REPLACE(Area, CHAR(160), ''))) = :area
             AND LTRIM(RTRIM(REPLACE(MacID, CHAR(160), ''))) = :macId
         """, nativeQuery = true)
     String findPIC(@Param("plant") String plant,
-                                    @Param("fac") String fac,
-                                    @Param("area") String area,
                                     @Param("macId") String macId);
 }

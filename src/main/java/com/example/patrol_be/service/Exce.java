@@ -96,7 +96,7 @@ public class Exce {
         rpt.setCountermeasure(req.getCountermeasure());
         rpt.setCheckInfo(req.getCheck());
         rpt.setImageNames(String.join(",", savedImageNames));
-        rpt.setPic(hsePatrolGroupMasterRepo.findPIC(rpt.getPlant(),rpt.getDivision(), rpt.getArea(), rpt.getMachine()));
+        rpt.setPic(hsePatrolGroupMasterRepo.findPIC(rpt.getPlant(), rpt.getMachine()));
 
         if ("IV".equals(req.getRiskTotal()) || "V".equals(req.getRiskTotal())){
             rpt.setDueDate((LocalDate.now().plusDays(14)));
