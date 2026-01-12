@@ -38,13 +38,14 @@ public class PatrolReportController {
             @RequestParam(required = false) String machine,
             @RequestParam(required = false) String afStatus,
             @RequestParam(required = false) String pic,
-            @RequestParam(required = false) String patrolUser
+            @RequestParam(required = false) String patrolUser,
+            @RequestParam(required = false) String qrKey
 
 
     ) {
 
         return ResponseEntity.ok(
-                service.search(plant,division, area, machine, type, grp, afStatus, pic, patrolUser)
+                service.search(plant,division, area, machine, type, grp, afStatus, pic, patrolUser,qrKey)
         );
     }
 

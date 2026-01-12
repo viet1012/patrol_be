@@ -55,8 +55,9 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
         OR (LTRIM(RTRIM(:pic)) = '' AND (pic IS NULL OR LTRIM(RTRIM(pic)) = ''))
         OR (LTRIM(RTRIM(:pic)) <> '' AND LTRIM(RTRIM(pic)) COLLATE Vietnamese_CI_AI LIKE '%' + LTRIM(RTRIM(:pic)) + '%')
            )
-            
       AND (:patrolUser IS NULL OR LTRIM(RTRIM(patrol_user)) LIKE '%' + LTRIM(RTRIM(:patrolUser)) + '%')
+      AND (:qr_key IS NULL OR LTRIM(RTRIM(qr_key)) = LTRIM(RTRIM(:qr_key)))
+      
     ORDER BY stt DESC
 """, nativeQuery = true)
     List<Object[]> search(
@@ -68,7 +69,8 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
             @Param("grp") String grp,
             @Param("afStatus") String afStatus,
             @Param("pic") String pic,
-            @Param("patrolUser") String patrolUser
+            @Param("patrolUser") String patrolUser,
+            @Param("qr_key") String qr_key
     );
 
 

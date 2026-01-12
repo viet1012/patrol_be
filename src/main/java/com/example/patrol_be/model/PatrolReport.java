@@ -69,4 +69,7 @@ public class PatrolReport {
     private String hse_comment;
     private LocalDate hse_date;
     private String hse_user;
+
+    private String qr_key;
+    private String qr_scan_sts;
 }

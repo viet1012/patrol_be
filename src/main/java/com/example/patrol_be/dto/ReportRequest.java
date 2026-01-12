@@ -50,4 +50,8 @@ public class ReportRequest {
     private String hse_imageNames;
     private String hse_comment;
     private LocalDate hse_date;
+
+    private String qr_key;
+
+    private String qr_scan_sts;
 }

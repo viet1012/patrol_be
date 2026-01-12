@@ -106,6 +106,8 @@ public class Exce {
         }
         rpt.setPatrol_user(req.getUserCreate());
         rpt.setAt_status("Wait");
+        rpt.setQr_key(req.getQr_key());
+        rpt.setQr_scan_sts(req.getQr_scan_sts());
 
         reportRepo.save(rpt);
     }

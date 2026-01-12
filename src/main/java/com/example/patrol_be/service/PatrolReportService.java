@@ -40,7 +40,8 @@ public class PatrolReportService {
             String afStatus,
             String grp,
             String pic,
-            String patrolUser
+            String patrolUser,
+            String qrKey
     ) {
         return repo.search(
                         normalize(plant),
@@ -51,7 +52,8 @@ public class PatrolReportService {
                         normalize(afStatus),
                         normalize(grp),
                         normalizeKeepEmpty(pic),
-                        patrolUser
+                        patrolUser,
+                        qrKey
 
                 ).stream()
                 .map(this::mapToDto)
