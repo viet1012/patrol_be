@@ -11,7 +11,6 @@ public class PatrolReportDTO {
     private Integer id;
     private Integer stt;
     private String type;  // thêm trường này
-
     private String grp;
     private String plant;
     private String division;
@@ -45,4 +44,6 @@ public class PatrolReportDTO {
     private LocalDateTime hse_date;        // đổi thành LocalDateTime
 
     private String load_status;           // thêm trường này
+    private String patrol_user;
+    private String qr_key;
 }

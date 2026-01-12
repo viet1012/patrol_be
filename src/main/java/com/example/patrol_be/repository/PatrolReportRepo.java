@@ -41,7 +41,8 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
         hse_comment,
         hse_date,
         load_status,
-        patrol_user
+        patrol_user,
+        qr_key
     FROM F2_Patrol_Report
     WHERE (:type IS NULL OR LTRIM(RTRIM(type)) = LTRIM(RTRIM(:type)))
       AND (:grp IS NULL OR REPLACE(grp, ' ', '') LIKE '%' + REPLACE(:grp, ' ', '') + '%')

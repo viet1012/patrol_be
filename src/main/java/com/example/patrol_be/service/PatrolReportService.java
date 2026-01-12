@@ -90,7 +90,11 @@ public class PatrolReportService {
                 splitImages((String) r[25]),             // hse_imageNames
                 (String) r[26],                          // hse_comment
                 (LocalDateTime) r[27],                    // hse_date
-                (String) r[28]                           // load_status
+                (String) r[28],                           // load_status
+                (String) r[29]          ,               // patrol_user
+                (String) r[30]                        // qr_key
+
+
         );
     }
 
