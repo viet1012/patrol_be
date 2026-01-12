@@ -120,4 +120,18 @@ public class PatrolReportController {
         return ResponseEntity.ok().build();
     }
 
+
+    @PutMapping("/{id}/hse_recheck")
+    public ResponseEntity<?> hseRecheck(
+            @PathVariable Long id,
+            @RequestParam("data") String dto,
+            @RequestParam(value = "images", required = false)
+            List<MultipartFile> images
+    ) throws IOException {
+        HseUpdateDTO atUpdateDTO = new ObjectMapper().readValue(dto, HseUpdateDTO.class);
+
+        service.updateHseInfo(id, atUpdateDTO, images);
+        return ResponseEntity.ok("AT updated successfully");
+    }
+
 }

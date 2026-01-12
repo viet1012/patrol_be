@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -94,6 +95,31 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
             @Param("pic") String pic,
             @Param("status") String status
     );
+
+
+    @Modifying
+    @Query(value = """
+    UPDATE F2_Patrol_Report
+    SET
+        hse_imageNames = :imageNames,
+        hse_comment    = :comment,
+        hse_date       = :hseDate,
+        hse_user       = :user,
+        hse_judge      = :judge,
+        at_status     = :status
+    WHERE id = :id
+    """, nativeQuery = true)
+    int updateHseInfo(
+            @Param("id") Long id,
+            @Param("imageNames") String imageNames,
+            @Param("comment") String comment,
+            @Param("hseDate") LocalDateTime hseDate,   // ✅ LocalDate
+            @Param("user") String user,
+            @Param("judge") String judge,
+            @Param("status") String status
+
+    );
+
 
     @Query(value = """
         SELECT

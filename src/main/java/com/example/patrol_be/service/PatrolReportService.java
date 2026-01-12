@@ -1,6 +1,7 @@
 package com.example.patrol_be.service;
 
 import com.example.patrol_be.dto.AtUpdateDTO;
+import com.example.patrol_be.dto.HseUpdateDTO;
 import com.example.patrol_be.dto.PatrolEditDTO;
 import com.example.patrol_be.dto.PatrolReportDTO;
 import com.example.patrol_be.model.PatrolReport;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -93,7 +95,6 @@ public class PatrolReportService {
                 (String) r[28],                           // load_status
                 (String) r[29]          ,               // patrol_user
                 (String) r[30]                        // qr_key
-
 
         );
     }
@@ -393,6 +394,76 @@ public class PatrolReportService {
         report.setImageNames(images.isEmpty() ? null : String.join(",", images));
 
         repo.save(report);
+    }
+
+
+    @Transactional
+    public void updateHseInfo(
+            Long reportId,
+            HseUpdateDTO dto,
+            List<MultipartFile> images
+    ) throws IOException {
+
+        // (optional) nếu bạn chỉ muốn check tồn tại
+        repo.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("Report not found"));
+
+        // ===== SAVE IMAGE FILES =====
+        List<String> newImages = new ArrayList<>();
+
+        if (images != null && !images.isEmpty()) {
+            if (!Files.exists(imageFolderPath)) {
+                Files.createDirectories(imageFolderPath);
+            }
+
+            for (MultipartFile file : images) {
+                if (file == null || file.isEmpty()) continue;
+
+                String ext = ".jpg";
+                String original = file.getOriginalFilename();
+                if (original != null && original.contains(".")) {
+                    ext = original.substring(original.lastIndexOf("."));
+                }
+
+                String fileName = System.currentTimeMillis()
+                        + "_" + UUID.randomUUID() + ext;
+
+                Path savePath = imageFolderPath.resolve(fileName);
+                file.transferTo(savePath.toFile());
+
+                newImages.add(fileName);
+            }
+        }
+
+        // ===== COMMENT (kèm translate) =====
+        String finalComment = dto.getHseComment();
+        try {
+            if (finalComment != null && !finalComment.isBlank()) {
+                String translated = patrolCommentService.getTranslateDefault(finalComment);
+                if (translated != null && !translated.isBlank()) {
+                    finalComment = finalComment + "\n" + translated;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        String imageNames = String.join(",", newImages);
+
+        int updated = repo.updateHseInfo(
+                reportId,
+                imageNames,
+                finalComment,
+                LocalDateTime.now(),
+                dto.getHseUser(),
+                dto.getHseJudge(),
+                dto.getAtStatus()
+
+        );
+
+        if (updated == 0) {
+            throw new RuntimeException("Update HSE failed, id=" + reportId);
+        }
     }
 
 

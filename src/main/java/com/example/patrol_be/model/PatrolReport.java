@@ -57,7 +57,7 @@ public class PatrolReport {
     private String at_imageNames;
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String at_comment;
-    private LocalDate at_date;
+    private LocalDateTime at_date;
     private String at_status;
     private String at_user;
 
@@ -67,7 +67,7 @@ public class PatrolReport {
     private String hse_imageNames;
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String hse_comment;
-    private LocalDate hse_date;
+    private LocalDateTime hse_date;
     private String hse_user;
 
     private String qr_key;
