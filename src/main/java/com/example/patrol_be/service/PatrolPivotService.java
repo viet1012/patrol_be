@@ -15,11 +15,10 @@ public class PatrolPivotService {
 
     private final PatrolReportRepo repo;
 
-    public PatrolRiskPivotResponseDTO getPivot(String plant, String atStatus) {
-        List<Object[]> raw = repo.pivotByPicAndRisk(plant, atStatus);
+    public PatrolRiskPivotResponseDTO getPivot(String plant, List<String> atStatuses) {
+        List<Object[]> raw = repo.pivotByPicAndRisk(plant, atStatuses);
 
         List<PatrolRiskPivotRowDTO> rows = new ArrayList<>();
-
         long sumI = 0, sumII = 0, sumIII = 0, sumIV = 0, sumV = 0, grand = 0;
 
         for (Object[] r : raw) {
@@ -33,19 +32,16 @@ public class PatrolPivotService {
 
             rows.add(new PatrolRiskPivotRowDTO(pic, i, ii, iii, iv, v, total));
 
-            sumI += i;
-            sumII += ii;
-            sumIII += iii;
-            sumIV += iv;
-            sumV += v;
-            grand += total;
+            sumI += i; sumII += ii; sumIII += iii; sumIV += iv; sumV += v; grand += total;
         }
 
-        PatrolRiskPivotRowDTO totals = new PatrolRiskPivotRowDTO(
-                "Grand Total", sumI, sumII, sumIII, sumIV, sumV, grand
-        );
+        var totals = new PatrolRiskPivotRowDTO("Grand Total", sumI, sumII, sumIII, sumIV, sumV, grand);
 
-        return new PatrolRiskPivotResponseDTO(plant, atStatus, grand, totals, rows);
+        // join lại để trả response (nếu bạn muốn hiển thị)
+        String statusText = String.join(",", atStatuses);
+
+        return new PatrolRiskPivotResponseDTO(plant, statusText, grand, totals, rows);
     }
+
 }
 

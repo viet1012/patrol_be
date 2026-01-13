@@ -52,7 +52,7 @@ public class PatrolReportController {
     @GetMapping("/pivot")
     public PatrolRiskPivotResponseDTO pivot(
             @RequestParam String plant,
-            @RequestParam(name = "at_status") String atStatus
+            @RequestParam(name = "at_status")  List<String>  atStatus
     ) {
         return pivotService.getPivot(plant, atStatus);
     }

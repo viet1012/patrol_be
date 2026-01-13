@@ -122,23 +122,25 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 
 
     @Query(value = """
-        SELECT
-            COALESCE(NULLIF(LTRIM(RTRIM(pic)), ''), 'UNKNOWN') AS pic,
-            SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'I'   THEN 1 ELSE 0 END) AS i,
-            SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'II'  THEN 1 ELSE 0 END) AS ii,
-            SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'III' THEN 1 ELSE 0 END) AS iii,
-            SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'IV'  THEN 1 ELSE 0 END) AS iv,
-            SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'V'   THEN 1 ELSE 0 END) AS v,
-            COUNT(*) AS total
-        FROM F2_Patrol_Report
-        WHERE LTRIM(RTRIM(plant)) = LTRIM(RTRIM(:plant))
-          AND LTRIM(RTRIM(at_status)) = LTRIM(RTRIM(:atStatus))
-        GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(pic)), ''), 'UNKNOWN')
-        ORDER BY total DESC
-    """, nativeQuery = true)
+    SELECT
+        COALESCE(NULLIF(LTRIM(RTRIM(pic)), ''), 'UNKNOWN') AS pic,
+        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'I'   THEN 1 ELSE 0 END) AS i,
+        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'II'  THEN 1 ELSE 0 END) AS ii,
+        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'III' THEN 1 ELSE 0 END) AS iii,
+        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'IV'  THEN 1 ELSE 0 END) AS iv,
+        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'V'   THEN 1 ELSE 0 END) AS v,
+        COUNT(*) AS total
+    FROM F2_Patrol_Report
+    WHERE LTRIM(RTRIM(plant)) = LTRIM(RTRIM(:plant))
+      AND LTRIM(RTRIM(at_status)) IN (:atStatuses)
+    GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(pic)), ''), 'UNKNOWN')
+    ORDER BY total DESC
+""", nativeQuery = true)
     List<Object[]> pivotByPicAndRisk(
             @Param("plant") String plant,
-            @Param("atStatus") String atStatus
+            @Param("atStatuses") List<String> atStatuses
     );
+
+
 
 }
