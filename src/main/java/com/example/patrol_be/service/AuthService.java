@@ -50,6 +50,9 @@ public class AuthService {
             return new AuthResponse(false, "Invalid password");
         }
 
+        acc.setLastLogin(LocalDateTime.now());
+        repo.save(acc);
+
         return new AuthResponse(true, "Login success");
     }
 

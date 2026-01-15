@@ -26,4 +26,8 @@ public class PatrolAccount {
 
     @Column(name = "UpdDT")
     private LocalDateTime updDT;
+
+    @Column(name = "Last_Login")
+    private LocalDateTime lastLogin;
+
 }
