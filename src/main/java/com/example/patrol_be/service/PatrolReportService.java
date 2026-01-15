@@ -1,9 +1,6 @@
 package com.example.patrol_be.service;
 
-import com.example.patrol_be.dto.AtUpdateDTO;
-import com.example.patrol_be.dto.HseUpdateDTO;
-import com.example.patrol_be.dto.PatrolEditDTO;
-import com.example.patrol_be.dto.PatrolReportDTO;
+import com.example.patrol_be.dto.*;
 import com.example.patrol_be.model.PatrolReport;
 import com.example.patrol_be.repository.PatrolReportRepo;
 import jakarta.transaction.Transactional;
@@ -467,4 +464,24 @@ public class PatrolReportService {
     }
 
 
+    public List<RiskSummaryDTO> getRiskSummary(
+            LocalDate from,
+            LocalDate to,
+            String fac,
+            String type
+    ) {
+        return repo.summaryRiskRaw(from, to, fac, type)
+                .stream()
+                .map(r -> new RiskSummaryDTO(
+                        (String) r[0],   // grp
+                        (String) r[1],   // division
+                        ((Number) r[2]).intValue(), // minus
+                        ((Number) r[3]).intValue(), // i
+                        ((Number) r[4]).intValue(), // ii
+                        ((Number) r[5]).intValue(), // iii
+                        ((Number) r[6]).intValue(), // iv
+                        ((Number) r[7]).intValue()  // v
+                ))
+                .toList();
+    }
 }

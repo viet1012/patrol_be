@@ -1,5 +1,6 @@
 package com.example.patrol_be.repository;
 
+import com.example.patrol_be.dto.RiskSummaryDTO;
 import com.example.patrol_be.model.PatrolReport;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.*;
@@ -141,6 +142,31 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
             @Param("atStatuses") List<String> atStatuses
     );
 
-
+    @Query(
+            value = """
+    SELECT
+        grp,
+        division,
+        SUM(CASE WHEN riskTotal IS NULL OR riskTotal = '' THEN 1 ELSE 0 END) AS minus,
+        SUM(CASE WHEN riskTotal = 'I'   THEN 1 ELSE 0 END) AS i,
+        SUM(CASE WHEN riskTotal = 'II'  THEN 1 ELSE 0 END) AS ii,
+        SUM(CASE WHEN riskTotal = 'III' THEN 1 ELSE 0 END) AS iii,
+        SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS iv,
+        SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS v
+    FROM F2_Patrol_Report
+    WHERE createdAt BETWEEN :fromD AND :toD
+      AND [type] = :type
+      AND plant = :fac
+      AND at_status IN ('Wait', 'Redo')
+    GROUP BY grp, division
+    """,
+            nativeQuery = true
+    )
+    List<Object[]> summaryRiskRaw(
+            @Param("fromD") LocalDate fromD,
+            @Param("toD") LocalDate toD,
+            @Param("fac") String fac,
+            @Param("type") String type
+    );
 
 }

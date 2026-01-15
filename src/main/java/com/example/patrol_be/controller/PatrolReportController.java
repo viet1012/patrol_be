@@ -6,6 +6,7 @@ import com.example.patrol_be.service.PatrolReportService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -132,6 +134,18 @@ public class PatrolReportController {
 
         service.updateHseInfo(id, atUpdateDTO, images);
         return ResponseEntity.ok("AT updated successfully");
+    }
+
+    @GetMapping("/risk_summary")
+    public ResponseEntity<List<RiskSummaryDTO>> getRiskSummary(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toD,
+            @RequestParam String fac,
+            @RequestParam(defaultValue = "Patrol") String type
+    ) {
+        return ResponseEntity.ok(
+                service.getRiskSummary(fromD, toD, fac, type)
+        );
     }
 
 }
