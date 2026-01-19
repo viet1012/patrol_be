@@ -354,6 +354,22 @@ public class PatrolReportService {
             report.setPic(dto.getPic().trim());
         }
 
+        if (dto.getRiskFreq() != null) {
+            report.setRiskFreq(dto.getRiskFreq().trim());
+        }
+
+        if (dto.getRiskProb() != null) {
+            report.setRiskProb(dto.getRiskProb().trim());
+        }
+
+        if (dto.getRiskSev() != null) {
+            report.setRiskSev(dto.getRiskSev().trim());
+        }
+
+        if (dto.getRiskTotal() != null) {
+            report.setRiskTotal(dto.getRiskTotal().trim());
+        }
+
         report.setEdit_date(LocalDateTime.now());
         report.setEdit_user(dto.getEditUser());
 
