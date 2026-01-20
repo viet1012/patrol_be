@@ -57,13 +57,7 @@ public class PatrolReportExportExcelService {
 
             Sheet sheet = wb.createSheet("Patrol Reports");
 
-            // ===== Styles =====
-//            CellStyle headerStyle = wb.createCellStyle();
-//            Font headerFont = wb.createFont();
-//            headerFont.setBold(true);
-//            headerStyle.setFont(headerFont);
-//            headerStyle.setAlignment(HorizontalAlignment.CENTER);
-//            headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
 //          ===== Header base =====
             Font headerFont = wb.createFont();
             headerFont.setBold(true);
@@ -106,6 +100,15 @@ public class PatrolReportExportExcelService {
             wrapStyle.setWrapText(true);
             wrapStyle.setAlignment(HorizontalAlignment.CENTER);
             wrapStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+            // 🔴 Style cho IV / V
+            CellStyle redBoldStyle = wb.createCellStyle();
+            redBoldStyle.cloneStyleFrom(wrapStyle); // giữ wrap + align
+
+            Font redBoldFont = wb.createFont();
+            redBoldFont.setBold(true);
+            redBoldFont.setColor(IndexedColors.RED.getIndex());
+            redBoldStyle.setFont(redBoldFont);
 
             // ✅ HEADER CỐ ĐỊNH ĐÚNG THỨ TỰ BẠN MUỐN
             String[] headers = {
@@ -218,7 +221,7 @@ public class PatrolReportExportExcelService {
                 setText(r, col++, d.getRiskFreq(), wrapStyle);
                 setText(r, col++, d.getRiskProb(), wrapStyle);
                 setText(r, col++, d.getRiskSev(), wrapStyle);
-                setText(r, col++, d.getRiskTotal(), wrapStyle);
+                setRiskLevelText(r, col++, d.getRiskTotal(), wrapStyle, redBoldStyle);
 
 
 
@@ -311,6 +314,26 @@ public class PatrolReportExportExcelService {
         Cell cell = r.createCell(c);
         cell.setCellValue(v == null ? "" : String.valueOf(v));
         cell.setCellStyle(wrapStyle);
+    }
+
+    private void setRiskLevelText(
+            Row r,
+            int c,
+            Object v,
+            CellStyle normalStyle,
+            CellStyle redBoldStyle
+    ) {
+        Cell cell = r.createCell(c);
+
+        String value = v == null ? "" : String.valueOf(v);
+        cell.setCellValue(value);
+
+        // ✅ Check IV / V
+        if ("IV".equalsIgnoreCase(value) || "V".equalsIgnoreCase(value)) {
+            cell.setCellStyle(redBoldStyle);
+        } else {
+            cell.setCellStyle(normalStyle);
+        }
     }
 
     private String fmt(LocalDateTime t) {
