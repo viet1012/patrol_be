@@ -4,9 +4,9 @@ import com.example.patrol_be.dto.PatrolReportDTO;
 import lombok.RequiredArgsConstructor;
 import net.coobird.thumbnailator.Thumbnails;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.util.IOUtils;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
@@ -26,9 +26,12 @@ public class PatrolReportExportExcelService {
     private final String imageBaseUrl = "http://192.168.122.15:9299/images/";
     private static final DateTimeFormatter DTF = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    // ✅ THUMB CONFIG (nhẹ nhất mà vẫn nhìn được)
-    private static final int IMG_MAX = 200;     // 160-240 tuỳ bạn
+    // Thumb
+    private static final int IMG_MAX = 200;
     private static final float IMG_QUALITY = 0.55f;
+
+    // ✅ bạn muốn cố định 3 ảnh mỗi nhóm
+    private static final int CAP = 3;
 
     public byte[] export(
             String plant,
@@ -46,48 +49,149 @@ public class PatrolReportExportExcelService {
         List<PatrolReportDTO> rows = patrolReportService.search(
                 plant, division, area, machine, type, afStatus, grp, pic, patrolUser, qrKey
         );
-
-        try (SXSSFWorkbook  wb = new SXSSFWorkbook();
+        System.out.println("rows: " + rows.size());
+        try (SXSSFWorkbook wb = new SXSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
-            // ✅ giảm dung lượng temp + zip tốt hơn (nhẹ hơn khi nhiều ảnh)
             wb.setCompressTempFiles(true);
 
             Sheet sheet = wb.createSheet("Patrol Reports");
 
             // ===== Styles =====
-            CellStyle headerStyle = wb.createCellStyle();
+//            CellStyle headerStyle = wb.createCellStyle();
+//            Font headerFont = wb.createFont();
+//            headerFont.setBold(true);
+//            headerStyle.setFont(headerFont);
+//            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+//            headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+//          ===== Header base =====
             Font headerFont = wb.createFont();
             headerFont.setBold(true);
-            headerStyle.setFont(headerFont);
-            headerStyle.setAlignment(HorizontalAlignment.CENTER);
-            headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+// 🔵 Patrol / Before
+            CellStyle headerBlue = wb.createCellStyle();
+            headerBlue.setFont(headerFont);
+            headerBlue.setAlignment(HorizontalAlignment.CENTER);
+            headerBlue.setVerticalAlignment(VerticalAlignment.CENTER);
+            headerBlue.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE.getIndex());
+            headerBlue.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            setHeaderBorder(headerBlue);
+
+// 🟢 PIC / After
+            CellStyle headerGreen = wb.createCellStyle();
+            headerGreen.setFont(headerFont);
+            headerGreen.setAlignment(HorizontalAlignment.CENTER);
+            headerGreen.setVerticalAlignment(VerticalAlignment.CENTER);
+            headerGreen.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
+            headerGreen.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            setHeaderBorder(headerGreen);
+
+// 🟡 HSE
+            CellStyle headerYellow = wb.createCellStyle();
+            headerYellow.setFont(headerFont);
+            headerYellow.setAlignment(HorizontalAlignment.CENTER);
+            headerYellow.setVerticalAlignment(VerticalAlignment.CENTER);
+            headerYellow.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
+            headerYellow.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            setHeaderBorder(headerYellow);
+
+// ⚪ Default header
+            CellStyle headerDefault = wb.createCellStyle();
+            headerDefault.setFont(headerFont);
+            headerDefault.setAlignment(HorizontalAlignment.CENTER);
+            headerDefault.setVerticalAlignment(VerticalAlignment.CENTER);
+            setHeaderBorder(headerDefault);
 
             CellStyle wrapStyle = wb.createCellStyle();
             wrapStyle.setWrapText(true);
-            wrapStyle.setVerticalAlignment(VerticalAlignment.TOP);
+            wrapStyle.setAlignment(HorizontalAlignment.CENTER);
+            wrapStyle.setVerticalAlignment(VerticalAlignment.CENTER);
 
-            // ===== Header (ĐÚNG THỨ TỰ DTO) =====
-            String[] headers = new String[]{
-                    "id","stt","qr_key","type","grp","plant","division","area","machine","patrol_user",
-                    "riskFreq","riskProb","riskSev","riskTotal",
-                    "comment","countermeasure","checkInfo",
-                    "imageNames","createdAt","pic","dueDate",
-                    "at_imageNames","at_comment","at_date","at_pic","at_status",
-                    "hse_judge","hse_imageNames","hse_comment","hse_date",
-                    "load_status",
-                    "BeforeImg(1)","AfterImg(1)","HSEImg(1)"
+            // ✅ HEADER CỐ ĐỊNH ĐÚNG THỨ TỰ BẠN MUỐN
+            String[] headers = {
+                    "Report ID",
+                    "No.",
+                    "QR Key",
+                    "Type",
+                    "Group",
+                    "Plant",
+                    "Division",
+                    "Area",
+                    "Machine",
+
+                    "Risk Frequency",
+                    "Risk Probability",
+                    "Risk Severity",
+                    "Risk Score",
+
+
+
+                    "Comment",
+                    "Countermeasure",
+                    "Check Information",
+                    "Patrol User",
+
+                    "Before Image 1",
+                    "Before Image 2",
+                    "Before Image 3",
+                    "Created At",
+                    "PIC",
+                    "Due Date",
+
+                    "After Image 1",
+                    "After Image 2",
+                    "After Image 3",
+
+                    "After Comment",
+                    "After Date",
+                    "After PIC",
+                    "After Status",
+
+                    "HSE Decision",
+                    "HSE Image 1",
+                    "HSE Image 2",
+                    "HSE Image 3",
+                    "HSE Comment",
+                    "HSE Date",
+
+                    "Load Status"
             };
 
+
             Row headerRow = sheet.createRow(0);
-            headerRow.setHeightInPoints(22);
+            headerRow.setHeightInPoints(28);
+
             for (int i = 0; i < headers.length; i++) {
                 Cell c = headerRow.createCell(i);
                 c.setCellValue(headers[i]);
-                c.setCellStyle(headerStyle);
-            }
 
-            // ✅ CHỈ TẠO 1 LẦN
+                // 🟦 Patrol / Before
+                if (i == 16 || (i >= 17 && i <= 19) || i == 20) {
+                    c.setCellStyle(headerBlue);
+                }
+                // 🟩 PIC / After
+                else if (i == 21 || i == 22 || (i >= 23 && i <= 29)) {
+                    c.setCellStyle(headerGreen);
+                }
+                // 🟨 HSE
+                else if (i >= 30 && i <= 35) {
+                    c.setCellStyle(headerYellow);
+                }
+                // ⚪ Default
+                else {
+                    c.setCellStyle(headerDefault);
+                }
+            }
+            sheet.setAutoFilter(
+                    new CellRangeAddress(
+                            0,                  // header row start
+                            0,                  // header row end
+                            0,                  // first column
+                            headers.length - 1  // last column
+                    )
+            );
+
+            // ✅ chỉ tạo 1 lần
             CreationHelper helper = wb.getCreationHelper();
             Drawing<?> drawing = sheet.createDrawingPatriarch();
 
@@ -95,69 +199,96 @@ public class PatrolReportExportExcelService {
             int rIndex = 1;
             for (PatrolReportDTO d : rows) {
                 Row r = sheet.createRow(rIndex++);
-                r.setHeightInPoints(70); // đủ cho thumbnail 200px theo cột ~16
+
+                // ⚠️ KHÔNG fix height cứng nếu muốn wrap thấy rõ
+                r.setHeight((short) -1); // Excel auto height khi mở file
 
                 int col = 0;
 
-                setText(r, col++, d.getId());
-                setText(r, col++, d.getStt());
-                setText(r, col++, d.getQr_key());
-                setText(r, col++, d.getType());
-                setText(r, col++, d.getGrp());
-                setText(r, col++, d.getPlant());
-                setText(r, col++, d.getDivision());
-                setText(r, col++, d.getArea());
-                setText(r, col++, d.getMachine());
-                setText(r, col++, d.getPatrol_user());
+                setText(r, col++, d.getId(), wrapStyle);
+                setText(r, col++, d.getStt(), wrapStyle);
+                setText(r, col++, d.getQr_key(), wrapStyle);
+                setText(r, col++, d.getType(), wrapStyle);
+                setText(r, col++, d.getGrp(), wrapStyle);
+                setText(r, col++, d.getPlant(), wrapStyle);
+                setText(r, col++, d.getDivision(), wrapStyle);
+                setText(r, col++, d.getArea(), wrapStyle);
+                setText(r, col++, d.getMachine(), wrapStyle);
 
-                setText(r, col++, d.getRiskFreq());
-                setText(r, col++, d.getRiskProb());
-                setText(r, col++, d.getRiskSev());
-                setText(r, col++, d.getRiskTotal());
+                setText(r, col++, d.getRiskFreq(), wrapStyle);
+                setText(r, col++, d.getRiskProb(), wrapStyle);
+                setText(r, col++, d.getRiskSev(), wrapStyle);
+                setText(r, col++, d.getRiskTotal(), wrapStyle);
 
-                setTextWrap(r, col++, d.getComment(), wrapStyle);
-                setTextWrap(r, col++, d.getCountermeasure(), wrapStyle);
-                setTextWrap(r, col++, d.getCheckInfo(), wrapStyle);
 
-                setTextWrap(r, col++, joinList(d.getImageNames()), wrapStyle);
-                setText(r, col++, fmt(d.getCreatedAt()));
-                setText(r, col++, d.getPic());
-                setText(r, col++, fmt(d.getDueDate()));
 
-                setTextWrap(r, col++, joinList(d.getAt_imageNames()), wrapStyle);
-                setTextWrap(r, col++, d.getAt_comment(), wrapStyle);
-                setText(r, col++, fmt(d.getAt_date()));
-                setText(r, col++, d.getAt_pic());
-                setText(r, col++, d.getAt_status());
+                setText(r, col++, d.getComment(), wrapStyle);
+                setText(r, col++, d.getCountermeasure(), wrapStyle);
+                setText(r, col++, d.getCheckInfo(), wrapStyle);
+                setText(r, col++, d.getPatrol_user(), wrapStyle);
 
-                setText(r, col++, d.getHse_judge());
-                setTextWrap(r, col++, joinList(d.getHse_imageNames()), wrapStyle);
-                setTextWrap(r, col++, d.getHse_comment(), wrapStyle);
-                setText(r, col++, fmt(d.getHse_date()));
+                // BEFORE IMG
+                for (int i = 0; i < CAP; i++) {
+                    addImageCell(wb, sheet, drawing, helper, r, col++, imgAt(d.getImageNames(), i));
+                }
+                setText(r, col++, fmt(d.getCreatedAt()), wrapStyle);
+                setText(r, col++, d.getPic(), wrapStyle);
+                setText(r, col++, fmt(d.getDueDate()), wrapStyle);
 
-                setText(r, col++, d.getLoad_status());
+                // AFTER IMG
+                for (int i = 0; i < CAP; i++) {
+                    addImageCell(wb, sheet, drawing, helper, r, col++, imgAt(d.getAt_imageNames(), i));
+                }
 
-                // ✅ NHÚNG THUMBNAIL (nhẹ nhất)
-                addImageCell(wb, sheet, drawing, helper, r, col++, first(d.getImageNames()));      // Before
-                addImageCell(wb, sheet, drawing, helper, r, col++, first(d.getAt_imageNames()));   // After
-                addImageCell(wb, sheet, drawing, helper, r, col++, first(d.getHse_imageNames()));  // HSE
+                setText(r, col++, d.getAt_comment(), wrapStyle);
+                setText(r, col++, fmt(d.getAt_date()), wrapStyle);
+                setText(r, col++, d.getAt_pic(), wrapStyle);
+                setText(r, col++, d.getAt_status(), wrapStyle);
+
+                setText(r, col++, d.getHse_judge(), wrapStyle);
+
+                setText(r, col++, imgAt(d.getHse_imageNames(), 0), wrapStyle);
+                setText(r, col++, imgAt(d.getHse_imageNames(), 1), wrapStyle);
+                setText(r, col++, imgAt(d.getHse_imageNames(), 2), wrapStyle);
+
+                setText(r, col++, d.getHse_comment(), wrapStyle);
+                setText(r, col++, fmt(d.getHse_date()), wrapStyle);
+
+                setText(r, col++, d.getLoad_status(), wrapStyle);
             }
 
+
             // ===== Column width =====
-            for (int i = 0; i < headers.length; i++) sheet.setColumnWidth(i, 18 * 256);
+            // default
+            for (int i = 0; i < headers.length; i++) {
+                sheet.setColumnWidth(i, 18 * 256);
+            }
 
-            sheet.setColumnWidth(14, 40 * 256); // comment
-            sheet.setColumnWidth(15, 40 * 256); // countermeasure
-            sheet.setColumnWidth(16, 35 * 256); // checkInfo
+            // text rộng hơn
+            // comment/countermeasure/checkInfo
+            sheet.setColumnWidth(0, 10 * 256); // comment
+            sheet.setColumnWidth(1, 10 * 256); // comment
+            sheet.setColumnWidth(2, 10 * 256); // comment
 
-            sheet.setColumnWidth(17, 35 * 256); // imageNames
-            sheet.setColumnWidth(21, 35 * 256); // at_imageNames
-            sheet.setColumnWidth(27, 35 * 256); // hse_imageNames
+            sheet.setColumnWidth(13, 40 * 256); // comment
+            sheet.setColumnWidth(14, 40 * 256); // countermeasure
+            sheet.setColumnWidth(15, 40 * 256); // checkInfo
+            sheet.setColumnWidth(26, 40 * 256); // at_comment
 
-            // cột ảnh: nhỏ hơn để nhẹ
-            sheet.setColumnWidth(31, 14 * 256);
-            sheet.setColumnWidth(32, 14 * 256);
-            sheet.setColumnWidth(33, 14 * 256);
+            // hse_comment
+            sheet.setColumnWidth(34, 40 * 256);
+
+            // ảnh: set nhỏ gọn cho 1 cell
+//            // BeforeImg(1..3) nằm ở cột 17..19
+//            for (int c = 17; c <= 19; c++) sheet.setColumnWidth(c, 14 * 256);
+//            // AfterImg(1..3) nằm ở cột 23..25
+//            for (int c = 23; c <= 25; c++) sheet.setColumnWidth(c, 14 * 256);
+
+            // hse_imageNames1..3 là text tên ảnh => để vừa vừa
+            sheet.setColumnWidth(31, 22 * 256);
+            sheet.setColumnWidth(32, 22 * 256);
+            sheet.setColumnWidth(33, 22 * 256);
+
 
             wb.write(out);
             return out.toByteArray();
@@ -165,15 +296,20 @@ public class PatrolReportExportExcelService {
     }
 
     // ===== helpers =====
-
-    private void setText(Row r, int c, Object v) {
-        Cell cell = r.createCell(c);
-        cell.setCellValue(v == null ? "" : String.valueOf(v));
+    private String normalize(String v) {
+        return (v == null || v.isBlank()) ? null : v.trim();
     }
 
-    private void setTextWrap(Row r, int c, String v, CellStyle wrapStyle) {
+    private void setHeaderBorder(CellStyle style) {
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+    }
+
+    private void setText(Row r, int c, Object v, CellStyle wrapStyle) {
         Cell cell = r.createCell(c);
-        cell.setCellValue(v == null ? "" : v);
+        cell.setCellValue(v == null ? "" : String.valueOf(v));
         cell.setCellStyle(wrapStyle);
     }
 
@@ -181,17 +317,18 @@ public class PatrolReportExportExcelService {
         return t == null ? "" : DTF.format(t);
     }
 
-    private String joinList(List<String> list) {
-        if (list == null || list.isEmpty()) return "";
-        return String.join(", ", list);
+    private List<String> clean(List<String> list) {
+        if (list == null) return List.of();
+        return list.stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(String::trim)
+                .toList();
     }
 
-    private String first(List<String> list) {
-        if (list == null || list.isEmpty()) return null;
-        for (String s : list) {
-            if (s != null && !s.trim().isEmpty()) return s.trim();
-        }
-        return null;
+    private String imgAt(List<String> list, int idx) {
+        List<String> c = clean(list);
+        if (idx < 0 || idx >= c.size()) return "";
+        return c.get(idx);
     }
 
     // ✅ resize + nén mạnh về JPEG thumbnail
@@ -218,8 +355,7 @@ public class PatrolReportExportExcelService {
             int col,
             String imageName
     ) {
-        // tạo cell để giữ layout
-        row.createCell(col);
+        row.createCell(col); // giữ layout
 
         if (imageName == null || imageName.isBlank()) return;
 
@@ -231,43 +367,31 @@ public class PatrolReportExportExcelService {
                 original = IOUtils.toByteArray(in);
             }
 
-            // thumbnail JPEG nhẹ
             byte[] bytes = compressToJpegThumb(original);
 
             int pictureIdx = wb.addPicture(bytes, Workbook.PICTURE_TYPE_JPEG);
 
             ClientAnchor anchor = helper.createClientAnchor();
-
-            // neo trong đúng 1 ô: [col,row] -> [col+1,row+1]
             anchor.setCol1(col);
             anchor.setRow1(row.getRowNum());
             anchor.setCol2(col + 1);
             anchor.setRow2(row.getRowNum() + 1);
 
-            // padding trong ô (đơn vị EMU)
-            // 1 px ≈ 9525 EMU
+            // padding trong ô
             int pad = 2 * 9525;
             anchor.setDx1(pad);
             anchor.setDy1(pad);
             anchor.setDx2(-pad);
             anchor.setDy2(-pad);
 
-            // để ảnh "move+resize theo cell" nếu user kéo giãn hàng/cột
             anchor.setAnchorType(ClientAnchor.AnchorType.MOVE_AND_RESIZE);
 
             drawing.createPicture(anchor, pictureIdx);
 
-            // ✅ set kích thước ô cho ảnh (đừng set mỗi lần nếu bạn đã set cột ảnh cố định ở ngoài)
-            // Row height: 80 points ~ vừa với thumbnail 200px trong cột ~14
             row.setHeightInPoints(Math.max(row.getHeightInPoints(), 80f));
-
-            // cột ảnh đủ rộng
             sheet.setColumnWidth(col, Math.max(sheet.getColumnWidth(col), 14 * 256));
 
         } catch (Exception ignored) {
-            // bỏ qua để không fail export
         }
     }
-
-
 }

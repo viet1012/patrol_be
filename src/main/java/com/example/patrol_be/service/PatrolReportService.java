@@ -42,22 +42,26 @@ public class PatrolReportService {
             String patrolUser,
             String qrKey
     ) {
+        System.out.println("Group: " + grp);
+
         return repo.search(
                         normalize(plant),
                         normalize(division),
                         normalize(area),
                         normalize(machine),
                         normalize(type),
-                        normalize(afStatus),
-                        normalize(grp),
-                        normalizeKeepEmpty(pic),
-                        patrolUser,
-                        qrKey
 
+                        normalize(grp),          // ✅ ĐÚNG VỊ TRÍ
+                        normalize(afStatus),     // ✅ ĐÚNG VỊ TRÍ
+
+                        normalizeKeepEmpty(pic),
+                        normalize(patrolUser),
+                        normalize(qrKey)
                 ).stream()
                 .map(this::mapToDto)
                 .toList();
     }
+
 
     private PatrolReportDTO mapToDto(Object[] r) {
         return new PatrolReportDTO(

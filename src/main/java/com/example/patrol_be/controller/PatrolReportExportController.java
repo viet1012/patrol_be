@@ -36,6 +36,8 @@ public class PatrolReportExportController {
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(bytes.length)) // ⭐ BẮT BUỘC
+                .header(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, HttpHeaders.CONTENT_DISPOSITION + ", " + HttpHeaders.CONTENT_LENGTH)
                 .contentType(MediaType.parseMediaType(
                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 ))

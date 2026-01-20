@@ -47,8 +47,20 @@ public class PatrolReportController {
     ) {
 
         return ResponseEntity.ok(
-                service.search(plant,division, area, machine, type, grp, afStatus, pic, patrolUser,qrKey)
+                service.search(
+                        plant,
+                        division,
+                        area,
+                        machine,
+                        type,
+                        afStatus,    // ✅ đúng
+                        grp,         // ✅ đúng
+                        pic,
+                        patrolUser,
+                        qrKey
+                )
         );
+
     }
 
     @GetMapping("/pivot")
