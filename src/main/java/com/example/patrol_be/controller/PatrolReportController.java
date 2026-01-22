@@ -41,9 +41,9 @@ public class PatrolReportController {
             @RequestParam(required = false) String afStatus,
             @RequestParam(required = false) String pic,
             @RequestParam(required = false) String patrolUser,
-            @RequestParam(required = false) String qrKey
-
-
+            @RequestParam(required = false) String qrKey,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toD
     ) {
 
         return ResponseEntity.ok(
@@ -53,11 +53,13 @@ public class PatrolReportController {
                         area,
                         machine,
                         type,
-                        afStatus,    // ✅ đúng
-                        grp,         // ✅ đúng
+                        afStatus,
+                        grp,
                         pic,
                         patrolUser,
-                        qrKey
+                        qrKey,
+                        fromD,
+                        toD
                 )
         );
 

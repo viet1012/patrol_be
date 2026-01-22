@@ -13,6 +13,8 @@ public class WebConfig implements WebMvcConfigurer {
 
         registry.addResourceHandler("/images/**")
                 .addResourceLocations("file:/D:/1.pc/Patrol App/uploaded_images/")
+//                .addResourceLocations("file:/app/uploaded_images/")
+
                 .setCachePeriod(0)
                 .resourceChain(true);
     }

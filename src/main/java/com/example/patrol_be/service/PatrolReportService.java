@@ -5,6 +5,7 @@ import com.example.patrol_be.model.PatrolReport;
 import com.example.patrol_be.repository.PatrolReportRepo;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -40,9 +41,11 @@ public class PatrolReportService {
             String grp,
             String pic,
             String patrolUser,
-            String qrKey
+            String qrKey,
+            LocalDate from,
+            LocalDate to
     ) {
-        System.out.println("Group: " + grp);
+//        System.out.println("Group: " + grp);
 
         return repo.search(
                         normalize(plant),
@@ -56,7 +59,9 @@ public class PatrolReportService {
 
                         normalizeKeepEmpty(pic),
                         normalize(patrolUser),
-                        normalize(qrKey)
+                        normalize(qrKey),
+                        from,
+                        to
                 ).stream()
                 .map(this::mapToDto)
                 .toList();

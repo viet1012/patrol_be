@@ -13,6 +13,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.URL;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -43,11 +44,13 @@ public class PatrolReportExportExcelService {
             String grp,
             String pic,
             String patrolUser,
-            String qrKey
+            String qrKey,
+            LocalDate from,
+            LocalDate to
     ) throws Exception {
 
         List<PatrolReportDTO> rows = patrolReportService.search(
-                plant, division, area, machine, type, afStatus, grp, pic, patrolUser, qrKey
+                plant, division, area, machine, type, afStatus, grp, pic, patrolUser, qrKey,from,to
         );
         System.out.println("rows: " + rows.size());
         try (SXSSFWorkbook wb = new SXSSFWorkbook();

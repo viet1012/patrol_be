@@ -60,7 +60,13 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
            )
       AND (:patrolUser IS NULL OR LTRIM(RTRIM(patrol_user)) LIKE '%' + LTRIM(RTRIM(:patrolUser)) + '%')
       AND (:qr_key IS NULL OR LTRIM(RTRIM(qr_key)) = LTRIM(RTRIM(:qr_key)))
-      
+      AND (
+          :fromD IS NULL OR createdAt >= :fromD
+        )
+      AND (
+          :toD IS NULL OR createdAt < DATEADD(DAY, 1, :toD)
+        )
+
     ORDER BY stt DESC
 """, nativeQuery = true)
     List<Object[]> search(
@@ -73,7 +79,9 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
             @Param("afStatus") String afStatus,
             @Param("pic") String pic,
             @Param("patrolUser") String patrolUser,
-            @Param("qr_key") String qr_key
+            @Param("qr_key") String qr_key,
+            @Param("fromD") LocalDate fromD,
+            @Param("toD") LocalDate toD
     );
 
 
@@ -154,10 +162,10 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
         SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS iv,
         SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS v
     FROM F2_Patrol_Report
-    WHERE createdAt BETWEEN :fromD AND :toD
+    WHERE createdAt >= :fromD
+      AND createdAt <  DATEADD(DAY, 1, :toD)
       AND [type] = :type
       AND plant = :fac
-      AND at_status IN ('Wait', 'Redo')
     GROUP BY grp, division
     """,
             nativeQuery = true
