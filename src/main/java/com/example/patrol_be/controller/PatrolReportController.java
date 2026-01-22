@@ -25,10 +25,10 @@ import java.util.Map;
 public class PatrolReportController {
 
     @Autowired
-    private  PatrolReportService service;
+    private PatrolReportService service;
 
     @Autowired
-    private  PatrolPivotService pivotService;
+    private PatrolPivotService pivotService;
 
     @GetMapping("/filter")
     public ResponseEntity<?> filter(
@@ -68,9 +68,10 @@ public class PatrolReportController {
     @GetMapping("/pivot")
     public PatrolRiskPivotResponseDTO pivot(
             @RequestParam String plant,
-            @RequestParam(name = "at_status")  List<String>  atStatus
+            @RequestParam String type,
+            @RequestParam(name = "at_status") List<String> atStatus
     ) {
-        return pivotService.getPivot(plant, atStatus);
+        return pivotService.getPivot(plant, atStatus, type);
     }
 
 

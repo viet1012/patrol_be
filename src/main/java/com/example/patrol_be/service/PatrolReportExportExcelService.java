@@ -302,9 +302,6 @@ public class PatrolReportExportExcelService {
     }
 
     // ===== helpers =====
-    private String normalize(String v) {
-        return (v == null || v.isBlank()) ? null : v.trim();
-    }
 
     private void setHeaderBorder(CellStyle style) {
         style.setBorderTop(BorderStyle.THIN);
