@@ -68,6 +68,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
                     )
             
                 ORDER BY stt DESC
+                OPTION (RECOMPILE);
             """, nativeQuery = true)
     List<Object[]> search(
             @Param("plant") String plant,

@@ -41,6 +41,35 @@ public class Exce {
     // ===========================
     // MAIN FUNCTION
     // ===========================
+    private static String norm(String s) {
+        if (s == null) return null;
+        return s.replace('\u00A0', ' ').trim();
+    }
+    private static boolean blank(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+    public String findPicSmart(String plant, String grp, String area, String macId) {
+        plant = norm(plant);
+        grp   = norm(grp);
+        area  = norm(area);
+        macId = norm(macId);
+
+        String pic = null;
+
+        if (!blank(area) && !blank(macId)) {
+            pic = hsePatrolGroupMasterRepo.findPicByPlantGrpAreaMac(plant, grp, area, macId);
+            if (!blank(pic)) return norm(pic);
+        }
+
+        if (!blank(area)) {
+            pic = hsePatrolGroupMasterRepo.findPicByPlantGrpArea(plant, grp, area);
+            if (!blank(pic)) return norm(pic);
+        }
+
+        pic = hsePatrolGroupMasterRepo.findPicByPlantGrp(plant, grp);
+        return blank(pic) ? null : norm(pic);
+    }
+
     public synchronized void appendToExcel(ReportRequest req, MultipartFile[] images) throws IOException {
 
         if (!Files.exists(imageFolderPath)) Files.createDirectories(imageFolderPath);
@@ -96,7 +125,23 @@ public class Exce {
         rpt.setCountermeasure(req.getCountermeasure());
         rpt.setCheckInfo(req.getCheck());
         rpt.setImageNames(String.join(",", savedImageNames));
-        rpt.setPic(hsePatrolGroupMasterRepo.findPIC(rpt.getPlant(), rpt.getMachine()));
+//        rpt.setPic(hsePatrolGroupMasterRepo.findPIC(rpt.getPlant(), rpt.getMachine()));
+        String pic = findPicSmart(
+                req.getPlant(),
+                req.getDivision(),
+                req.getArea(),
+                req.getMachine()
+        );
+
+        System.out.println("🔎 [PIC RESOLVE RESULT]");
+        System.out.println("   Plant   = " + req.getPlant());
+        System.out.println("   Division   = " + req.getDivision());
+        System.out.println("   Area    = " + req.getArea());
+        System.out.println("   Machine = " + req.getMachine());
+        System.out.println("👉 PIC = " + pic);
+
+        rpt.setPic(pic);
+
 
         if ("IV".equals(req.getRiskTotal()) || "V".equals(req.getRiskTotal())){
             rpt.setDueDate((LocalDate.now().plusDays(14)));
