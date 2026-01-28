@@ -25,4 +25,8 @@ public class PatrolEditDTO {
     private String area;
     private String machine;
     private String pic;
+
+    private String atComment;
+    private String atStatus;
+
 }

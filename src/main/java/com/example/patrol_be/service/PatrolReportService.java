@@ -321,7 +321,6 @@ public class PatrolReportService {
         }
     }
 
-
     @Transactional
     public void updateReport(
             Long reportId,
@@ -377,6 +376,14 @@ public class PatrolReportService {
 
         if (dto.getRiskTotal() != null) {
             report.setRiskTotal(dto.getRiskTotal().trim());
+        }
+
+        if (dto.getAtComment() != null) {
+            report.setAt_comment(dto.getAtComment().trim());
+        }
+
+        if (dto.getAtStatus() != null) {
+            report.setAt_status(dto.getAtStatus().trim());
         }
 
         report.setEdit_date(LocalDateTime.now());
