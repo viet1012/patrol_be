@@ -163,4 +163,15 @@ public class PatrolReportController {
         );
     }
 
+    // GET /api/summary/division?fromD=2026-01-02&toD=2026-01-28&fac=Fac_2&type=Patrol
+    @GetMapping("/summary/division")
+    public ResponseEntity<List<DivisionSummaryDTO>> byDivision(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toD,
+            @RequestParam String fac,
+            @RequestParam String type
+    ) {
+        return ResponseEntity.ok(service.summaryByDivision(fromD, toD, fac, type));
+    }
+
 }

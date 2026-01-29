@@ -386,6 +386,10 @@ public class PatrolReportService {
             report.setAt_status(dto.getAtStatus().trim());
         }
 
+        if (dto.getAtUser() != null) {
+            report.setAt_user(dto.getAtUser().trim());
+        }
+
         report.setEdit_date(LocalDateTime.now());
         report.setEdit_user(dto.getEditUser());
 
@@ -515,5 +519,30 @@ public class PatrolReportService {
                         ((Number) r[7]).intValue()  // v
                 ))
                 .toList();
+    }
+
+    public List<DivisionSummaryDTO> summaryByDivision(LocalDate fromD, LocalDate toD, String fac, String type) {
+        List<Object[]> rows = repo.summaryByDivisionRaw(fromD, toD, fac, type);
+        List<DivisionSummaryDTO> out = new ArrayList<>(rows.size());
+
+        for (Object[] r : rows) {
+            int i = 0;
+            String division = (String) r[i++];
+
+            out.add(new DivisionSummaryDTO(
+                    division,
+                    toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]),
+                    toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]),
+                    toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]),
+                    toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++])
+            ));
+        }
+        return out;
+    }
+
+    private long toLong(Object o) {
+        if (o == null) return 0L;
+        if (o instanceof Number n) return n.longValue();
+        return Long.parseLong(o.toString());
     }
 }

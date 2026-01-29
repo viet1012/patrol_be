@@ -195,4 +195,50 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
             @Param("type") String type
     );
 
+    @Query(value = """
+        SELECT
+            division,
+
+            COUNT(1) AS All_TTL,
+            SUM(CASE WHEN riskTotal IN ('-', 'I')   THEN 1 ELSE 0 END) AS All_I,
+            SUM(CASE WHEN riskTotal = 'II'  THEN 1 ELSE 0 END) AS All_II,
+            SUM(CASE WHEN riskTotal = 'III' THEN 1 ELSE 0 END) AS All_III,
+            SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS All_IV,
+            SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS All_V,
+
+            SUM(CASE WHEN at_status = 'Done' THEN 1 ELSE 0 END) AS Pro_Done_TTL,
+            SUM(CASE WHEN at_status = 'Done' AND riskTotal IN ('-', 'I')   THEN 1 ELSE 0 END) AS Pro_Done_I,
+            SUM(CASE WHEN at_status = 'Done' AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS Pro_Done_II,
+            SUM(CASE WHEN at_status = 'Done' AND riskTotal = 'III' THEN 1 ELSE 0 END) AS Pro_Done_III,
+            SUM(CASE WHEN at_status = 'Done' AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS Pro_Done_IV,
+            SUM(CASE WHEN at_status = 'Done' AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS Pro_Done_V,
+
+            SUM(CASE WHEN at_status = 'Completed' THEN 1 ELSE 0 END) AS HSE_Done_TTL,
+            SUM(CASE WHEN at_status = 'Completed' AND riskTotal IN ('-', 'I')   THEN 1 ELSE 0 END) AS HSE_Done_I,
+            SUM(CASE WHEN at_status = 'Completed' AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS HSE_Done_II,
+            SUM(CASE WHEN at_status = 'Completed' AND riskTotal = 'III' THEN 1 ELSE 0 END) AS HSE_Done_III,
+            SUM(CASE WHEN at_status = 'Completed' AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS HSE_Done_IV,
+            SUM(CASE WHEN at_status = 'Completed' AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS HSE_Done_V,
+
+            SUM(CASE WHEN at_status IN ('Wait','Redo') THEN 1 ELSE 0 END) AS Remain_TTL,
+            SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal IN ('-', 'I')   THEN 1 ELSE 0 END) AS Remain_I,
+            SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS Remain_II,
+            SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal = 'III' THEN 1 ELSE 0 END) AS Remain_III,
+            SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS Remain_IV,
+            SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS Remain_V
+
+        FROM dbo.F2_Patrol_Report
+        WHERE createdAt >= :fromD
+          AND createdAt < DATEADD(DAY, 1, :toD)
+          AND [type] = :type
+          AND plant = :fac
+        GROUP BY division
+        ORDER BY division
+        """, nativeQuery = true)
+    List<Object[]> summaryByDivisionRaw(
+            @Param("fromD") LocalDate fromD,
+            @Param("toD") LocalDate toD,
+            @Param("fac") String fac,
+            @Param("type") String type
+    );
 }

@@ -28,5 +28,6 @@ public class PatrolEditDTO {
 
     private String atComment;
     private String atStatus;
+    private String atUser;
 
 }
