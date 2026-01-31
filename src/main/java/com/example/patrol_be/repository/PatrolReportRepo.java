@@ -241,4 +241,76 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
             @Param("fac") String fac,
             @Param("type") String type
     );
+
+    @Query(value = """
+            SELECT
+                pic,
+            
+                COUNT(1) AS allTtl,
+            
+                CAST(ROUND(
+                    100.0 * SUM(CASE WHEN at_status = 'Wait' THEN 1 ELSE 0 END)
+                    / NULLIF(COUNT(1), 0), 0
+                ) AS INT) AS allNyPct,
+            
+                SUM(CASE WHEN at_status IN ('Done','Completed') THEN 1 ELSE 0 END) AS allOk,
+                SUM(CASE WHEN at_status = 'Redo' THEN 1 ELSE 0 END) AS allNg,
+                SUM(CASE WHEN at_status = 'Wait' THEN 1 ELSE 0 END) AS allNy,
+            
+                -- ===== Fac_A =====
+                SUM(CASE WHEN division='Fac_A' THEN 1 ELSE 0 END) AS facATtl,
+                CAST(ROUND(
+                    100.0 * SUM(CASE WHEN at_status='Wait' AND division='Fac_A' THEN 1 ELSE 0 END)
+                    / NULLIF(SUM(CASE WHEN division='Fac_A' THEN 1 ELSE 0 END), 0), 0
+                ) AS INT) AS facANyPct,
+                SUM(CASE WHEN at_status IN ('Done','Completed') AND division='Fac_A' THEN 1 ELSE 0 END) AS facAOk,
+                SUM(CASE WHEN at_status = 'Redo' AND division='Fac_A' THEN 1 ELSE 0 END) AS facANg,
+                SUM(CASE WHEN at_status = 'Wait' AND division='Fac_A' THEN 1 ELSE 0 END) AS facANy,
+            
+                -- ===== Fac_B =====
+                SUM(CASE WHEN division='Fac_B' THEN 1 ELSE 0 END) AS facBTtl,
+                CAST(ROUND(
+                    100.0 * SUM(CASE WHEN at_status='Wait' AND division='Fac_B' THEN 1 ELSE 0 END)
+                    / NULLIF(SUM(CASE WHEN division='Fac_B' THEN 1 ELSE 0 END), 0), 0
+                ) AS INT) AS facBNyPct,
+                SUM(CASE WHEN at_status IN ('Done','Completed') AND division='Fac_B' THEN 1 ELSE 0 END) AS facBOk,
+                SUM(CASE WHEN at_status = 'Redo' AND division='Fac_B' THEN 1 ELSE 0 END) AS facBNg,
+                SUM(CASE WHEN at_status = 'Wait' AND division='Fac_B' THEN 1 ELSE 0 END) AS facBNy,
+            
+                -- ===== Fac_C =====
+                SUM(CASE WHEN division='Fac_C' THEN 1 ELSE 0 END) AS facCTtl,
+                CAST(ROUND(
+                    100.0 * SUM(CASE WHEN at_status='Wait' AND division='Fac_C' THEN 1 ELSE 0 END)
+                    / NULLIF(SUM(CASE WHEN division='Fac_C' THEN 1 ELSE 0 END), 0), 0
+                ) AS INT) AS facCNyPct,
+                SUM(CASE WHEN at_status IN ('Done','Completed') AND division='Fac_C' THEN 1 ELSE 0 END) AS facCOk,
+                SUM(CASE WHEN at_status = 'Redo' AND division='Fac_C' THEN 1 ELSE 0 END) AS facCNg,
+                SUM(CASE WHEN at_status = 'Wait' AND division='Fac_C' THEN 1 ELSE 0 END) AS facCNy,
+            
+                -- ===== Outside =====
+                SUM(CASE WHEN division LIKE 'Outside%%' THEN 1 ELSE 0 END) AS outsideTtl,
+                CAST(ROUND(
+                    100.0 * SUM(CASE WHEN at_status='Wait' AND division LIKE 'Outside%%' THEN 1 ELSE 0 END)
+                    / NULLIF(SUM(CASE WHEN division LIKE 'Outside%%' THEN 1 ELSE 0 END), 0), 0
+                ) AS INT) AS outsideNyPct,
+                SUM(CASE WHEN at_status IN ('Done','Completed') AND division LIKE 'Outside%%' THEN 1 ELSE 0 END) AS outsideOk,
+                SUM(CASE WHEN at_status = 'Redo' AND division LIKE 'Outside%%' THEN 1 ELSE 0 END) AS outsideNg,
+                SUM(CASE WHEN at_status = 'Wait' AND division LIKE 'Outside%%' THEN 1 ELSE 0 END) AS outsideNy
+            
+            FROM F2_Patrol_Report
+            WHERE createdAt >= :fromD
+              AND createdAt < DATEADD(day, 1, :toD)   -- ✅ bao gồm cả ngày toD
+              AND [type] = :type
+              AND plant = :fac
+              AND riskTotal IN (:lvls)
+            GROUP BY pic
+            ORDER BY allTtl DESC
+            """, nativeQuery = true)
+    List<Object[]> fetchPicSummaryRaw(
+            @Param("fromD") LocalDate fromD,
+            @Param("toD") LocalDate toD,
+            @Param("fac") String fac,
+            @Param("type") String type,
+            @Param("lvls") List<String> lvls
+    );
 }

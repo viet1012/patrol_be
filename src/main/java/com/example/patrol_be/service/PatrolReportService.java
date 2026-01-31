@@ -545,4 +545,55 @@ public class PatrolReportService {
         if (o instanceof Number n) return n.longValue();
         return Long.parseLong(o.toString());
     }
+
+
+    public List<PicSummaryDTO> getPicSummary(LocalDate fromD, LocalDate toD, String fac, String type, List<String> lvls) {
+        return repo.fetchPicSummaryRaw(fromD, toD, fac, type, lvls)
+                .stream()
+                .map(this::mapRow)
+                .toList();
+    }
+
+    private PicSummaryDTO mapRow(Object[] r) {
+        int i = 0;
+        return PicSummaryDTO.builder()
+                .pic((String) r[i++])
+
+                .allTtl(toInt(r[i++]))
+                .allNyPct(toInt(r[i++]))
+                .allOk(toInt(r[i++]))
+                .allNg(toInt(r[i++]))
+                .allNy(toInt(r[i++]))
+
+                .facATtl(toInt(r[i++]))
+                .facANyPct(toInt(r[i++]))
+                .facAOk(toInt(r[i++]))
+                .facANg(toInt(r[i++]))
+                .facANy(toInt(r[i++]))
+
+                .facBTtl(toInt(r[i++]))
+                .facBNyPct(toInt(r[i++]))
+                .facBOk(toInt(r[i++]))
+                .facBNg(toInt(r[i++]))
+                .facBNy(toInt(r[i++]))
+
+                .facCTtl(toInt(r[i++]))
+                .facCNyPct(toInt(r[i++]))
+                .facCOk(toInt(r[i++]))
+                .facCNg(toInt(r[i++]))
+                .facCNy(toInt(r[i++]))
+
+                .outsideTtl(toInt(r[i++]))
+                .outsideNyPct(toInt(r[i++]))
+                .outsideOk(toInt(r[i++]))
+                .outsideNg(toInt(r[i++]))
+                .outsideNy(toInt(r[i++]))
+                .build();
+    }
+
+    private Integer toInt(Object o) {
+        if (o == null) return 0;
+        if (o instanceof Number n) return n.intValue();
+        return Integer.parseInt(o.toString());
+    }
 }

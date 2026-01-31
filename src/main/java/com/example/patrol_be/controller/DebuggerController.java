@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import java.util.Enumeration;
 
 public class DebuggerController {
-    @GetMapping("/debug/headers")
+    @GetMapping("/api/debug/headers")
     public void debugHeaders(HttpServletRequest request) {
         System.out.println("===== HEADERS FROM ENTRA =====");
         Enumeration<String> names = request.getHeaderNames();
