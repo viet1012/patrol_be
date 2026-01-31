@@ -219,23 +219,13 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
             SUM(CASE WHEN at_status = 'Completed' AND riskTotal = 'III' THEN 1 ELSE 0 END) AS HSE_Done_III,
             SUM(CASE WHEN at_status = 'Completed' AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS HSE_Done_IV,
             SUM(CASE WHEN at_status = 'Completed' AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS HSE_Done_V,
-            -- ===== REMAIN = BEFORE - AFTER =====
-    (COUNT(1) - SUM(CASE WHEN at_status = 'Done' THEN 1 ELSE 0 END)) AS [Remain_TTL],
-
-    (SUM(CASE WHEN riskTotal IN ('-', 'I') THEN 1 ELSE 0 END)
-     - SUM(CASE WHEN at_status = 'Done' AND riskTotal IN ('-', 'I') THEN 1 ELSE 0 END)) AS [Remain_I],
-
-    (SUM(CASE WHEN riskTotal = 'II' THEN 1 ELSE 0 END)
-     - SUM(CASE WHEN at_status = 'Done' AND riskTotal = 'II' THEN 1 ELSE 0 END)) AS [Remain_II],
-
-    (SUM(CASE WHEN riskTotal = 'III' THEN 1 ELSE 0 END)
-     - SUM(CASE WHEN at_status = 'Done' AND riskTotal = 'III' THEN 1 ELSE 0 END)) AS [Remain_III],
-
-    (SUM(CASE WHEN riskTotal = 'IV' THEN 1 ELSE 0 END)
-     - SUM(CASE WHEN at_status = 'Done' AND riskTotal = 'IV' THEN 1 ELSE 0 END)) AS [Remain_IV],
-
-    (SUM(CASE WHEN riskTotal = 'V' THEN 1 ELSE 0 END)
-     - SUM(CASE WHEN at_status = 'Done' AND riskTotal = 'V' THEN 1 ELSE 0 END)) AS [Remain_V]
+            -- ===== REMAIN =====
+            SUM(CASE WHEN at_status IN ('Wait','Redo') THEN 1 ELSE 0 END) AS [Remain_TTL],
+            SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal IN ('-', 'I')   THEN 1 ELSE 0 END) AS [Remain_I],
+            SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS [Remain_II],
+            SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal = 'III' THEN 1 ELSE 0 END) AS [Remain_III],
+            SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS [Remain_IV],
+            SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS [Remain_V]
 
         FROM dbo.F2_Patrol_Report
         WHERE createdAt >= :fromD
