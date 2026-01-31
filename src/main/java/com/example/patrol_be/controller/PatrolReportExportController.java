@@ -29,13 +29,13 @@ public class PatrolReportExportController {
             @RequestParam(required = false) String pic,
             @RequestParam(required = false) String patrolUser,
             @RequestParam(required = false) String qrKey,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toD
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
 
     ) throws Exception {
 
         byte[] bytes = exportExcelService.export(
-                plant, division, area, machine, type, afStatus, grp, pic, patrolUser, qrKey, fromD, toD
+                plant, division, area, machine, type, afStatus, grp, pic, patrolUser, qrKey, from, to
         );
 
         String filename = "patrol_reports.xlsx";

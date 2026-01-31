@@ -159,7 +159,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
                                       WHEN GROUPING(grp) = 1 THEN 'TOTAL'
                                       ELSE grp
                                   END AS grp,
-                        
+                    
                                   CASE\s
                                       WHEN GROUPING(division) = 1 THEN ''
                                       ELSE division
@@ -206,12 +206,12 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
             SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS All_IV,
             SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS All_V,
 
-            SUM(CASE WHEN at_status = 'Done' THEN 1 ELSE 0 END) AS Pro_Done_TTL,
-            SUM(CASE WHEN at_status = 'Done' AND riskTotal IN ('-', 'I')   THEN 1 ELSE 0 END) AS Pro_Done_I,
-            SUM(CASE WHEN at_status = 'Done' AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS Pro_Done_II,
-            SUM(CASE WHEN at_status = 'Done' AND riskTotal = 'III' THEN 1 ELSE 0 END) AS Pro_Done_III,
-            SUM(CASE WHEN at_status = 'Done' AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS Pro_Done_IV,
-            SUM(CASE WHEN at_status = 'Done' AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS Pro_Done_V,
+            SUM(CASE WHEN LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) IN ('DONE','COMPLETED') THEN 1 ELSE 0 END) AS Pro_Done_TTL,
+            SUM(CASE WHEN LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) IN ('DONE','COMPLETED') AND riskTotal IN ('-', 'I')   THEN 1 ELSE 0 END) AS Pro_Done_I,
+            SUM(CASE WHEN LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) IN ('DONE','COMPLETED') AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS Pro_Done_II,
+            SUM(CASE WHEN LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) IN ('DONE','COMPLETED') AND riskTotal = 'III' THEN 1 ELSE 0 END) AS Pro_Done_III,
+            SUM(CASE WHEN LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) IN ('DONE','COMPLETED') AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS Pro_Done_IV,
+            SUM(CASE WHEN LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) IN ('DONE','COMPLETED') AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS Pro_Done_V,
 
             SUM(CASE WHEN at_status = 'Completed' THEN 1 ELSE 0 END) AS HSE_Done_TTL,
             SUM(CASE WHEN at_status = 'Completed' AND riskTotal IN ('-', 'I')   THEN 1 ELSE 0 END) AS HSE_Done_I,
