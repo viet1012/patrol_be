@@ -521,7 +521,127 @@ public class PatrolReportService {
                 .toList();
     }
 
-    public List<DivisionSummaryDTO> summaryByDivision(LocalDate fromD, LocalDate toD, String fac, String type) {
+
+    public List<DivisionSummaryDTO> summaryByDivision(
+            LocalDate fromD, LocalDate toD, String fac, String type
+    ) {
+        List<Object[]> rows = repo.summaryByDivisionRaw(fromD, toD, fac, type);
+        List<DivisionSummaryDTO> out = new ArrayList<>(rows.size() + 2);
+
+        for (Object[] r : rows) {
+            int i = 0;
+            String division = (String) r[i++];
+
+            out.add(new DivisionSummaryDTO(
+                    division,
+                    toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]),
+                    toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]),
+                    toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]),
+                    toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++])
+            ));
+        }
+
+        // ✅ SUM row
+        DivisionSummaryDTO sum = sumRow(out);
+        sum.setDivision("SUM");
+        out.add(sum);
+
+        // ✅ % row (chỉ TTL) - lưu theo basis points (x10000)
+        DivisionSummaryDTO pct = pctRowFrom(sum);
+        pct.setDivision("%");
+        out.add(pct);
+
+        return out;
+    }
+
+    private DivisionSummaryDTO sumRow(List<DivisionSummaryDTO> rows) {
+        DivisionSummaryDTO s = new DivisionSummaryDTO();
+        s.setDivision("SUM");
+
+        for (DivisionSummaryDTO d : rows) {
+            s.setAllTtl(s.getAllTtl() + d.getAllTtl());
+            s.setAllI(s.getAllI() + d.getAllI());
+            s.setAllII(s.getAllII() + d.getAllII());
+            s.setAllIII(s.getAllIII() + d.getAllIII());
+            s.setAllIV(s.getAllIV() + d.getAllIV());
+            s.setAllV(s.getAllV() + d.getAllV());
+
+            s.setProDoneTtl(s.getProDoneTtl() + d.getProDoneTtl());
+            s.setProDoneI(s.getProDoneI() + d.getProDoneI());
+            s.setProDoneII(s.getProDoneII() + d.getProDoneII());
+            s.setProDoneIII(s.getProDoneIII() + d.getProDoneIII());
+            s.setProDoneIV(s.getProDoneIV() + d.getProDoneIV());
+            s.setProDoneV(s.getProDoneV() + d.getProDoneV());
+
+            s.setHseDoneTtl(s.getHseDoneTtl() + d.getHseDoneTtl());
+            s.setHseDoneI(s.getHseDoneI() + d.getHseDoneI());
+            s.setHseDoneII(s.getHseDoneII() + d.getHseDoneII());
+            s.setHseDoneIII(s.getHseDoneIII() + d.getHseDoneIII());
+            s.setHseDoneIV(s.getHseDoneIV() + d.getHseDoneIV());
+            s.setHseDoneV(s.getHseDoneV() + d.getHseDoneV());
+
+            s.setRemainTtl(s.getRemainTtl() + d.getRemainTtl());
+            s.setRemainI(s.getRemainI() + d.getRemainI());
+            s.setRemainII(s.getRemainII() + d.getRemainII());
+            s.setRemainIII(s.getRemainIII() + d.getRemainIII());
+            s.setRemainIV(s.getRemainIV() + d.getRemainIV());
+            s.setRemainV(s.getRemainV() + d.getRemainV());
+        }
+        return s;
+    }
+
+    /**
+     * % row: chỉ set các *_Ttl.
+     * Lưu theo basis points (x10000): 12.34% => 1234
+     * - All_Ttl luôn 100% => 10000
+     * - ProDoneTtl = ProDoneTtl / AllTtl
+     * - HseDoneTtl = HseDoneTtl / AllTtl
+     * - RemainTtl  = RemainTtl  / AllTtl
+     */
+//    private DivisionSummaryDTO pctRowFrom(DivisionSummaryDTO sum) {
+//        DivisionSummaryDTO p = new DivisionSummaryDTO();
+//        p.setDivision("%");
+//
+//        long all = sum.getAllTtl();
+//        p.setAllTtl(10000L);
+//
+//        p.setProDoneTtl(ratioBp(sum.getProDoneTtl(), all));
+//        p.setHseDoneTtl(ratioBp(sum.getHseDoneTtl(), all));
+//        p.setRemainTtl(ratioBp(sum.getRemainTtl(), all));
+//
+//        // các cột khác giữ 0 (vì bạn chỉ muốn % TTL)
+//        return p;
+//    }
+    private DivisionSummaryDTO pctRowFrom(DivisionSummaryDTO sum) {
+        DivisionSummaryDTO p = new DivisionSummaryDTO();
+        p.setDivision("%");
+
+        long all = (long) sum.getAllTtl();
+        long pro = (long) sum.getProDoneTtl();
+
+        p.setAllTtl(100.0);
+
+        // % trên ALL
+        p.setProDoneTtl(ratioPercent((long) sum.getProDoneTtl(), all));
+        p.setRemainTtl(ratioPercent((long) sum.getRemainTtl(), all));
+
+        // % trên PRO (HSE ⊆ PRO)
+        p.setHseDoneTtl(ratioPercent((long) sum.getHseDoneTtl(), pro));
+
+        return p;
+    }
+
+    /**
+     * Trả về % dạng 72.22
+     */
+    private double ratioPercent(long part, long total) {
+        if (total <= 0) return 0d;
+        return Math.round((part * 10000.0) / total) / 100.0;
+    }
+
+
+
+    public List<DivisionSummaryDTO> summaryByDivision1(LocalDate fromD, LocalDate toD, String fac, String type) {
         List<Object[]> rows = repo.summaryByDivisionRaw(fromD, toD, fac, type);
         List<DivisionSummaryDTO> out = new ArrayList<>(rows.size());
 

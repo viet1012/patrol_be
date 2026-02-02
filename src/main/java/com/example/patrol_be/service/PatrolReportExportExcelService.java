@@ -250,7 +250,7 @@ public class PatrolReportExportExcelService {
                 "HSE_Done_TTL", "HSE_Done_I", "HSE_Done_II", "HSE_Done_III", "HSE_Done_IV", "HSE_Done_V"
         };
 
-        // Header
+        // ===== Header =====
         Row headerRow = sheet.createRow(0);
         headerRow.setHeightInPoints(28);
 
@@ -258,16 +258,16 @@ public class PatrolReportExportExcelService {
             Cell c = headerRow.createCell(i);
             c.setCellValue(headers[i]);
 
-            if (i >= 1 && i <= 6) c.setCellStyle(styles.headerBlue);          // ALL
-            else if (i >= 7 && i <= 12) c.setCellStyle(styles.headerGreen);   // PRO
-            else if (i >= 13 && i <= 18) c.setCellStyle(styles.headerRed);    // REMAIN
-            else if (i >= 19 && i <= 24) c.setCellStyle(styles.headerYellow); // HSE
+            if (i >= 1 && i <= 6) c.setCellStyle(styles.headerBlue);           // ALL
+            else if (i >= 7 && i <= 12) c.setCellStyle(styles.headerGreen);    // PRO
+            else if (i >= 13 && i <= 18) c.setCellStyle(styles.headerRed);     // REMAIN
+            else if (i >= 19 && i <= 24) c.setCellStyle(styles.headerYellow);  // HSE
             else c.setCellStyle(styles.headerDefault);
         }
 
         sheet.createFreezePane(0, 1);
 
-        // Data
+        // ===== Data rows only =====
         int r = 1;
         for (DivisionSummaryDTO d : rows) {
             Row row = sheet.createRow(r++);
@@ -308,73 +308,13 @@ public class PatrolReportExportExcelService {
             setNumber(row, c++, toDoubleSafe(d.getHseDoneV()), styles.cell);
         }
 
-        // SUM
-        Totals t = new Totals();
-        for (DivisionSummaryDTO d : rows) t.add(d);
-
-        Row sumRow = sheet.createRow(r++);
-        int c = 0;
-        setText(sumRow, c++, "SUM", styles.sumLabel);
-
-        // ALL
-        setNumber(sumRow, c++, t.allTtl, styles.sumCell);
-        setNumber(sumRow, c++, t.allI, styles.sumCell);
-        setNumber(sumRow, c++, t.allII, styles.sumCell);
-        setNumber(sumRow, c++, t.allIII, styles.sumCell);
-        setNumber(sumRow, c++, t.allIV, styles.sumCell);
-        setNumber(sumRow, c++, t.allV, styles.sumCell);
-
-        // PRO
-        setNumber(sumRow, c++, t.proTtl, styles.sumCell);
-        setNumber(sumRow, c++, t.proI, styles.sumCell);
-        setNumber(sumRow, c++, t.proII, styles.sumCell);
-        setNumber(sumRow, c++, t.proIII, styles.sumCell);
-        setNumber(sumRow, c++, t.proIV, styles.sumCell);
-        setNumber(sumRow, c++, t.proV, styles.sumCell);
-
-        // REMAIN (đỏ)
-        setNumber(sumRow, c++, t.remTtl, styles.sumRemain);
-        setNumber(sumRow, c++, t.remI, styles.sumRemain);
-        setNumber(sumRow, c++, t.remII, styles.sumRemain);
-        setNumber(sumRow, c++, t.remIII, styles.sumRemain);
-        setNumber(sumRow, c++, t.remIV, styles.sumRemain);
-        setNumber(sumRow, c++, t.remV, styles.sumRemain);
-
-        // HSE
-        setNumber(sumRow, c++, t.hseTtl, styles.sumCell);
-        setNumber(sumRow, c++, t.hseI, styles.sumCell);
-        setNumber(sumRow, c++, t.hseII, styles.sumCell);
-        setNumber(sumRow, c++, t.hseIII, styles.sumCell);
-        setNumber(sumRow, c++, t.hseIV, styles.sumCell);
-        setNumber(sumRow, c++, t.hseV, styles.sumCell);
-
-        // % row (only TTL columns)
-        Row pctRow = sheet.createRow(r++);
-        int pc = 0;
-        setText(pctRow, pc++, "%", styles.pctLabel);
-
-        // All_TTL=100%
-        setPercent(pctRow, pc++, 1.0, styles.pct);
-
-        // All_I..All_V blank
-        for (int i = 0; i < 5; i++) setBlank(pctRow, pc++, styles.pctLabel);
-
-        // Pro_TTL
-        setPercent(pctRow, pc++, t.allTtl == 0 ? 0 : (t.proTtl / t.allTtl), styles.pct);
-        for (int i = 0; i < 5; i++) setBlank(pctRow, pc++, styles.pctLabel);
-
-        // Rem_TTL
-        setPercent(pctRow, pc++, t.allTtl == 0 ? 0 : (t.remTtl / t.allTtl), styles.pct);
-        for (int i = 0; i < 5; i++) setBlank(pctRow, pc++, styles.pctLabel);
-
-        // Hse_TTL
-        setPercent(pctRow, pc++, t.allTtl == 0 ? 0 : (t.hseTtl / t.allTtl), styles.pct);
-        for (int i = 0; i < 5; i++) setBlank(pctRow, pc++, styles.pctLabel);
-
-        // widths
+        // ===== Column widths =====
         sheet.setColumnWidth(0, 18 * 300);
-        for (int i = 1; i < headers.length; i++) sheet.setColumnWidth(i, 12 * 300);
+        for (int i = 1; i < headers.length; i++) {
+            sheet.setColumnWidth(i, 12 * 300);
+        }
     }
+
 
     // =========================
     // Styles container
@@ -583,17 +523,6 @@ public class PatrolReportExportExcelService {
         return n == null ? 0d : n.doubleValue();
     }
 
-    private double toDoubleSafe(String s) {
-        if (s == null) return 0d;
-        String x = s.trim();
-        if (x.isEmpty()) return 0d;
-        x = x.replace(",", "");
-        try {
-            return Double.parseDouble(x);
-        } catch (Exception e) {
-            return 0d;
-        }
-    }
 
     // =========================
     // Image

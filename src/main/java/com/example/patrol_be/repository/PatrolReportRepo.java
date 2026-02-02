@@ -155,32 +155,30 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
     @Query(
             value = """
                         SELECT
-                                CASE
-                                      WHEN GROUPING(grp) = 1 THEN 'TOTAL'
-                                      ELSE grp
-                                  END AS grp,
-                    
-                                  CASE\s
-                                      WHEN GROUPING(division) = 1 THEN ''
-                                      ELSE division
-                                  END AS division,
-                        
-                                  SUM(CASE WHEN riskTotal IS NULL OR riskTotal='' THEN 1 ELSE 0 END) AS [-],
-                                  SUM(CASE WHEN riskTotal = 'I'   THEN 1 ELSE 0 END) AS [I],
-                                  SUM(CASE WHEN riskTotal = 'II'  THEN 1 ELSE 0 END) AS [II],
-                                  SUM(CASE WHEN riskTotal = 'III' THEN 1 ELSE 0 END) AS [III],
-                                  SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS [IV],
-                                  SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS [V]
+                            CASE
+                                  WHEN GROUPING(grp) = 1 THEN 'TOTAL'
+                                  ELSE grp
+                              END AS grp,
+                
+                              CASE
+                                  WHEN GROUPING(division) = 1 THEN ''
+                                  ELSE division
+                              END AS division,
+                
+                              SUM(CASE WHEN riskTotal IS NULL OR riskTotal='' THEN 1 ELSE 0 END) AS [-],
+                              SUM(CASE WHEN riskTotal = 'I'   THEN 1 ELSE 0 END) AS [I],
+                              SUM(CASE WHEN riskTotal = 'II'  THEN 1 ELSE 0 END) AS [II],
+                              SUM(CASE WHEN riskTotal = 'III' THEN 1 ELSE 0 END) AS [III],
+                              SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS [IV],
+                              SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS [V]
                         FROM F2_Patrol_Report
                             WHERE createdAt >= :fromD
                               AND createdAt <  DATEADD(DAY, 1, :toD)
                               AND [type] = :type
                               AND plant = :fac
                             GROUP BY ROLLUP (grp, division)
-                        
                             -- ❌ bỏ subtotal theo grp, chỉ giữ detail + TOTAL
                             HAVING NOT (GROUPING(division)=1 AND GROUPING(grp)=0)
-                        
                             ORDER BY
                               CASE WHEN GROUPING(grp)=1 AND GROUPING(division)=1 THEN 1 ELSE 0 END,
                               grp, division;
