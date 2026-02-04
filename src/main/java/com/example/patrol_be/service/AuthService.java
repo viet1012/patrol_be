@@ -27,9 +27,9 @@ public class AuthService {
         final String account = req.getAccount() == null ? "" : req.getAccount().trim();
 
         // 1) EmpID ph?i t?n t?i trong HSE_EmpID
-        if (!hseEmpRepo.existsByEmpId(account)) {
-            return new AuthResponse(false, "EmpID not found in SPC");
-        }
+//        if (!hseEmpRepo.existsByEmpId(account)) {
+//            return new AuthResponse(false, "EmpID not found in SPC");
+//        }
 
         // 2) Account không du?c trùng trong PatrolAccount
         if (repo.existsByAccount(account)) {
