@@ -672,6 +672,7 @@ public class PatrolReportService {
                 .map(this::mapRow)
                 .toList();
     }
+
     public PatrolSummaryResponseDTO getSummary(LocalDate fromD, LocalDate toD, String plant, String type) {
         var rows = repo.summaryByFacAndPic(fromD, toD, plant, type);
 
