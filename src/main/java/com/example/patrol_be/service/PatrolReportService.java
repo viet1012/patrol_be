@@ -1,6 +1,7 @@
 package com.example.patrol_be.service;
 
 import com.example.patrol_be.dto.*;
+import com.example.patrol_be.dto.PatrolSummaryResponseDTO;
 import com.example.patrol_be.model.PatrolReport;
 import com.example.patrol_be.repository.PatrolReportRepo;
 import jakarta.transaction.Transactional;
@@ -15,10 +16,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -63,12 +62,12 @@ public class PatrolReportService {
                         from,
                         to
                 ).stream()
-                .map(this::mapToDto)
+                .map(this::mapToDTO)
                 .toList();
     }
 
 
-    private PatrolReportDTO mapToDto(Object[] r) {
+    private PatrolReportDTO mapToDTO(Object[] r) {
         return new PatrolReportDTO(
                 ((Number) r[0]).intValue(),              // id
                 ((Number) r[1]).intValue(),              // stt
@@ -254,7 +253,7 @@ public class PatrolReportService {
     @Transactional
     public void updateAtInfo(
             Long reportId,
-            AtUpdateDTO dto,
+            AtUpdateDTO DTO,
             List<MultipartFile> images
     ) throws IOException {
 
@@ -289,7 +288,7 @@ public class PatrolReportService {
             }
         }
 
-        String finalComment = dto.getAtComment();
+        String finalComment = DTO.getAtComment();
         try {
             if (finalComment != null && !finalComment.isBlank()) {
 
@@ -311,7 +310,7 @@ public class PatrolReportService {
                 imageNames,
                 finalComment,
                 LocalDateTime.now(),
-                dto.getAtPic(),
+                DTO.getAtPic(),
                 atStatus
 
         );
@@ -324,7 +323,7 @@ public class PatrolReportService {
     @Transactional
     public void updateReport(
             Long reportId,
-            PatrolEditDTO dto,
+            PatrolEditDTO DTO,
             List<MultipartFile> newImages
     ) throws IOException {
 
@@ -332,66 +331,66 @@ public class PatrolReportService {
                 .orElseThrow(() -> new RuntimeException("Report not found"));
 
         // ===== 1️⃣ UPDATE COMMENT & COUNTERMEASURE =====
-        if (dto.getComment() != null) {
-            report.setComment(dto.getComment().trim());
+        if (DTO.getComment() != null) {
+            report.setComment(DTO.getComment().trim());
         }
 
-        if (dto.getCountermeasure() != null) {
-            report.setCountermeasure(dto.getCountermeasure().trim());
+        if (DTO.getCountermeasure() != null) {
+            report.setCountermeasure(DTO.getCountermeasure().trim());
         }
 
         // ===== ✅ 1.5️⃣ UPDATE META FIELDS =====
-        if (dto.getGrp() != null) {
-            report.setGrp(dto.getGrp().trim());
+        if (DTO.getGrp() != null) {
+            report.setGrp(DTO.getGrp().trim());
         }
-        if (dto.getPlant() != null) {
-            report.setPlant(dto.getPlant().trim());
+        if (DTO.getPlant() != null) {
+            report.setPlant(DTO.getPlant().trim());
         }
-        if (dto.getDivision() != null) {
-            report.setDivision(dto.getDivision().trim());
+        if (DTO.getDivision() != null) {
+            report.setDivision(DTO.getDivision().trim());
         }
-        if (dto.getArea() != null) {
-            report.setArea(dto.getArea().trim());
+        if (DTO.getArea() != null) {
+            report.setArea(DTO.getArea().trim());
         }
-        if (dto.getMachine() != null) {
+        if (DTO.getMachine() != null) {
             // nếu muốn convert "<Null>" => null
-            String m = dto.getMachine().trim();
+            String m = DTO.getMachine().trim();
             report.setMachine(m.equalsIgnoreCase("<Null>") || m.isEmpty() ? null : m);
         }
-        if (dto.getPic() != null) {
-            report.setPic(dto.getPic().trim());
+        if (DTO.getPic() != null) {
+            report.setPic(DTO.getPic().trim());
         }
 
-        if (dto.getRiskFreq() != null) {
-            report.setRiskFreq(dto.getRiskFreq().trim());
+        if (DTO.getRiskFreq() != null) {
+            report.setRiskFreq(DTO.getRiskFreq().trim());
         }
 
-        if (dto.getRiskProb() != null) {
-            report.setRiskProb(dto.getRiskProb().trim());
+        if (DTO.getRiskProb() != null) {
+            report.setRiskProb(DTO.getRiskProb().trim());
         }
 
-        if (dto.getRiskSev() != null) {
-            report.setRiskSev(dto.getRiskSev().trim());
+        if (DTO.getRiskSev() != null) {
+            report.setRiskSev(DTO.getRiskSev().trim());
         }
 
-        if (dto.getRiskTotal() != null) {
-            report.setRiskTotal(dto.getRiskTotal().trim());
+        if (DTO.getRiskTotal() != null) {
+            report.setRiskTotal(DTO.getRiskTotal().trim());
         }
 
-        if (dto.getAtComment() != null) {
-            report.setAt_comment(dto.getAtComment().trim());
+        if (DTO.getAtComment() != null) {
+            report.setAt_comment(DTO.getAtComment().trim());
         }
 
-        if (dto.getAtStatus() != null) {
-            report.setAt_status(dto.getAtStatus().trim());
+        if (DTO.getAtStatus() != null) {
+            report.setAt_status(DTO.getAtStatus().trim());
         }
 
-        if (dto.getAtUser() != null) {
-            report.setAt_user(dto.getAtUser().trim());
+        if (DTO.getAtUser() != null) {
+            report.setAt_user(DTO.getAtUser().trim());
         }
 
         report.setEdit_date(LocalDateTime.now());
-        report.setEdit_user(dto.getEditUser());
+        report.setEdit_user(DTO.getEditUser());
 
         // ===== 2️⃣ HANDLE IMAGE LIST =====
         List<String> images = new ArrayList<>();
@@ -405,8 +404,8 @@ public class PatrolReportService {
         }
 
         // ===== 3️⃣ DELETE IMAGES =====
-        if (dto.getDeleteImages() != null) {
-            for (String img : dto.getDeleteImages()) {
+        if (DTO.getDeleteImages() != null) {
+            for (String img : DTO.getDeleteImages()) {
                 if (images.remove(img)) {
                     deleteImageFile(img);
                 }
@@ -433,7 +432,7 @@ public class PatrolReportService {
     @Transactional
     public void updateHseInfo(
             Long reportId,
-            HseUpdateDTO dto,
+            HseUpdateDTO DTO,
             List<MultipartFile> images
     ) throws IOException {
 
@@ -469,7 +468,7 @@ public class PatrolReportService {
         }
 
         // ===== COMMENT (kèm translate) =====
-        String finalComment = dto.getHseComment();
+        String finalComment = DTO.getHseComment();
         try {
             if (finalComment != null && !finalComment.isBlank()) {
                 String translated = patrolCommentService.getTranslateDefault(finalComment);
@@ -488,9 +487,9 @@ public class PatrolReportService {
                 imageNames,
                 finalComment,
                 LocalDateTime.now(),
-                dto.getHseUser(),
-                dto.getHseJudge(),
-                dto.getAtStatus()
+                DTO.getHseUser(),
+                DTO.getHseJudge(),
+                DTO.getAtStatus()
 
         );
 
@@ -672,6 +671,94 @@ public class PatrolReportService {
                 .stream()
                 .map(this::mapRow)
                 .toList();
+    }
+    public PatrolSummaryResponseDTO getSummary(LocalDate fromD, LocalDate toD, String plant, String type) {
+        var rows = repo.summaryByFacAndPic(fromD, toD, plant, type);
+
+        // group by fac
+        Map<String, List<PatrolSummaryRowView>> byFac = rows.stream()
+                .collect(Collectors.groupingBy(PatrolSummaryRowView::getFac, LinkedHashMap::new, Collectors.toList()));
+
+        List<PatrolFacSummaryDTO> facs = new ArrayList<>();
+
+        for (var e : byFac.entrySet()) {
+            String fac = e.getKey();
+            List<PatrolSummaryRowView> list = e.getValue();
+
+            PatrolSummaryRowView totalRow = list.stream()
+                    .filter(r -> "TOTAL".equalsIgnoreCase(nullSafe(r.getPic())))
+                    .findFirst()
+                    .orElse(null);
+
+            List<PatrolPicRowDTO> detailRows = list.stream()
+                    .filter(r -> !"TOTAL".equalsIgnoreCase(nullSafe(r.getPic())))
+                    .map(this::toPicRow)
+                    .toList();
+
+            PatrolPicRowDTO totalDTO = totalRow == null ? null : toPicRow(totalRow);
+
+            // rates
+            double finishedTtl = totalRow == null ? 0 : n(totalRow.getFinishedTtl());
+            double remainTtl = totalRow == null ? 0 : n(totalRow.getRemainTtl());
+            double denomAfter = finishedTtl + remainTtl;
+
+            Double finishedRate = denomAfter == 0 ? null : round2(finishedTtl / denomAfter);
+            Double remainRate = denomAfter == 0 ? null : round2(remainTtl / denomAfter);
+
+            double reAll = totalRow == null ? 0 : n(totalRow.getRecheckAllTtl());
+            double reOk = totalRow == null ? 0 : n(totalRow.getRecheckOkTtl());
+            double reNg = totalRow == null ? 0 : n(totalRow.getRecheckNgTtl());
+            Double okRate = reAll == 0 ? null : round2(reOk / reAll);
+            Double ngRate = reAll == 0 ? null : round2(reNg / reAll);
+
+            facs.add(PatrolFacSummaryDTO.builder()
+                    .fac(fac)
+                    .rows(detailRows)
+                    .total(totalDTO)
+                    .finishedRate(finishedRate)
+                    .remainRate(remainRate)
+                    .okRate(okRate)
+                    .ngRate(ngRate)
+                    .build());
+        }
+
+        return PatrolSummaryResponseDTO.builder()
+                .fromD(fromD)
+                .toD(toD)
+                .plant(plant)
+                .type(type)
+                .facs(facs)
+                .build();
+    }
+
+    private PatrolPicRowDTO toPicRow(PatrolSummaryRowView r) {
+        return PatrolPicRowDTO.builder()
+                .pic(r.getPic())
+                .before(risk(r.getBeforeTtl(), r.getBeforeI(), r.getBeforeII(), r.getBeforeIII(), r.getBeforeIV(), r.getBeforeV()))
+                .finished(risk(r.getFinishedTtl(), r.getFinishedI(), r.getFinishedII(), r.getFinishedIII(), r.getFinishedIV(), r.getFinishedV()))
+                .remain(risk(r.getRemainTtl(), r.getRemainI(), r.getRemainII(), r.getRemainIII(), r.getRemainIV(), r.getRemainV()))
+                .recheckAllTotal(n(r.getRecheckAllTtl()))
+                .recheckOk(risk(r.getRecheckOkTtl(), r.getRecheckOkI(), r.getRecheckOkII(), r.getRecheckOkIII(), r.getRecheckOkIV(), r.getRecheckOkV()))
+                .recheckNg(risk(r.getRecheckNgTtl(), r.getRecheckNgI(), r.getRecheckNgII(), r.getRecheckNgIII(), r.getRecheckNgIV(), r.getRecheckNgV()))
+                .build();
+    }
+
+    private RiskBreakdownDTO risk(Long ttl, Long i, Long ii, Long iii, Long iv, Long v) {
+        return RiskBreakdownDTO.builder()
+                .total(n(ttl))
+                .i(n(i))
+                .ii(n(ii))
+                .iii(n(iii))
+                .iv(n(iv))
+                .v(n(v))
+                .build();
+    }
+
+    private long n(Long x) { return x == null ? 0L : x; }
+    private String nullSafe(String s) { return s == null ? "" : s; }
+
+    private Double round2(double x) {
+        return Math.round(x * 100.0) / 100.0; // 0.74 => 74% trên UI
     }
 
     private PicSummaryDTO mapRow(Object[] r) {

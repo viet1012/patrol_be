@@ -1,5 +1,6 @@
 package com.example.patrol_be.repository;
 
+import com.example.patrol_be.dto.PatrolSummaryRowView;
 import com.example.patrol_be.model.PatrolReport;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -243,18 +244,18 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 	@Query(value = """
 			WITH src AS (
 			    SELECT
-			        CASE
-			            WHEN division IN ('Outside','Outside_A','Outside_B','Outside_C') THEN 'Fac_A'
+			        division_group = CASE
+			            WHEN division IN ('Fac_A','Outside','Outside_A','Outside_B','Outside_C','WH')
+			                THEN 'Fac_A & Outside'
 			            ELSE division
-			        END AS division_group,
-			
+			        END,
 			        riskTotal,
-			        LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) AS st
-			    FROM dbo.F2_Patrol_Report
-			    WHERE createdAt >= :fromD
-			      AND createdAt <  DATEADD(DAY, 1, :toD)
-			      AND [type] = :type
-			      AND plant = :fac
+			        st = LTRIM(RTRIM(UPPER(ISNULL(at_status,''))))
+			    FROM F2_Patrol_Report
+			  WHERE createdAt >= :fromD
+						      AND createdAt <  DATEADD(DAY, 1, :toD)
+						      AND [type] = :type
+						      AND plant = :fac
 			)
 			SELECT
 			    division_group AS division,
@@ -371,5 +372,83 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			@Param("fac") String fac,
 			@Param("type") String type,
 			@Param("lvls") List<String> lvls
+	);
+
+
+	@Query(value = """
+			DECLARE @lvl TABLE (Value NVARCHAR(10));
+			INSERT INTO @lvl (Value) VALUES ('-'),('I'),('II'),('III'),('IV'),('V');
+			
+			;WITH base AS (
+			    SELECT
+			        fac = division,
+			        pic,
+			        lvl = riskTotal,
+			        st  = LTRIM(RTRIM(UPPER(ISNULL(at_status,''))))
+			    FROM F2_Patrol_Report
+			    WHERE createdAt >= :fromD
+			      AND createdAt <  DATEADD(day, 1, :toD)
+			      AND [type] = :type
+			      AND plant = :plant
+			      AND riskTotal IN (SELECT Value FROM @lvl)
+			      AND division IN ('Fac_A','Fac_B','Fac_C')
+			)
+			SELECT
+			    fac = fac,
+			    pic = CASE WHEN GROUPING(pic) = 1 THEN 'TOTAL' ELSE pic END,
+			
+			    beforeTtl = SUM(CASE WHEN st = 'REDO' THEN 1 ELSE 0 END),
+			    beforeI   = SUM(CASE WHEN st = 'REDO' AND lvl = 'I'   THEN 1 ELSE 0 END),
+			    beforeII  = SUM(CASE WHEN st = 'REDO' AND lvl = 'II'  THEN 1 ELSE 0 END),
+			    beforeIII = SUM(CASE WHEN st = 'REDO' AND lvl = 'III' THEN 1 ELSE 0 END),
+			    beforeIV  = SUM(CASE WHEN st = 'REDO' AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			    beforeV   = SUM(CASE WHEN st = 'REDO' AND lvl = 'V'   THEN 1 ELSE 0 END),
+			
+			    finishedTtl = SUM(CASE WHEN st IN ('DONE','COMPLETED') THEN 1 ELSE 0 END),
+			    finishedI   = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'I'   THEN 1 ELSE 0 END),
+			    finishedII  = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'II'  THEN 1 ELSE 0 END),
+			    finishedIII = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'III' THEN 1 ELSE 0 END),
+			    finishedIV  = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			    finishedV   = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'V'   THEN 1 ELSE 0 END),
+			
+			    remainTtl = SUM(CASE WHEN st = 'WAIT' THEN 1 ELSE 0 END),
+			    remainI   = SUM(CASE WHEN st = 'WAIT' AND lvl = 'I'   THEN 1 ELSE 0 END),
+			    remainII  = SUM(CASE WHEN st = 'WAIT' AND lvl = 'II'  THEN 1 ELSE 0 END),
+			    remainIII = SUM(CASE WHEN st = 'WAIT' AND lvl = 'III' THEN 1 ELSE 0 END),
+			    remainIV  = SUM(CASE WHEN st = 'WAIT' AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			    remainV   = SUM(CASE WHEN st = 'WAIT' AND lvl = 'V'   THEN 1 ELSE 0 END),
+			
+			    recheckAllTtl = SUM(CASE WHEN st IN ('DONE','COMPLETED','REDO') THEN 1 ELSE 0 END),
+			
+			    recheckOkTtl = SUM(CASE WHEN st IN ('DONE','COMPLETED') THEN 1 ELSE 0 END),
+			    recheckOkI   = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'I'   THEN 1 ELSE 0 END),
+			    recheckOkII  = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'II'  THEN 1 ELSE 0 END),
+			    recheckOkIII = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'III' THEN 1 ELSE 0 END),
+			    recheckOkIV  = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			    recheckOkV   = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'V'   THEN 1 ELSE 0 END),
+			
+			    recheckNgTtl = SUM(CASE WHEN st = 'REDO' THEN 1 ELSE 0 END),
+			    recheckNgI   = SUM(CASE WHEN st = 'REDO' AND lvl = 'I'   THEN 1 ELSE 0 END),
+			    recheckNgII  = SUM(CASE WHEN st = 'REDO' AND lvl = 'II'  THEN 1 ELSE 0 END),
+			    recheckNgIII = SUM(CASE WHEN st = 'REDO' AND lvl = 'III' THEN 1 ELSE 0 END),
+			    recheckNgIV  = SUM(CASE WHEN st = 'REDO' AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			    recheckNgV   = SUM(CASE WHEN st = 'REDO' AND lvl = 'V'   THEN 1 ELSE 0 END)
+			
+			FROM base
+			GROUP BY GROUPING SETS
+			(
+			  (fac, pic),
+			  (fac)
+			)
+			ORDER BY
+			  fac,
+			  GROUPING(pic) ASC,
+			  beforeTtl DESC;
+			""", nativeQuery = true)
+	List<PatrolSummaryRowView> summaryByFacAndPic(
+			@Param("fromD") LocalDate fromD,
+			@Param("toD") LocalDate toD,
+			@Param("plant") String plant,
+			@Param("type") String type
 	);
 }

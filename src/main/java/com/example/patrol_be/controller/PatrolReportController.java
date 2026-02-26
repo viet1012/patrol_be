@@ -185,4 +185,15 @@ public class PatrolReportController {
     ) {
         return service.getPicSummary(fromD, toD, fac, type, lvls);
     }
+
+    // /api/patrol/summary?from=2025-12-05&to=2026-02-26&plant=Fac_2&type=Patrol
+    @GetMapping("/summary")
+    public PatrolSummaryResponseDTO summary(
+            @RequestParam("from") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam("to")   @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam("plant") String plant,
+            @RequestParam("type") String type
+    ) {
+        return service.getSummary(from, to, plant, type);
+    }
 }
