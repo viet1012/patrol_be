@@ -53,7 +53,7 @@ public class HrDataService {
         Map<String, Map<String, Boolean>> p = new HashMap<>();
 
         // init all false
-        for (String g : List.of("Patrol", "Audit", "QualityPatrol")) {
+        for (String g : List.of("Patrol", "Audit", "QualityPatrol","AssetUpdate")) {
             p.put(g, action(false, false, false, false));
         }
 

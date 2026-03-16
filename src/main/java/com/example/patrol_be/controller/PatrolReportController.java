@@ -196,4 +196,5 @@ public class PatrolReportController {
     ) {
         return service.getSummary(from, to, plant, type);
     }
+
 }
