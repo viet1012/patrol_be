@@ -332,7 +332,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			    remainIV  = SUM(CASE WHEN st IN ('WAIT','REDO') AND lvl = 'IV'  THEN 1 ELSE 0 END),
 			    remainV   = SUM(CASE WHEN st IN ('WAIT','REDO') AND lvl = 'V'   THEN 1 ELSE 0 END),
 			
-			    recheckAllTtl = SUM(CASE WHEN st IN ('DONE','COMPLETED','REDO') THEN 1 ELSE 0 END),
+			    recheckAllTtl = SUM(CASE WHEN st IN ('COMPLETED','REDO') THEN 1 ELSE 0 END),
 			
 			    recheckOkTtl = SUM(CASE WHEN st = 'COMPLETED' THEN 1 ELSE 0 END),
 			    recheckOkI   = SUM(CASE WHEN st = 'COMPLETED' AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),

@@ -707,8 +707,9 @@ public class PatrolReportService {
 			double reOk = totalRow == null ? 0 : n(totalRow.getRecheckOkTtl());
 			double reNg = totalRow == null ? 0 : n(totalRow.getRecheckNgTtl());
 
-			Double okRate = reAll == 0 ? null : round2(reOk / reAll);
-			Double ngRate = reAll == 0 ? null : round2(reNg / reAll);
+			double beforeTtl = totalRow == null ? 0 : n(totalRow.getBeforeTtl());
+			Double okRate = reAll == 0 ? null : round2(reOk / beforeTtl);
+			Double ngRate = reAll == 0 ? null : round2(reNg / beforeTtl);
 
 			facs.add(PatrolFacSummaryDTO.builder()
 					.fac(fac)
