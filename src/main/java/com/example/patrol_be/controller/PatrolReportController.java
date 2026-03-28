@@ -175,16 +175,16 @@ public class PatrolReportController {
     }
 
     // GET /api/patrol_report/pic-summary?fromD=2025-12-01&toD=2026-01-28&fac=Fac_2&type=Patrol&lvls=IV&lvls=V
-    @GetMapping("/pic-summary")
-    public List<PicSummaryDTO> picSummary(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toD,
-            @RequestParam String fac,
-            @RequestParam String type,
-            @RequestParam List<String> lvls
-    ) {
-        return service.getPicSummary(fromD, toD, fac, type, lvls);
-    }
+//    @GetMapping("/pic-summary")
+//    public List<PicSummaryDTO> picSummary(
+//            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
+//            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toD,
+//            @RequestParam String fac,
+//            @RequestParam String type,
+//            @RequestParam List<String> lvls
+//    ) {
+//        return service.getPicSummary(fromD, toD, fac, type, lvls);
+//    }
 
     // /api/patrol/summary?from=2025-12-05&to=2026-02-26&plant=Fac_2&type=Patrol
     @GetMapping("/summary")

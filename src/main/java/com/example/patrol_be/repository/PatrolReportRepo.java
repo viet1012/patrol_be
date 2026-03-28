@@ -71,20 +71,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			    ORDER BY stt DESC
 			    OPTION (RECOMPILE);
 			""", nativeQuery = true)
-	List<Object[]> search(
-			@Param("plant") String plant,
-			@Param("division") String division,
-			@Param("area") String area,
-			@Param("machine") String machine,
-			@Param("type") String type,
-			@Param("grp") String grp,
-			@Param("afStatus") String afStatus,
-			@Param("pic") String pic,
-			@Param("patrolUser") String patrolUser,
-			@Param("qr_key") String qr_key,
-			@Param("fromD") LocalDate fromD,
-			@Param("toD") LocalDate toD
-	);
+	List<Object[]> search(@Param("plant") String plant, @Param("division") String division, @Param("area") String area, @Param("machine") String machine, @Param("type") String type, @Param("grp") String grp, @Param("afStatus") String afStatus, @Param("pic") String pic, @Param("patrolUser") String patrolUser, @Param("qr_key") String qr_key, @Param("fromD") LocalDate fromD, @Param("toD") LocalDate toD);
 
 
 	@Modifying
@@ -98,14 +85,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			    at_status     = :status
 			WHERE id = :id
 			""", nativeQuery = true)
-	int updateAtInfo(
-			@Param("id") Long id,
-			@Param("imageNames") String imageNames,
-			@Param("comment") String comment,
-			@Param("atDate") LocalDateTime atDate,
-			@Param("pic") String pic,
-			@Param("status") String status
-	);
+	int updateAtInfo(@Param("id") Long id, @Param("imageNames") String imageNames, @Param("comment") String comment, @Param("atDate") LocalDateTime atDate, @Param("pic") String pic, @Param("status") String status);
 
 
 	@Modifying
@@ -120,14 +100,8 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			    at_status     = :status
 			WHERE id = :id
 			""", nativeQuery = true)
-	int updateHseInfo(
-			@Param("id") Long id,
-			@Param("imageNames") String imageNames,
-			@Param("comment") String comment,
-			@Param("hseDate") LocalDateTime hseDate,   // ✅ LocalDate
-			@Param("user") String user,
-			@Param("judge") String judge,
-			@Param("status") String status
+	int updateHseInfo(@Param("id") Long id, @Param("imageNames") String imageNames, @Param("comment") String comment, @Param("hseDate") LocalDateTime hseDate,   // ✅ LocalDate
+	                  @Param("user") String user, @Param("judge") String judge, @Param("status") String status
 
 	);
 
@@ -148,98 +122,41 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			    GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(pic)), ''), 'UNKNOWN')
 			    ORDER BY total DESC
 			""", nativeQuery = true)
-	List<Object[]> pivotByPicAndRisk(
-			@Param("plant") String plant,
-			@Param("atStatuses") List<String> atStatuses,
-			@Param("type") String type);
-
-	@Query(
-			value = """
-					    SELECT
-					        CASE
-					              WHEN GROUPING(grp) = 1 THEN 'TOTAL'
-					              ELSE grp
-					          END AS grp,
-					
-					          CASE
-					              WHEN GROUPING(division) = 1 THEN ''
-					              ELSE division
-					          END AS division,
-					
-					          SUM(CASE WHEN riskTotal IS NULL OR riskTotal='' THEN 1 ELSE 0 END) AS [-],
-					          SUM(CASE WHEN riskTotal = 'I'   THEN 1 ELSE 0 END) AS [I],
-					          SUM(CASE WHEN riskTotal = 'II'  THEN 1 ELSE 0 END) AS [II],
-					          SUM(CASE WHEN riskTotal = 'III' THEN 1 ELSE 0 END) AS [III],
-					          SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS [IV],
-					          SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS [V]
-					    FROM F2_Patrol_Report
-					        WHERE createdAt >= :fromD
-					          AND createdAt <  DATEADD(DAY, 1, :toD)
-					          AND [type] = :type
-					          AND plant = :fac
-					        GROUP BY ROLLUP (grp, division)
-					        -- ❌ bỏ subtotal theo grp, chỉ giữ detail + TOTAL
-					        HAVING NOT (GROUPING(division)=1 AND GROUPING(grp)=0)
-					        ORDER BY
-					          CASE WHEN GROUPING(grp)=1 AND GROUPING(division)=1 THEN 1 ELSE 0 END,
-					          grp, division;
-					
-					""",
-			nativeQuery = true
-	)
-	List<Object[]> summaryRiskRaw(
-			@Param("fromD") LocalDate fromD,
-			@Param("toD") LocalDate toD,
-			@Param("fac") String fac,
-			@Param("type") String type
-	);
+	List<Object[]> pivotByPicAndRisk(@Param("plant") String plant, @Param("atStatuses") List<String> atStatuses, @Param("type") String type);
 
 	@Query(value = """
-			SELECT
-			    division,
+			    SELECT
+			        CASE
+			              WHEN GROUPING(grp) = 1 THEN 'TOTAL'
+			              ELSE grp
+			          END AS grp,
 			
-			    COUNT(1) AS All_TTL,
-			    SUM(CASE WHEN riskTotal IN ('-', 'I')   THEN 1 ELSE 0 END) AS All_I,
-			    SUM(CASE WHEN riskTotal = 'II'  THEN 1 ELSE 0 END) AS All_II,
-			    SUM(CASE WHEN riskTotal = 'III' THEN 1 ELSE 0 END) AS All_III,
-			    SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS All_IV,
-			    SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS All_V,
+			          CASE
+			              WHEN GROUPING(division) = 1 THEN ''
+			              ELSE division
+			          END AS division,
 			
-			    SUM(CASE WHEN LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) IN ('DONE','COMPLETED') THEN 1 ELSE 0 END) AS Pro_Done_TTL,
-			    SUM(CASE WHEN LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) IN ('DONE','COMPLETED') AND riskTotal IN ('-', 'I')   THEN 1 ELSE 0 END) AS Pro_Done_I,
-			    SUM(CASE WHEN LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) IN ('DONE','COMPLETED') AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS Pro_Done_II,
-			    SUM(CASE WHEN LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) IN ('DONE','COMPLETED') AND riskTotal = 'III' THEN 1 ELSE 0 END) AS Pro_Done_III,
-			    SUM(CASE WHEN LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) IN ('DONE','COMPLETED') AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS Pro_Done_IV,
-			    SUM(CASE WHEN LTRIM(RTRIM(UPPER(ISNULL(at_status,'')))) IN ('DONE','COMPLETED') AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS Pro_Done_V,
+			          SUM(CASE WHEN riskTotal IS NULL OR riskTotal='' THEN 1 ELSE 0 END) AS [-],
+			          SUM(CASE WHEN riskTotal = 'I'   THEN 1 ELSE 0 END) AS [I],
+			          SUM(CASE WHEN riskTotal = 'II'  THEN 1 ELSE 0 END) AS [II],
+			          SUM(CASE WHEN riskTotal = 'III' THEN 1 ELSE 0 END) AS [III],
+			          SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS [IV],
+			          SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS [V]
+			    FROM F2_Patrol_Report
+			        WHERE createdAt >= :fromD
+			          AND createdAt <  DATEADD(DAY, 1, :toD)
+			          AND [type] = :type
+			          AND plant = :fac
+			        GROUP BY ROLLUP (grp, division)
+			        -- ❌ bỏ subtotal theo grp, chỉ giữ detail + TOTAL
+			        HAVING NOT (GROUPING(division)=1 AND GROUPING(grp)=0)
+			        ORDER BY
+			          CASE WHEN GROUPING(grp)=1 AND GROUPING(division)=1 THEN 1 ELSE 0 END,
+			          grp, division;
 			
-			    SUM(CASE WHEN at_status = 'Completed' THEN 1 ELSE 0 END) AS HSE_Done_TTL,
-			    SUM(CASE WHEN at_status = 'Completed' AND riskTotal IN ('-', 'I')   THEN 1 ELSE 0 END) AS HSE_Done_I,
-			    SUM(CASE WHEN at_status = 'Completed' AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS HSE_Done_II,
-			    SUM(CASE WHEN at_status = 'Completed' AND riskTotal = 'III' THEN 1 ELSE 0 END) AS HSE_Done_III,
-			    SUM(CASE WHEN at_status = 'Completed' AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS HSE_Done_IV,
-			    SUM(CASE WHEN at_status = 'Completed' AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS HSE_Done_V,
-			    -- ===== REMAIN =====
-			    SUM(CASE WHEN at_status IN ('Wait','Redo') THEN 1 ELSE 0 END) AS [Remain_TTL],
-			    SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal IN ('-', 'I')   THEN 1 ELSE 0 END) AS [Remain_I],
-			    SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS [Remain_II],
-			    SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal = 'III' THEN 1 ELSE 0 END) AS [Remain_III],
-			    SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS [Remain_IV],
-			    SUM(CASE WHEN at_status IN ('Wait','Redo') AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS [Remain_V]
-			
-			FROM dbo.F2_Patrol_Report
-			WHERE createdAt >= :fromD
-			  AND createdAt < DATEADD(DAY, 1, :toD)
-			  AND [type] = :type
-			  AND plant = :fac
-			GROUP BY division
-			ORDER BY division
 			""", nativeQuery = true)
-	List<Object[]> summaryByDivisionRaw1(
-			@Param("fromD") LocalDate fromD,
-			@Param("toD") LocalDate toD,
-			@Param("fac") String fac,
-			@Param("type") String type
-	);
+	List<Object[]> summaryRiskRaw(@Param("fromD") LocalDate fromD, @Param("toD") LocalDate toD, @Param("fac") String fac, @Param("type") String type);
+
 
 	@Query(value = """
 			WITH src AS (
@@ -295,160 +212,156 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			GROUP BY division_group
 			ORDER BY division_group
 			""", nativeQuery = true)
-	List<Object[]> summaryByDivisionRaw(
-			@Param("fromD") LocalDate fromD,
-			@Param("toD") LocalDate toD,
-			@Param("fac") String fac,
-			@Param("type") String type
-	);
+	List<Object[]> summaryByDivisionRaw(@Param("fromD") LocalDate fromD, @Param("toD") LocalDate toD, @Param("fac") String fac, @Param("type") String type);
 
-	@Query(value = """
-			SELECT
-			    pic,
-			
-			    COUNT(1) AS allTtl,
-			
-			    CAST(ROUND(
-			        100.0 * SUM(CASE WHEN at_status = 'Wait' THEN 1 ELSE 0 END)
-			        / NULLIF(COUNT(1), 0), 0
-			    ) AS INT) AS allNyPct,
-			
-			    SUM(CASE WHEN at_status IN ('Done','Completed') THEN 1 ELSE 0 END) AS allOk,
-			    SUM(CASE WHEN at_status = 'Redo' THEN 1 ELSE 0 END) AS allNg,
-			    SUM(CASE WHEN at_status = 'Wait' THEN 1 ELSE 0 END) AS allNy,
-			
-			    -- ===== Fac_A =====
-			    SUM(CASE WHEN division='Fac_A' THEN 1 ELSE 0 END) AS facATtl,
-			    CAST(ROUND(
-			        100.0 * SUM(CASE WHEN at_status='Wait' AND division='Fac_A' THEN 1 ELSE 0 END)
-			        / NULLIF(SUM(CASE WHEN division='Fac_A' THEN 1 ELSE 0 END), 0), 0
-			    ) AS INT) AS facANyPct,
-			    SUM(CASE WHEN at_status IN ('Done','Completed') AND division='Fac_A' THEN 1 ELSE 0 END) AS facAOk,
-			    SUM(CASE WHEN at_status = 'Redo' AND division='Fac_A' THEN 1 ELSE 0 END) AS facANg,
-			    SUM(CASE WHEN at_status = 'Wait' AND division='Fac_A' THEN 1 ELSE 0 END) AS facANy,
-			
-			    -- ===== Fac_B =====
-			    SUM(CASE WHEN division='Fac_B' THEN 1 ELSE 0 END) AS facBTtl,
-			    CAST(ROUND(
-			        100.0 * SUM(CASE WHEN at_status='Wait' AND division='Fac_B' THEN 1 ELSE 0 END)
-			        / NULLIF(SUM(CASE WHEN division='Fac_B' THEN 1 ELSE 0 END), 0), 0
-			    ) AS INT) AS facBNyPct,
-			    SUM(CASE WHEN at_status IN ('Done','Completed') AND division='Fac_B' THEN 1 ELSE 0 END) AS facBOk,
-			    SUM(CASE WHEN at_status = 'Redo' AND division='Fac_B' THEN 1 ELSE 0 END) AS facBNg,
-			    SUM(CASE WHEN at_status = 'Wait' AND division='Fac_B' THEN 1 ELSE 0 END) AS facBNy,
-			
-			    -- ===== Fac_C =====
-			    SUM(CASE WHEN division='Fac_C' THEN 1 ELSE 0 END) AS facCTtl,
-			    CAST(ROUND(
-			        100.0 * SUM(CASE WHEN at_status='Wait' AND division='Fac_C' THEN 1 ELSE 0 END)
-			        / NULLIF(SUM(CASE WHEN division='Fac_C' THEN 1 ELSE 0 END), 0), 0
-			    ) AS INT) AS facCNyPct,
-			    SUM(CASE WHEN at_status IN ('Done','Completed') AND division='Fac_C' THEN 1 ELSE 0 END) AS facCOk,
-			    SUM(CASE WHEN at_status = 'Redo' AND division='Fac_C' THEN 1 ELSE 0 END) AS facCNg,
-			    SUM(CASE WHEN at_status = 'Wait' AND division='Fac_C' THEN 1 ELSE 0 END) AS facCNy,
-			
-			    -- ===== Outside =====
-			    SUM(CASE WHEN division LIKE 'Outside%%' THEN 1 ELSE 0 END) AS outsideTtl,
-			    CAST(ROUND(
-			        100.0 * SUM(CASE WHEN at_status='Wait' AND division LIKE 'Outside%%' THEN 1 ELSE 0 END)
-			        / NULLIF(SUM(CASE WHEN division LIKE 'Outside%%' THEN 1 ELSE 0 END), 0), 0
-			    ) AS INT) AS outsideNyPct,
-			    SUM(CASE WHEN at_status IN ('Done','Completed') AND division LIKE 'Outside%%' THEN 1 ELSE 0 END) AS outsideOk,
-			    SUM(CASE WHEN at_status = 'Redo' AND division LIKE 'Outside%%' THEN 1 ELSE 0 END) AS outsideNg,
-			    SUM(CASE WHEN at_status = 'Wait' AND division LIKE 'Outside%%' THEN 1 ELSE 0 END) AS outsideNy
-			
-			FROM F2_Patrol_Report
-			WHERE createdAt >= :fromD
-			  AND createdAt < DATEADD(day, 1, :toD)   -- ✅ bao gồm cả ngày toD
-			  AND [type] = :type
-			  AND plant = :fac
-			  AND riskTotal IN (:lvls)
-			GROUP BY pic
-			ORDER BY allTtl DESC
-			""", nativeQuery = true)
-	List<Object[]> fetchPicSummaryRaw(
-			@Param("fromD") LocalDate fromD,
-			@Param("toD") LocalDate toD,
-			@Param("fac") String fac,
-			@Param("type") String type,
-			@Param("lvls") List<String> lvls
-	);
+//	@Query(value = """
+//			SELECT
+//			    pic,
+//
+//			    COUNT(1) AS allTtl,
+//
+//			    CAST(ROUND(
+//			        100.0 * SUM(CASE WHEN at_status = 'Wait' THEN 1 ELSE 0 END)
+//			        / NULLIF(COUNT(1), 0), 0
+//			    ) AS INT) AS allNyPct,
+//
+//			    SUM(CASE WHEN at_status IN ('Done','Completed') THEN 1 ELSE 0 END) AS allOk,
+//			    SUM(CASE WHEN at_status = 'Redo' THEN 1 ELSE 0 END) AS allNg,
+//			    SUM(CASE WHEN at_status = 'Wait' THEN 1 ELSE 0 END) AS allNy,
+//
+//			    -- ===== Fac_A =====
+//			    SUM(CASE WHEN division='Fac_A' THEN 1 ELSE 0 END) AS facATtl,
+//			    CAST(ROUND(
+//			        100.0 * SUM(CASE WHEN at_status='Wait' AND division='Fac_A' THEN 1 ELSE 0 END)
+//			        / NULLIF(SUM(CASE WHEN division='Fac_A' THEN 1 ELSE 0 END), 0), 0
+//			    ) AS INT) AS facANyPct,
+//			    SUM(CASE WHEN at_status IN ('Done','Completed') AND division='Fac_A' THEN 1 ELSE 0 END) AS facAOk,
+//			    SUM(CASE WHEN at_status = 'Redo' AND division='Fac_A' THEN 1 ELSE 0 END) AS facANg,
+//			    SUM(CASE WHEN at_status = 'Wait' AND division='Fac_A' THEN 1 ELSE 0 END) AS facANy,
+//
+//			    -- ===== Fac_B =====
+//			    SUM(CASE WHEN division='Fac_B' THEN 1 ELSE 0 END) AS facBTtl,
+//			    CAST(ROUND(
+//			        100.0 * SUM(CASE WHEN at_status='Wait' AND division='Fac_B' THEN 1 ELSE 0 END)
+//			        / NULLIF(SUM(CASE WHEN division='Fac_B' THEN 1 ELSE 0 END), 0), 0
+//			    ) AS INT) AS facBNyPct,
+//			    SUM(CASE WHEN at_status IN ('Done','Completed') AND division='Fac_B' THEN 1 ELSE 0 END) AS facBOk,
+//			    SUM(CASE WHEN at_status = 'Redo' AND division='Fac_B' THEN 1 ELSE 0 END) AS facBNg,
+//			    SUM(CASE WHEN at_status = 'Wait' AND division='Fac_B' THEN 1 ELSE 0 END) AS facBNy,
+//
+//			    -- ===== Fac_C =====
+//			    SUM(CASE WHEN division='Fac_C' THEN 1 ELSE 0 END) AS facCTtl,
+//			    CAST(ROUND(
+//			        100.0 * SUM(CASE WHEN at_status='Wait' AND division='Fac_C' THEN 1 ELSE 0 END)
+//			        / NULLIF(SUM(CASE WHEN division='Fac_C' THEN 1 ELSE 0 END), 0), 0
+//			    ) AS INT) AS facCNyPct,
+//			    SUM(CASE WHEN at_status IN ('Done','Completed') AND division='Fac_C' THEN 1 ELSE 0 END) AS facCOk,
+//			    SUM(CASE WHEN at_status = 'Redo' AND division='Fac_C' THEN 1 ELSE 0 END) AS facCNg,
+//			    SUM(CASE WHEN at_status = 'Wait' AND division='Fac_C' THEN 1 ELSE 0 END) AS facCNy,
+//
+//			    -- ===== Outside =====
+//			    SUM(CASE WHEN division LIKE 'Outside%%' THEN 1 ELSE 0 END) AS outsideTtl,
+//			    CAST(ROUND(
+//			        100.0 * SUM(CASE WHEN at_status='Wait' AND division LIKE 'Outside%%' THEN 1 ELSE 0 END)
+//			        / NULLIF(SUM(CASE WHEN division LIKE 'Outside%%' THEN 1 ELSE 0 END), 0), 0
+//			    ) AS INT) AS outsideNyPct,
+//			    SUM(CASE WHEN at_status IN ('Done','Completed') AND division LIKE 'Outside%%' THEN 1 ELSE 0 END) AS outsideOk,
+//			    SUM(CASE WHEN at_status = 'Redo' AND division LIKE 'Outside%%' THEN 1 ELSE 0 END) AS outsideNg,
+//			    SUM(CASE WHEN at_status = 'Wait' AND division LIKE 'Outside%%' THEN 1 ELSE 0 END) AS outsideNy
+//
+//			FROM F2_Patrol_Report
+//			WHERE createdAt >= :fromD
+//			  AND createdAt < DATEADD(day, 1, :toD)   -- ✅ bao gồm cả ngày toD
+//			  AND [type] = :type
+//			  AND plant = :fac
+//			  AND riskTotal IN (:lvls)
+//			GROUP BY pic
+//			ORDER BY allTtl DESC
+//			""", nativeQuery = true)
+//	List<Object[]> fetchPicSummaryRaw(
+//			@Param("fromD") LocalDate fromD,
+//			@Param("toD") LocalDate toD,
+//			@Param("fac") String fac,
+//			@Param("type") String type,
+//			@Param("lvls") List<String> lvls
+//	);
 
 
 	@Query(value = """
-			DECLARE @lvl TABLE (Value NVARCHAR(10));
-			INSERT INTO @lvl (Value) VALUES ('-'),('I'),('II'),('III'),('IV'),('V');
-			
 			;WITH base AS (
 			    SELECT
-			        fac = division,
+			        fac = CASE
+			                WHEN division IN ('Fac_A','Outside','Outside_A','Outside_B','Outside_C','WH')
+			                    THEN 'Fac_A & Outside'
+			                WHEN division IN ('Fac_B','Fac_C')
+			                    THEN division
+			                ELSE NULL
+			              END,
 			        pic,
 			        lvl = riskTotal,
-			        st  = LTRIM(RTRIM(UPPER(ISNULL(at_status,''))))
+			        st  = LTRIM(RTRIM(UPPER(ISNULL(at_status, ''))))
 			    FROM F2_Patrol_Report
 			    WHERE createdAt >= :fromD
-			      AND createdAt <  DATEADD(day, 1, :toD)
+			      AND createdAt < DATEADD(day, 1, :toD)
 			      AND [type] = :type
-			      AND plant = :plant
-			      AND riskTotal IN (SELECT Value FROM @lvl)
-			      AND division IN ('Fac_A','Fac_B','Fac_C')
+			      AND plant = :fac
+			      AND riskTotal IN (:lvls)
 			)
 			SELECT
 			    fac = fac,
 			    pic = CASE WHEN GROUPING(pic) = 1 THEN 'TOTAL' ELSE pic END,
 			
-			    beforeTtl = SUM(CASE WHEN st = 'REDO' THEN 1 ELSE 0 END),
-			    beforeI   = SUM(CASE WHEN st = 'REDO' AND lvl = 'I'   THEN 1 ELSE 0 END),
-			    beforeII  = SUM(CASE WHEN st = 'REDO' AND lvl = 'II'  THEN 1 ELSE 0 END),
-			    beforeIII = SUM(CASE WHEN st = 'REDO' AND lvl = 'III' THEN 1 ELSE 0 END),
-			    beforeIV  = SUM(CASE WHEN st = 'REDO' AND lvl = 'IV'  THEN 1 ELSE 0 END),
-			    beforeV   = SUM(CASE WHEN st = 'REDO' AND lvl = 'V'   THEN 1 ELSE 0 END),
+			    beforeTtl = COUNT(1),
+			    beforeI   = SUM(CASE WHEN lvl IN ('-', 'I') THEN 1 ELSE 0 END),
+			    beforeII  = SUM(CASE WHEN lvl = 'II'  THEN 1 ELSE 0 END),
+			    beforeIII = SUM(CASE WHEN lvl = 'III' THEN 1 ELSE 0 END),
+			    beforeIV  = SUM(CASE WHEN lvl = 'IV'  THEN 1 ELSE 0 END),
+			    beforeV   = SUM(CASE WHEN lvl = 'V'   THEN 1 ELSE 0 END),
 			
-			    finishedTtl = SUM(CASE WHEN st IN ('DONE','COMPLETED') THEN 1 ELSE 0 END),
-			    finishedI   = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'I'   THEN 1 ELSE 0 END),
-			    finishedII  = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'II'  THEN 1 ELSE 0 END),
-			    finishedIII = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'III' THEN 1 ELSE 0 END),
-			    finishedIV  = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'IV'  THEN 1 ELSE 0 END),
-			    finishedV   = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'V'   THEN 1 ELSE 0 END),
+			    finishedTtl = SUM(CASE WHEN st IN ('DONE', 'COMPLETED') THEN 1 ELSE 0 END),
+			    finishedI   = SUM(CASE WHEN st IN ('DONE', 'COMPLETED') AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
+			    finishedII  = SUM(CASE WHEN st IN ('DONE', 'COMPLETED') AND lvl = 'II'  THEN 1 ELSE 0 END),
+			    finishedIII = SUM(CASE WHEN st IN ('DONE', 'COMPLETED') AND lvl = 'III' THEN 1 ELSE 0 END),
+			    finishedIV  = SUM(CASE WHEN st IN ('DONE', 'COMPLETED') AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			    finishedV   = SUM(CASE WHEN st IN ('DONE', 'COMPLETED') AND lvl = 'V'   THEN 1 ELSE 0 END),
 			
-			    remainTtl = SUM(CASE WHEN st = 'WAIT' THEN 1 ELSE 0 END),
-			    remainI   = SUM(CASE WHEN st = 'WAIT' AND lvl = 'I'   THEN 1 ELSE 0 END),
-			    remainII  = SUM(CASE WHEN st = 'WAIT' AND lvl = 'II'  THEN 1 ELSE 0 END),
-			    remainIII = SUM(CASE WHEN st = 'WAIT' AND lvl = 'III' THEN 1 ELSE 0 END),
-			    remainIV  = SUM(CASE WHEN st = 'WAIT' AND lvl = 'IV'  THEN 1 ELSE 0 END),
-			    remainV   = SUM(CASE WHEN st = 'WAIT' AND lvl = 'V'   THEN 1 ELSE 0 END),
+			    remainTtl = SUM(CASE WHEN st IN ('WAIT','REDO') THEN 1 ELSE 0 END),
+			    remainI   = SUM(CASE WHEN st IN ('WAIT','REDO') AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
+			    remainII  = SUM(CASE WHEN st IN ('WAIT','REDO') AND lvl = 'II'  THEN 1 ELSE 0 END),
+			    remainIII = SUM(CASE WHEN st IN ('WAIT','REDO') AND lvl = 'III' THEN 1 ELSE 0 END),
+			    remainIV  = SUM(CASE WHEN st IN ('WAIT','REDO') AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			    remainV   = SUM(CASE WHEN st IN ('WAIT','REDO') AND lvl = 'V'   THEN 1 ELSE 0 END),
 			
 			    recheckAllTtl = SUM(CASE WHEN st IN ('DONE','COMPLETED','REDO') THEN 1 ELSE 0 END),
 			
-			    recheckOkTtl = SUM(CASE WHEN st IN ('DONE','COMPLETED') THEN 1 ELSE 0 END),
-			    recheckOkI   = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'I'   THEN 1 ELSE 0 END),
-			    recheckOkII  = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'II'  THEN 1 ELSE 0 END),
-			    recheckOkIII = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'III' THEN 1 ELSE 0 END),
-			    recheckOkIV  = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'IV'  THEN 1 ELSE 0 END),
-			    recheckOkV   = SUM(CASE WHEN st IN ('DONE','COMPLETED') AND lvl = 'V'   THEN 1 ELSE 0 END),
+			    recheckOkTtl = SUM(CASE WHEN st = 'COMPLETED' THEN 1 ELSE 0 END),
+			    recheckOkI   = SUM(CASE WHEN st = 'COMPLETED' AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
+			    recheckOkII  = SUM(CASE WHEN st = 'COMPLETED' AND lvl = 'II'  THEN 1 ELSE 0 END),
+			    recheckOkIII = SUM(CASE WHEN st = 'COMPLETED' AND lvl = 'III' THEN 1 ELSE 0 END),
+			    recheckOkIV  = SUM(CASE WHEN st = 'COMPLETED' AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			    recheckOkV   = SUM(CASE WHEN st = 'COMPLETED' AND lvl = 'V'   THEN 1 ELSE 0 END),
 			
 			    recheckNgTtl = SUM(CASE WHEN st = 'REDO' THEN 1 ELSE 0 END),
-			    recheckNgI   = SUM(CASE WHEN st = 'REDO' AND lvl = 'I'   THEN 1 ELSE 0 END),
+			    recheckNgI   = SUM(CASE WHEN st = 'REDO' AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
 			    recheckNgII  = SUM(CASE WHEN st = 'REDO' AND lvl = 'II'  THEN 1 ELSE 0 END),
 			    recheckNgIII = SUM(CASE WHEN st = 'REDO' AND lvl = 'III' THEN 1 ELSE 0 END),
 			    recheckNgIV  = SUM(CASE WHEN st = 'REDO' AND lvl = 'IV'  THEN 1 ELSE 0 END),
 			    recheckNgV   = SUM(CASE WHEN st = 'REDO' AND lvl = 'V'   THEN 1 ELSE 0 END)
 			
 			FROM base
+			WHERE fac IS NOT NULL
 			GROUP BY GROUPING SETS
 			(
 			  (fac, pic),
 			  (fac)
 			)
-			ORDER BY
-			  fac,
-			  GROUPING(pic) ASC,
-			  beforeTtl DESC;
+			ORDER BY fac, GROUPING(pic), beforeTtl DESC
 			""", nativeQuery = true)
 	List<PatrolSummaryRowView> summaryByFacAndPic(
 			@Param("fromD") LocalDate fromD,
 			@Param("toD") LocalDate toD,
-			@Param("plant") String plant,
-			@Param("type") String type
+			@Param("fac") String fac,
+			@Param("type") String type,
+			@Param("lvls") List<String> lvls
 	);
 }
