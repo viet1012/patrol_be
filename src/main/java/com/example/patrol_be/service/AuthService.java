@@ -195,7 +195,7 @@ public class AuthService {
         // 👉 TẠO FILE PATH
         ////////////////////////////////////////////////////////////
 
-        String folderPath = "C:\\Users\\it.production\\OneDrive - MISUMI Group Inc\\IT Program - 18. Computer Record\\17. HeatPressAlert\\";
+        String folderPath = "C:\\Users\\it.production\\OneDrive - MISUMI Group Inc\\IT Program - 18. Computer Record\\18. SPatrol_ForgotPassword\\";
 
         // tạo folder nếu chưa có
         File folder = new File(folderPath);
