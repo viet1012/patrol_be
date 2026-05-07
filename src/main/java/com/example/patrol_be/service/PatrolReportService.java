@@ -302,7 +302,7 @@ public class PatrolReportService {
 
 
 		String imageNames = String.join(",", newImages);
-		String atStatus = "Done";
+		String atStatus = "Pro_Done";
 		int updated = repo.updateAtInfo(
 				reportId,
 				imageNames,

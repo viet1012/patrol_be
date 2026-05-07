@@ -150,7 +150,7 @@ public class Exce {
             rpt.setDueDate((LocalDate.now().plusDays(28)));
         }
         rpt.setPatrol_user(req.getUserCreate());
-        rpt.setAt_status("Wait");
+        rpt.setAt_status("Doing");
         rpt.setQr_key(req.getQr_key());
         rpt.setQr_scan_sts(req.getQr_scan_sts());
 
