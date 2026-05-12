@@ -45,7 +45,8 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			        hse_date,
 			        load_status,
 			        patrol_user,
-			        qr_key
+			        qr_key,
+					at_assign
 			    FROM F2_Patrol_Report
 			    WHERE (:type IS NULL OR LTRIM(RTRIM(type)) = LTRIM(RTRIM(:type)))
 			      AND (:grp IS NULL OR REPLACE(grp, ' ', '') LIKE '%' + REPLACE(:grp, ' ', '') + '%')
@@ -55,10 +56,26 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			      AND (:machine IS NULL OR LTRIM(RTRIM(machine)) LIKE '%' + LTRIM(RTRIM(:machine)) + '%')
 			      AND (:afStatus IS NULL OR ',' + :afStatus + ',' LIKE '%,' + LTRIM(RTRIM(at_status)) + ',%')
 			      AND (
-			        :pic IS NULL
-			        OR (LTRIM(RTRIM(:pic)) = '' AND (pic IS NULL OR LTRIM(RTRIM(pic)) = ''))
-			        OR (LTRIM(RTRIM(:pic)) <> '' AND LTRIM(RTRIM(pic)) COLLATE Vietnamese_CI_AI LIKE '%' + LTRIM(RTRIM(:pic)) + '%')
-			           )
+		             :pic IS NULL
+		             OR (
+		                 LTRIM(RTRIM(:pic)) = ''
+		                 AND
+		                 COALESCE(
+		                     NULLIF(LTRIM(RTRIM(at_assign)), ''),
+		                     NULLIF(LTRIM(RTRIM(pic)), '')
+		                 ) IS NULL
+		             )
+		             OR (
+		                 LTRIM(RTRIM(:pic)) <> ''
+		                 AND
+		                 COALESCE(
+		                     NULLIF(LTRIM(RTRIM(at_assign)), ''),
+		                     NULLIF(LTRIM(RTRIM(pic)), '')
+		                 )
+		                 COLLATE Vietnamese_CI_AI
+		                 LIKE '%' + LTRIM(RTRIM(:pic)) + '%'
+		             )
+		     )
 			      AND (:patrolUser IS NULL OR LTRIM(RTRIM(patrol_user)) LIKE '%' + LTRIM(RTRIM(:patrolUser)) + '%')
 			      AND (:qr_key IS NULL OR LTRIM(RTRIM(qr_key)) = LTRIM(RTRIM(:qr_key)))
 			      AND (
@@ -105,24 +122,121 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 
 	);
 
-
 	@Query(value = """
+			
 			    SELECT
-			        COALESCE(NULLIF(LTRIM(RTRIM(pic)), ''), 'UNKNOWN') AS pic,
-			        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'I'   THEN 1 ELSE 0 END) AS i,
-			        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'II'  THEN 1 ELSE 0 END) AS ii,
-			        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'III' THEN 1 ELSE 0 END) AS iii,
-			        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'IV'  THEN 1 ELSE 0 END) AS iv,
-			        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'V'   THEN 1 ELSE 0 END) AS v,
+			
+			        COALESCE(
+			            NULLIF(
+			                LTRIM(RTRIM(at_assign)),
+			                ''
+			            ),
+			
+			            NULLIF(
+			                LTRIM(RTRIM(pic)),
+			                ''
+			            ),
+			
+			            'UNKNOWN'
+			        ) AS pic,
+			
+			        SUM(
+			            CASE
+			                WHEN LTRIM(RTRIM(riskTotal)) = 'I'
+			                THEN 1
+			                ELSE 0
+			            END
+			        ) AS i,
+			
+			        SUM(
+			            CASE
+			                WHEN LTRIM(RTRIM(riskTotal)) = 'II'
+			                THEN 1
+			                ELSE 0
+			            END
+			        ) AS ii,
+			
+			        SUM(
+			            CASE
+			                WHEN LTRIM(RTRIM(riskTotal)) = 'III'
+			                THEN 1
+			                ELSE 0
+			            END
+			        ) AS iii,
+			
+			        SUM(
+			            CASE
+			                WHEN LTRIM(RTRIM(riskTotal)) = 'IV'
+			                THEN 1
+			                ELSE 0
+			            END
+			        ) AS iv,
+			
+			        SUM(
+			            CASE
+			                WHEN LTRIM(RTRIM(riskTotal)) = 'V'
+			                THEN 1
+			                ELSE 0
+			            END
+			        ) AS v,
+			
 			        COUNT(*) AS total
+			
 			    FROM F2_Patrol_Report
-			    WHERE LTRIM(RTRIM(plant)) = LTRIM(RTRIM(:plant))
-			      AND LTRIM(RTRIM(at_status)) IN (:atStatuses)
-			      AND LTRIM(RTRIM(type))  = LTRIM(RTRIM(:type))
-			    GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(pic)), ''), 'UNKNOWN')
+			
+			    WHERE
+			        LTRIM(RTRIM(plant))
+			            = LTRIM(RTRIM(:plant))
+			
+			      AND
+			        LTRIM(RTRIM(at_status))
+			            IN (:atStatuses)
+			
+			      AND
+			        LTRIM(RTRIM(type))
+			            = LTRIM(RTRIM(:type))
+		
+			    GROUP BY
+			
+			        COALESCE(
+			            NULLIF(
+			                LTRIM(RTRIM(at_assign)),
+			                ''
+			            ),
+			
+			            NULLIF(
+			                LTRIM(RTRIM(pic)),
+			                ''
+			            ),
+			
+			            'UNKNOWN'
+			        )
+			
 			    ORDER BY total DESC
+			
 			""", nativeQuery = true)
-	List<Object[]> pivotByPicAndRisk(@Param("plant") String plant, @Param("atStatuses") List<String> atStatuses, @Param("type") String type);
+	List<Object[]> pivotByPicAndRisk(
+			@Param("plant") String plant,
+			@Param("atStatuses") List<String> atStatuses,
+			@Param("type") String type
+	);
+//	@Query(value = """
+//			    SELECT
+//			        COALESCE(NULLIF(LTRIM(RTRIM(pic)), ''), 'UNKNOWN') AS pic,
+//			        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'I'   THEN 1 ELSE 0 END) AS i,
+//			        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'II'  THEN 1 ELSE 0 END) AS ii,
+//			        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'III' THEN 1 ELSE 0 END) AS iii,
+//			        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'IV'  THEN 1 ELSE 0 END) AS iv,
+//			        SUM(CASE WHEN LTRIM(RTRIM(riskTotal)) = 'V'   THEN 1 ELSE 0 END) AS v,
+//			        COUNT(*) AS total
+//			    FROM F2_Patrol_Report
+//			    WHERE LTRIM(RTRIM(plant)) = LTRIM(RTRIM(:plant))
+//			      AND LTRIM(RTRIM(at_status)) IN (:atStatuses)
+//			      AND LTRIM(RTRIM(type))  = LTRIM(RTRIM(:type))
+//			    GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(pic)), ''), 'UNKNOWN')
+//			    ORDER BY total DESC
+//			""", nativeQuery = true)
+//	List<Object[]> pivotByPicAndRisk(@Param("plant") String plant, @Param("atStatuses") List<String> atStatuses, @Param("type") String type);
 
 	@Query(value = """
 			    SELECT
@@ -215,16 +329,14 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 	List<Object[]> summaryByDivisionRaw(@Param("fromD") LocalDate fromD, @Param("toD") LocalDate toD, @Param("fac") String fac, @Param("type") String type);
 
 
-
 	@Query(value = """
 			;WITH base AS (
 			    SELECT
 			        fac = CASE
 			                WHEN division IN ('Fac_A','Outside','Outside_A','Outside_B','Outside_C','WH')
 			                    THEN 'Fac_A & Outside'
-			                WHEN division IN ('Fac_B','Fac_C')
-			                    THEN division
-			                ELSE NULL
+			     
+			                ELSE division
 			              END,
 			        pic,
 			        lvl = riskTotal,
@@ -261,7 +373,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			    remainIV  = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'IV'  THEN 1 ELSE 0 END),
 			    remainV   = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'V'   THEN 1 ELSE 0 END),
 			
-			    recheckAllTtl = SUM(CASE WHEN st IN ('COMPLETED','REDO') THEN 1 ELSE 0 END),
+			    recheckAllTtl = SUM(CASE WHEN st IN ('CLOSED','REDO') THEN 1 ELSE 0 END),
 			
 			    recheckOkTtl = SUM(CASE WHEN st = 'CLOSED' THEN 1 ELSE 0 END),
 			    recheckOkI   = SUM(CASE WHEN st = 'CLOSED' AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),

@@ -60,6 +60,11 @@ public class PatrolReport {
     private LocalDateTime at_date;
     private String at_status;
     private String at_user;
+    private String at_assign;
+    private String at_user_update_assign;
+    private String at_user_update_pic;
+    private LocalDateTime at_user_update_assign_date;
+    private LocalDateTime at_user_update_pic_date;
 
     /// HSE_CHECK
     private String hse_judge;

@@ -46,4 +46,5 @@ public class PatrolReportDTO {
     private String load_status;           // thêm trường này
     private String patrol_user;
     private String qr_key;
+    private String at_assign;
 }

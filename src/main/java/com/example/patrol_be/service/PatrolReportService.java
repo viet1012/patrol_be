@@ -97,8 +97,8 @@ public class PatrolReportService {
 				(LocalDateTime) r[27],                    // hse_date
 				(String) r[28],                           // load_status
 				(String) r[29],               // patrol_user
-				(String) r[30]                        // qr_key
-
+				(String) r[30],                   // qr_key
+				(String) r[31]
 		);
 	}
 
@@ -355,9 +355,6 @@ public class PatrolReportService {
 			String m = DTO.getMachine().trim();
 			report.setMachine(m.equalsIgnoreCase("<Null>") || m.isEmpty() ? null : m);
 		}
-		if (DTO.getPic() != null) {
-			report.setPic(DTO.getPic().trim());
-		}
 
 		if (DTO.getRiskFreq() != null) {
 			report.setRiskFreq(DTO.getRiskFreq().trim());
@@ -385,6 +382,21 @@ public class PatrolReportService {
 
 		if (DTO.getAtUser() != null) {
 			report.setAt_user(DTO.getAtUser().trim());
+		}
+
+		if (DTO.getAtAssign() != null) {
+			report.setAt_assign(DTO.getAtAssign().trim());
+			report.setAt_user_update_assign(DTO.getEditUser());
+			report.setAt_user_update_assign_date(LocalDateTime.now());
+			System.out.println("hehe12");
+		}
+
+		if (DTO.getPic() != null) {
+			report.setPic(DTO.getPic().trim());
+			report.setAt_user_update_pic(DTO.getEditUser());
+			report.setAt_user_update_pic_date(LocalDateTime.now());
+			System.out.println("hehe1233");
+
 		}
 
 		report.setEdit_date(LocalDateTime.now());
