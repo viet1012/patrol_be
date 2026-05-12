@@ -2,6 +2,7 @@ package com.example.patrol_be.service;
 
 import com.example.patrol_be.dto.*;
 import com.example.patrol_be.model.PatrolReport;
+import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
 import com.example.patrol_be.repository.PatrolReportRepo;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class PatrolReportService {
 	private final Path imageFolderPath = BASE_DIR.resolve(IMAGE_FOLDER_NAME);
 
 	private final PatrolCommentService patrolCommentService;
+	private final HSEPatrolGroupMasterRepo hsePatrolGroupMasterRepo;
 
 	public List<PatrolReportDTO> search(
 			String plant,
@@ -318,6 +320,38 @@ public class PatrolReportService {
 		}
 	}
 
+	// ===========================
+	// MAIN FUNCTION
+	// ===========================
+	private static String norm(String s) {
+		if (s == null) return null;
+		return s.replace('\u00A0', ' ').trim();
+	}
+	private static boolean blank(String s) {
+		return s == null || s.trim().isEmpty();
+	}
+	public String findPicSmart(String plant, String grp, String area, String macId) {
+		plant = norm(plant);
+		grp   = norm(grp);
+		area  = norm(area);
+		macId = norm(macId);
+
+		String pic = null;
+
+		if (!blank(area) && !blank(macId)) {
+			pic = hsePatrolGroupMasterRepo.findPicByPlantGrpAreaMac(plant, grp, area, macId);
+			if (!blank(pic)) return norm(pic);
+		}
+
+		if (!blank(area)) {
+			pic = hsePatrolGroupMasterRepo.findPicByPlantGrpArea(plant, grp, area);
+			if (!blank(pic)) return norm(pic);
+		}
+
+		pic = hsePatrolGroupMasterRepo.findPicByPlantGrp(plant, grp);
+		return blank(pic) ? null : norm(pic);
+	}
+
 	@Transactional
 	public void updateReport(
 			Long reportId,
@@ -398,6 +432,14 @@ public class PatrolReportService {
 			System.out.println("hehe1233");
 
 		}
+
+		String pic = findPicSmart(
+				DTO.getPlant(),
+				DTO.getDivision(),
+				DTO.getArea(),
+				DTO.getMachine()
+		);
+		report.setPic(pic);
 
 		report.setEdit_date(LocalDateTime.now());
 		report.setEdit_user(DTO.getEditUser());
