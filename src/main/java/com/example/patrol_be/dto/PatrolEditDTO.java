@@ -16,6 +16,8 @@ public class PatrolEditDTO {
     private String riskSev;
     private String riskTotal;
 
+    private String checkInfo;
+
     // danh sách ảnh cần xóa (tên file)
     private List<String> deleteImages;
 

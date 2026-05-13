@@ -406,6 +406,12 @@ public class PatrolReportService {
 			report.setRiskTotal(DTO.getRiskTotal().trim());
 		}
 
+		if (DTO.getCheckInfo() != null) {
+			System.out.println("CheckInf: " + DTO.getCheckInfo().trim());
+
+			report.setCheckInfo(DTO.getCheckInfo().trim());
+		}
+
 		if (DTO.getAtComment() != null) {
 			report.setAt_comment(DTO.getAtComment().trim());
 		}
@@ -433,13 +439,48 @@ public class PatrolReportService {
 
 		}
 
-		String pic = findPicSmart(
-				DTO.getPlant(),
-				DTO.getDivision(),
-				DTO.getArea(),
-				DTO.getMachine()
-		);
-		report.setPic(pic);
+		////////////////////////////////////////////////////////////
+		/// AUTO FIND PIC ONLY WHEN META CHANGED
+		////////////////////////////////////////////////////////////
+		boolean needAutoFindPic =
+
+				DTO.getPlant() != null ||
+
+						DTO.getDivision() != null ||
+
+						DTO.getArea() != null ||
+
+						DTO.getMachine() != null;
+
+		if (needAutoFindPic) {
+
+			String pic = findPicSmart(
+
+					DTO.getPlant() != null
+							? DTO.getPlant()
+							: report.getPlant(),
+
+					DTO.getDivision() != null
+							? DTO.getDivision()
+							: report.getDivision(),
+
+					DTO.getArea() != null
+							? DTO.getArea()
+							: report.getArea(),
+
+					DTO.getMachine() != null
+							? DTO.getMachine()
+							: report.getMachine()
+			);
+
+			////////////////////////////////////////////////////////////
+			/// ONLY UPDATE WHEN FOUND
+			////////////////////////////////////////////////////////////
+			if (pic != null && !pic.trim().isEmpty()) {
+
+				report.setPic(pic);
+			}
+		}
 
 		report.setEdit_date(LocalDateTime.now());
 		report.setEdit_user(DTO.getEditUser());
