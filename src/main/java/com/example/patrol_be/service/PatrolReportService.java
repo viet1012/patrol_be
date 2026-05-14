@@ -443,14 +443,13 @@ public class PatrolReportService {
 		/// AUTO FIND PIC ONLY WHEN META CHANGED
 		////////////////////////////////////////////////////////////
 		boolean needAutoFindPic =
-
-				DTO.getPlant() != null ||
-
-						DTO.getDivision() != null ||
-
-						DTO.getArea() != null ||
-
-						DTO.getMachine() != null;
+				DTO.getPic() == null &&
+						(
+								DTO.getPlant() != null ||
+										DTO.getDivision() != null ||
+										DTO.getArea() != null ||
+										DTO.getMachine() != null
+						);
 
 		if (needAutoFindPic) {
 
