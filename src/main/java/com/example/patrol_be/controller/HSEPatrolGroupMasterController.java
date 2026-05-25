@@ -1,6 +1,7 @@
 package com.example.patrol_be.controller;
 
 import com.example.patrol_be.dto.HSEPatrolGroupMasterDTO;
+import com.example.patrol_be.dto.MachineInfoDTO;
 import com.example.patrol_be.service.HSEPatrolGroupMasterService;
 import lombok.*;
 
@@ -17,5 +18,10 @@ public class HSEPatrolGroupMasterController {
     @GetMapping
     public List<HSEPatrolGroupMasterDTO> getAll() {
         return service.getAll();
+    }
+
+    @GetMapping("/by-macid")
+    public List<MachineInfoDTO> getByMacId(@RequestParam String macId) {
+        return service.findByMacId(macId);
     }
 }

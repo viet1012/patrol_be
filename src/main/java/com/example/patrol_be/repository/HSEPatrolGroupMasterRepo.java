@@ -65,4 +65,16 @@ public interface HSEPatrolGroupMasterRepo extends JpaRepository<HSEPatrolGroupMa
     String findPicByPlantGrp(@Param("plant") String plant,
                              @Param("grp") String grp);
 
+    @Query(value = """
+        SELECT 
+            LTRIM(RTRIM(REPLACE(Plant, CHAR(160), ''))) AS plant,
+            LTRIM(RTRIM(REPLACE(Grp, CHAR(160), ''))) AS fac,
+            LTRIM(RTRIM(REPLACE(Area, CHAR(160), ''))) AS area,
+            LTRIM(RTRIM(REPLACE(MacID, CHAR(160), ''))) AS macId,
+            LTRIM(RTRIM(REPLACE(PIC, CHAR(160), ''))) AS pic
+        FROM dbo.HSE_Patrol_Group_Master
+        WHERE LTRIM(RTRIM(REPLACE(MacID, CHAR(160), ''))) = :macId
+        ORDER BY Plant, Grp, Area
+        """, nativeQuery = true)
+    List<Object[]> findMachineInfoByMacId(@Param("macId") String macId);
 }
