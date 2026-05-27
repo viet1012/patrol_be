@@ -30,6 +30,18 @@ public class PatrolReportService {
 	private final PatrolCommentService patrolCommentService;
 	private final HSEPatrolGroupMasterRepo hsePatrolGroupMasterRepo;
 
+	// ===========================
+	// MAIN FUNCTION
+	// ===========================
+	private static String norm(String s) {
+		if (s == null) return null;
+		return s.replace('\u00A0', ' ').trim();
+	}
+
+	private static boolean blank(String s) {
+		return s == null || s.trim().isEmpty();
+	}
+
 	public List<PatrolReportDTO> search(
 			String plant,
 			String division,
@@ -65,7 +77,6 @@ public class PatrolReportService {
 				.map(this::mapToDTO)
 				.toList();
 	}
-
 
 	private PatrolReportDTO mapToDTO(Object[] r) {
 		return new PatrolReportDTO(
@@ -103,7 +114,6 @@ public class PatrolReportService {
 				(String) r[31]
 		);
 	}
-
 
 	private List<String> splitImages(String value) {
 		if (value == null || value.isBlank()) return List.of();
@@ -320,20 +330,10 @@ public class PatrolReportService {
 		}
 	}
 
-	// ===========================
-	// MAIN FUNCTION
-	// ===========================
-	private static String norm(String s) {
-		if (s == null) return null;
-		return s.replace('\u00A0', ' ').trim();
-	}
-	private static boolean blank(String s) {
-		return s == null || s.trim().isEmpty();
-	}
 	public String findPicSmart(String plant, String grp, String area, String macId) {
 		plant = norm(plant);
-		grp   = norm(grp);
-		area  = norm(area);
+		grp = norm(grp);
+		area = norm(area);
 		macId = norm(macId);
 
 		String pic = null;
@@ -352,6 +352,38 @@ public class PatrolReportService {
 		return blank(pic) ? null : norm(pic);
 	}
 
+
+	private String getOriginalLine(String text) {
+		if (text == null) return null;
+
+		return Arrays.stream(text.replace("\r", "").split("\n"))
+				.map(String::trim)
+				.filter(s -> !s.isEmpty())
+				.findFirst()
+				.orElse("");
+	}
+
+	private String translateWithOriginal(String text) {
+		String raw = getOriginalLine(text);
+
+		if (raw == null || raw.isBlank()) {
+			return raw;
+		}
+
+		try {
+			String translated = patrolCommentService.getTranslateDefault(raw);
+
+			if (translated != null && !translated.isBlank()) {
+				return raw + "\n" + translated.trim();
+			}
+
+			return raw;
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			return raw;
+		}
+	}
+
 	@Transactional
 	public void updateReport(
 			Long reportId,
@@ -364,11 +396,15 @@ public class PatrolReportService {
 
 		// ===== 1️⃣ UPDATE COMMENT & COUNTERMEASURE =====
 		if (DTO.getComment() != null) {
-			report.setComment(DTO.getComment().trim());
+			report.setComment(
+					translateWithOriginal(DTO.getComment())
+			);
 		}
 
 		if (DTO.getCountermeasure() != null) {
-			report.setCountermeasure(DTO.getCountermeasure().trim());
+			report.setCountermeasure(
+					translateWithOriginal(DTO.getCountermeasure())
+			);
 		}
 
 		// ===== ✅ 1.5️⃣ UPDATE META FIELDS =====
@@ -413,7 +449,11 @@ public class PatrolReportService {
 		}
 
 		if (DTO.getAtComment() != null) {
-			report.setAt_comment(DTO.getAtComment().trim());
+			System.out.println("getAtComment: " + DTO.getAtComment().trim());
+
+			report.setAt_comment(
+					translateWithOriginal(DTO.getAtComment())
+			);
 		}
 
 		if (DTO.getAtStatus() != null) {
