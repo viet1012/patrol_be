@@ -56,26 +56,26 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			      AND (:machine IS NULL OR LTRIM(RTRIM(machine)) LIKE '%' + LTRIM(RTRIM(:machine)) + '%')
 			      AND (:afStatus IS NULL OR ',' + :afStatus + ',' LIKE '%,' + LTRIM(RTRIM(at_status)) + ',%')
 			      AND (
-		             :pic IS NULL
-		             OR (
-		                 LTRIM(RTRIM(:pic)) = ''
-		                 AND
-		                 COALESCE(
-		                     NULLIF(LTRIM(RTRIM(at_assign)), ''),
-		                     NULLIF(LTRIM(RTRIM(pic)), '')
-		                 ) IS NULL
-		             )
-		             OR (
-		                 LTRIM(RTRIM(:pic)) <> ''
-		                 AND
-		                 COALESCE(
-		                     NULLIF(LTRIM(RTRIM(at_assign)), ''),
-		                     NULLIF(LTRIM(RTRIM(pic)), '')
-		                 )
-		                 COLLATE Vietnamese_CI_AI
-		                 LIKE '%' + LTRIM(RTRIM(:pic)) + '%'
-		             )
-		     )
+			            :pic IS NULL
+			            OR (
+			                LTRIM(RTRIM(:pic)) = ''
+			                AND
+			                COALESCE(
+			                    NULLIF(LTRIM(RTRIM(at_assign)), ''),
+			                    NULLIF(LTRIM(RTRIM(pic)), '')
+			                ) IS NULL
+			            )
+			            OR (
+			                LTRIM(RTRIM(:pic)) <> ''
+			                AND
+			                COALESCE(
+			                    NULLIF(LTRIM(RTRIM(at_assign)), ''),
+			                    NULLIF(LTRIM(RTRIM(pic)), '')
+			                )
+			                COLLATE Vietnamese_CI_AI
+			                LIKE '%' + LTRIM(RTRIM(:pic)) + '%'
+			            )
+			    )
 			      AND (:patrolUser IS NULL OR LTRIM(RTRIM(patrol_user)) LIKE '%' + LTRIM(RTRIM(:patrolUser)) + '%')
 			      AND (:qr_key IS NULL OR LTRIM(RTRIM(qr_key)) = LTRIM(RTRIM(:qr_key)))
 			      AND (
@@ -90,6 +90,41 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			""", nativeQuery = true)
 	List<Object[]> search(@Param("plant") String plant, @Param("division") String division, @Param("area") String area, @Param("machine") String machine, @Param("type") String type, @Param("grp") String grp, @Param("afStatus") String afStatus, @Param("pic") String pic, @Param("patrolUser") String patrolUser, @Param("qr_key") String qr_key, @Param("fromD") LocalDate fromD, @Param("toD") LocalDate toD);
 
+	@Query("""
+			    SELECT p
+			    FROM PatrolReport p
+			    WHERE (:fac IS NULL OR p.plant = :fac)
+			      AND (:division IS NULL OR p.division = :division)
+			      AND (:area IS NULL OR p.area = :area)
+			      AND (:machine IS NULL OR p.machine = :machine)
+			      AND p.machine IS NOT NULL
+			      AND p.machine <> ''
+			      AND p.comment IS NOT NULL
+			      AND p.comment <> ''
+			      AND (:fromDate IS NULL OR p.createdAt >= :fromDate)
+			    ORDER BY p.createdAt DESC
+			""")
+	List<PatrolReport> findAiIssueHistory(
+			@Param("fac") String fac,
+			@Param("division") String division,
+			@Param("area") String area,
+			@Param("machine") String machine,
+			@Param("fromDate") LocalDateTime fromDate
+	);
+
+	@Query("""
+			    SELECT p
+			    FROM PatrolReport p
+			    WHERE p.machine IN :machines
+			      AND p.comment IS NOT NULL
+			      AND p.comment <> ''
+			      AND (:fromDate IS NULL OR p.createdAt >= :fromDate)
+			    ORDER BY p.createdAt DESC
+			""")
+	List<PatrolReport> findAiIssueHistoryByMachines(
+			@Param("machines") List<String> machines,
+			@Param("fromDate") LocalDateTime fromDate
+	);
 
 	@Modifying
 	@Query(value = """
@@ -195,7 +230,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			      AND
 			        LTRIM(RTRIM(type))
 			            = LTRIM(RTRIM(:type))
-		
+			
 			    GROUP BY
 			
 			        COALESCE(
@@ -335,7 +370,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			        fac = CASE
 			                WHEN division IN ('Fac_A','Outside','Outside_A','Outside_B','Outside_C','WH')
 			                    THEN 'Fac_A & Outside'
-			     
+			
 			                ELSE division
 			              END,
 			        pic,

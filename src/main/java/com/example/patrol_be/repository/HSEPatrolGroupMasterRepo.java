@@ -6,8 +6,13 @@ import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface HSEPatrolGroupMasterRepo extends JpaRepository<HSEPatrolGroupMaster, Long> {
+
+    Optional<HSEPatrolGroupMaster> findFirstByMacIdIgnoreCase(String macId);
+
+    List<HSEPatrolGroupMaster> findByCateIgnoreCase(String cate);
 
     @Query(value = """
             SELECT 

@@ -16,6 +16,9 @@ public class HSEPatrolGroupMaster {
     @Column(name = "Grp")
     private String fac;
 
+    @Column(name = "Cate")
+    private String cate;
+
     @Column(name = "Area")
     private String area;
 

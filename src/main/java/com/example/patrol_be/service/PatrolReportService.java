@@ -4,6 +4,7 @@ import com.example.patrol_be.dto.*;
 import com.example.patrol_be.model.PatrolReport;
 import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
 import com.example.patrol_be.repository.PatrolReportRepo;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,7 @@ public class PatrolReportService {
 	private static boolean blank(String s) {
 		return s == null || s.trim().isEmpty();
 	}
+
 
 	public List<PatrolReportDTO> search(
 			String plant,

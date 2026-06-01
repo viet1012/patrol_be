@@ -1,8 +1,10 @@
 package com.example.patrol_be.controller;
 
 import com.example.patrol_be.dto.*;
+import com.example.patrol_be.service.PatrolMachineAiService;
 import com.example.patrol_be.service.PatrolPivotService;
 import com.example.patrol_be.service.PatrolReportService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.*;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -29,6 +32,67 @@ public class PatrolReportController {
 
     @Autowired
     private PatrolPivotService pivotService;
+
+    private final PatrolMachineAiService patrolMachineAiService;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private String extractJson(String text) {
+
+        if (text == null || text.isBlank()) {
+            return "{}";
+        }
+
+        text = text.trim();
+
+        text = text.replace("```json", "");
+        text = text.replace("```", "");
+        text = text.trim();
+
+        int start = text.indexOf('{');
+        int end = text.lastIndexOf('}');
+
+        if (start >= 0 && end > start) {
+            return text.substring(start, end + 1);
+        }
+
+        return "{}";
+    }
+
+    @GetMapping(
+            value = "/analyze-machine",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public ResponseEntity<JsonNode> analyzeMachine(
+            @RequestParam String machine
+    ) throws Exception {
+
+        String aiText =
+                patrolMachineAiService.analyzeMachine(machine);
+
+        String cleanJson = extractJson(aiText);
+
+        JsonNode json =
+                objectMapper.readTree(cleanJson);
+
+        return ResponseEntity.ok(json);
+    }
+
+    @GetMapping("/machine-history")
+    public List<MachineIssueHistoryDTO> getMachineHistory(
+            @RequestParam(required = false) String fac,
+            @RequestParam(required = false) String division,
+            @RequestParam(required = false) String area,
+            @RequestParam(required = false) String machine,
+            @RequestParam(required = false, defaultValue = "6") Integer months
+    ) {
+        return patrolMachineAiService.getMachineIssueHistory(
+                fac,
+                division,
+                area,
+                machine,
+                months
+        );
+    }
 
     @GetMapping("/filter")
     public ResponseEntity<?> filter(
