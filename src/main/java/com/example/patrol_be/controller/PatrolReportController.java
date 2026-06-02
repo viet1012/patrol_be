@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -64,18 +65,26 @@ public class PatrolReportController {
 			@RequestParam(required = false) String area
 	) throws Exception {
 
-		String aiText =
-				patrolMachineAiService.analyzeMachine(
-						machine,
-						area
-				);
+		String aiText = patrolMachineAiService.analyzeMachine(machine, area);
 
-		String cleanJson = extractJson(aiText);
-
-		JsonNode json =
-				objectMapper.readTree(cleanJson);
+		JsonNode json = safeReadAiJson(aiText);
 
 		return ResponseEntity.ok(json);
+	}
+
+	private JsonNode safeReadAiJson(String aiText) {
+		try {
+			String cleanJson = extractJson(aiText);
+			return objectMapper.readTree(cleanJson);
+		} catch (Exception e) {
+			ObjectNode node = objectMapper.createObjectNode();
+			node.put("found", false);
+			node.put("message", "Invalid AI JSON");
+			node.put("summaryVi", "");
+			node.put("summaryJp", "");
+			node.put("raw", aiText == null ? "" : aiText);
+			return node;
+		}
 	}
 
 	@GetMapping("/machine-history")

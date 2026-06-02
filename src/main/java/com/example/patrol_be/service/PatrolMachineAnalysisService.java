@@ -110,6 +110,40 @@ public class PatrolMachineAnalysisService {
 		}
 	}
 
+	private String keepVietnameseOnly(String text) {
+		if (text == null || text.isBlank()) {
+			return "";
+		}
+
+		String[] lines = text.split("\\R");
+
+		StringBuilder vi = new StringBuilder();
+
+		for (String line : lines) {
+			String s = line.trim();
+
+			if (s.isEmpty()) continue;
+
+			if (containsJapanese(s)) continue;
+
+			vi.append(s).append(" ");
+		}
+
+		return vi.toString().trim();
+	}
+
+	private boolean containsJapanese(String text) {
+		if (text == null || text.isBlank()) {
+			return false;
+		}
+
+		return text.codePoints().anyMatch(cp ->
+				Character.UnicodeBlock.of(cp) == Character.UnicodeBlock.HIRAGANA ||
+						Character.UnicodeBlock.of(cp) == Character.UnicodeBlock.KATAKANA ||
+						Character.UnicodeBlock.of(cp) == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS ||
+						Character.UnicodeBlock.of(cp) == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION
+		);
+	}
 
 	private String buildAiInputJson(
 			String machine,
@@ -126,12 +160,21 @@ public class PatrolMachineAnalysisService {
 				.distinct()
 				.toList();
 
+//		List<String> comments = history.stream()
+//				.flatMap(h -> h.getComments().stream())
+//				.filter(s -> !isBlank(s))
+//				.map(String::trim)
+//				.distinct()
+//				.limit(40)
+//				.toList();
 		List<String> comments = history.stream()
 				.flatMap(h -> h.getComments().stream())
 				.filter(s -> !isBlank(s))
+				.map(this::keepVietnameseOnly)
+				.filter(s -> !isBlank(s))
 				.map(String::trim)
 				.distinct()
-				.limit(40)
+				.limit(25)
 				.toList();
 
 		int totalCases = history.stream()
