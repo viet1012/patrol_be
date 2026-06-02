@@ -26,14 +26,7 @@ public interface HSEPatrolGroupMasterRepo extends JpaRepository<HSEPatrolGroupMa
             """, nativeQuery = true)
     List<Object[]> findAllMachines();
 
-    @Query(value = """
-            SELECT TOP 1 LTRIM(RTRIM(REPLACE(PIC, CHAR(160), ''))) AS pic
-            FROM HSE_Patrol_Group_Master
-            WHERE LTRIM(RTRIM(REPLACE(Plant, CHAR(160), ''))) = :plant
-                AND LTRIM(RTRIM(REPLACE(MacID, CHAR(160), ''))) = :macId
-            """, nativeQuery = true)
-    String findPIC(@Param("plant") String plant,
-                   @Param("macId") String macId);
+
 
     @Query(value = """
                 SELECT TOP 1 PIC

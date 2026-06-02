@@ -113,14 +113,14 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 	);
 
 	@Query("""
-			    SELECT p
-			    FROM PatrolReport p
-			    WHERE p.machine IN :machines
-			      AND p.comment IS NOT NULL
-			      AND p.comment <> ''
-			      AND (:fromDate IS NULL OR p.createdAt >= :fromDate)
-			    ORDER BY p.createdAt DESC
-			""")
+    SELECT p
+    FROM PatrolReport p
+    WHERE LOWER(p.machine) IN :machines
+      AND p.comment IS NOT NULL
+      AND p.comment <> ''
+      AND (:fromDate IS NULL OR p.createdAt >= :fromDate)
+    ORDER BY p.createdAt DESC
+""")
 	List<PatrolReport> findAiIssueHistoryByMachines(
 			@Param("machines") List<String> machines,
 			@Param("fromDate") LocalDateTime fromDate

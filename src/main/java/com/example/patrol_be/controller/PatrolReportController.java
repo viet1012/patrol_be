@@ -1,10 +1,9 @@
 package com.example.patrol_be.controller;
 
 import com.example.patrol_be.dto.*;
-import com.example.patrol_be.service.PatrolMachineAiService;
+import com.example.patrol_be.service.PatrolMachineAnalysisService;
 import com.example.patrol_be.service.PatrolPivotService;
 import com.example.patrol_be.service.PatrolReportService;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import tools.jackson.databind.*;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
@@ -27,218 +26,220 @@ import java.util.Map;
 @Slf4j
 public class PatrolReportController {
 
-    @Autowired
-    private PatrolReportService service;
+	private final PatrolMachineAnalysisService patrolMachineAiService;
+	private final ObjectMapper objectMapper = new ObjectMapper();
+	@Autowired
+	private PatrolReportService service;
+	@Autowired
+	private PatrolPivotService pivotService;
 
-    @Autowired
-    private PatrolPivotService pivotService;
+	private String extractJson(String text) {
 
-    private final PatrolMachineAiService patrolMachineAiService;
+		if (text == null || text.isBlank()) {
+			return "{}";
+		}
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private String extractJson(String text) {
+		text = text.trim();
 
-        if (text == null || text.isBlank()) {
-            return "{}";
-        }
+		text = text.replace("```json", "");
+		text = text.replace("```", "");
+		text = text.trim();
 
-        text = text.trim();
+		int start = text.indexOf('{');
+		int end = text.lastIndexOf('}');
 
-        text = text.replace("```json", "");
-        text = text.replace("```", "");
-        text = text.trim();
+		if (start >= 0 && end > start) {
+			return text.substring(start, end + 1);
+		}
 
-        int start = text.indexOf('{');
-        int end = text.lastIndexOf('}');
+		return "{}";
+	}
 
-        if (start >= 0 && end > start) {
-            return text.substring(start, end + 1);
-        }
+	@GetMapping(
+			value = "/analyze-machine",
+			produces = MediaType.APPLICATION_JSON_VALUE
+	)
+	public ResponseEntity<JsonNode> analyzeMachine(
+			@RequestParam String machine,
+			@RequestParam(required = false) String area
+	) throws Exception {
 
-        return "{}";
-    }
+		String aiText =
+				patrolMachineAiService.analyzeMachine(
+						machine,
+						area
+				);
 
-    @GetMapping(
-            value = "/analyze-machine",
-            produces = MediaType.APPLICATION_JSON_VALUE
-    )
-    public ResponseEntity<JsonNode> analyzeMachine(
-            @RequestParam String machine
-    ) throws Exception {
+		String cleanJson = extractJson(aiText);
 
-        String aiText =
-                patrolMachineAiService.analyzeMachine(machine);
+		JsonNode json =
+				objectMapper.readTree(cleanJson);
 
-        String cleanJson = extractJson(aiText);
+		return ResponseEntity.ok(json);
+	}
 
-        JsonNode json =
-                objectMapper.readTree(cleanJson);
+	@GetMapping("/machine-history")
+	public List<MachineIssueHistoryDTO> getMachineHistory(
+			@RequestParam(required = false) String fac,
+			@RequestParam(required = false) String division,
+			@RequestParam(required = false) String area,
+			@RequestParam(required = false) String machine,
+			@RequestParam(required = false, defaultValue = "6") Integer months
+	) {
+		return patrolMachineAiService.getMachineIssueHistory(
+				fac,
+				division,
+				area,
+				machine,
+				months
+		);
+	}
 
-        return ResponseEntity.ok(json);
-    }
+	@GetMapping("/filter")
+	public ResponseEntity<?> filter(
+			@RequestParam(required = false) String plant,
+			@RequestParam(required = false) String grp,
+			@RequestParam(required = false) String type,
+			@RequestParam(required = false) String division,
+			@RequestParam(required = false) String area,
+			@RequestParam(required = false) String machine,
+			@RequestParam(required = false) String afStatus,
+			@RequestParam(required = false) String pic,
+			@RequestParam(required = false) String patrolUser,
+			@RequestParam(required = false) String qrKey,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toD
+	) {
 
-    @GetMapping("/machine-history")
-    public List<MachineIssueHistoryDTO> getMachineHistory(
-            @RequestParam(required = false) String fac,
-            @RequestParam(required = false) String division,
-            @RequestParam(required = false) String area,
-            @RequestParam(required = false) String machine,
-            @RequestParam(required = false, defaultValue = "6") Integer months
-    ) {
-        return patrolMachineAiService.getMachineIssueHistory(
-                fac,
-                division,
-                area,
-                machine,
-                months
-        );
-    }
+		return ResponseEntity.ok(
+				service.search(
+						plant,
+						division,
+						area,
+						machine,
+						type,
+						afStatus,
+						grp,
+						pic,
+						patrolUser,
+						qrKey,
+						fromD,
+						toD
+				)
+		);
 
-    @GetMapping("/filter")
-    public ResponseEntity<?> filter(
-            @RequestParam(required = false) String plant,
-            @RequestParam(required = false) String grp,
-            @RequestParam(required = false) String type,
-            @RequestParam(required = false) String division,
-            @RequestParam(required = false) String area,
-            @RequestParam(required = false) String machine,
-            @RequestParam(required = false) String afStatus,
-            @RequestParam(required = false) String pic,
-            @RequestParam(required = false) String patrolUser,
-            @RequestParam(required = false) String qrKey,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toD
-    ) {
+	}
 
-        return ResponseEntity.ok(
-                service.search(
-                        plant,
-                        division,
-                        area,
-                        machine,
-                        type,
-                        afStatus,
-                        grp,
-                        pic,
-                        patrolUser,
-                        qrKey,
-                        fromD,
-                        toD
-                )
-        );
-
-    }
-
-    @GetMapping("/pivot")
-    public PatrolRiskPivotResponseDTO pivot(
-            @RequestParam String plant,
-            @RequestParam String type,
-            @RequestParam(name = "at_status") List<String> atStatus
-    ) {
-        return pivotService.getPivot(plant, atStatus, type);
-    }
-
-
-    @PutMapping("{id}/replace_image")
-    public ResponseEntity<?> replaceImage(
-            @PathVariable Long id,
-            @RequestParam String oldImage,
-            @RequestParam MultipartFile newImage
-    ) throws IOException {
-        String newImageName = service.replaceImage(id, oldImage, newImage);
-        return ResponseEntity.ok(
-                Map.of("newImage", newImageName)
-        );
-    }
-
-    // ================== DELETE IMAGE ==================
-    @DeleteMapping("/{id}/delete_image")
-    public ResponseEntity<?> deleteImage(
-            @PathVariable Long id,
-            @RequestParam String image
-    ) {
-        service.deleteImage(id, image);
-        return ResponseEntity.ok("Image deleted successfully");
-    }
+	@GetMapping("/pivot")
+	public PatrolRiskPivotResponseDTO pivot(
+			@RequestParam String plant,
+			@RequestParam String type,
+			@RequestParam(name = "at_status") List<String> atStatus
+	) {
+		return pivotService.getPivot(plant, atStatus, type);
+	}
 
 
-    // ================== ADD IMAGE ==================
-    @PostMapping("/{id}/add_image")
-    public ResponseEntity<?> addImage(
-            @PathVariable Long id,
-            @RequestParam MultipartFile image
-    ) throws IOException {
-        String newImageName = service.addImage(id, image);
-        return ResponseEntity.ok(
-                Map.of("newImage", newImageName)
-        );
-    }
+	@PutMapping("{id}/replace_image")
+	public ResponseEntity<?> replaceImage(
+			@PathVariable Long id,
+			@RequestParam String oldImage,
+			@RequestParam MultipartFile newImage
+	) throws IOException {
+		String newImageName = service.replaceImage(id, oldImage, newImage);
+		return ResponseEntity.ok(
+				Map.of("newImage", newImageName)
+		);
+	}
 
-    // ================== REPLACE IMAGE ==================
-    @PutMapping("/{id}/update_at")
-    public ResponseEntity<?> updateAt(
-            @PathVariable Long id,
-            @RequestParam("data") String dto,
-            @RequestParam(value = "images", required = false)
-            List<MultipartFile> images
-    ) throws IOException {
-        AtUpdateDTO atUpdateDTO = new ObjectMapper().readValue(dto, AtUpdateDTO.class);
-
-        service.updateAtInfo(id, atUpdateDTO, images);
-        return ResponseEntity.ok("AT updated successfully");
-    }
+	// ================== DELETE IMAGE ==================
+	@DeleteMapping("/{id}/delete_image")
+	public ResponseEntity<?> deleteImage(
+			@PathVariable Long id,
+			@RequestParam String image
+	) {
+		service.deleteImage(id, image);
+		return ResponseEntity.ok("Image deleted successfully");
+	}
 
 
-    @PostMapping(value = "/{id}/edit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> updateReport(
-            @PathVariable Long id,
-            @RequestParam("data") String dto,
-            @RequestParam(value = "images", required = false) List<MultipartFile> images
-    ) throws IOException {
-        PatrolEditDTO atUpdateDTO = new ObjectMapper().readValue(dto, PatrolEditDTO.class);
+	// ================== ADD IMAGE ==================
+	@PostMapping("/{id}/add_image")
+	public ResponseEntity<?> addImage(
+			@PathVariable Long id,
+			@RequestParam MultipartFile image
+	) throws IOException {
+		String newImageName = service.addImage(id, image);
+		return ResponseEntity.ok(
+				Map.of("newImage", newImageName)
+		);
+	}
 
-        service.updateReport(id, atUpdateDTO, images);
-        return ResponseEntity.ok().build();
-    }
+	// ================== REPLACE IMAGE ==================
+	@PutMapping("/{id}/update_at")
+	public ResponseEntity<?> updateAt(
+			@PathVariable Long id,
+			@RequestParam("data") String dto,
+			@RequestParam(value = "images", required = false)
+			List<MultipartFile> images
+	) throws IOException {
+		AtUpdateDTO atUpdateDTO = new ObjectMapper().readValue(dto, AtUpdateDTO.class);
+
+		service.updateAtInfo(id, atUpdateDTO, images);
+		return ResponseEntity.ok("AT updated successfully");
+	}
 
 
-    @PutMapping("/{id}/hse_recheck")
-    public ResponseEntity<?> hseRecheck(
-            @PathVariable Long id,
-            @RequestParam("data") String dto,
-            @RequestParam(value = "images", required = false)
-            List<MultipartFile> images
-    ) throws IOException {
-        HseUpdateDTO atUpdateDTO = new ObjectMapper().readValue(dto, HseUpdateDTO.class);
+	@PostMapping(value = "/{id}/edit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ResponseEntity<?> updateReport(
+			@PathVariable Long id,
+			@RequestParam("data") String dto,
+			@RequestParam(value = "images", required = false) List<MultipartFile> images
+	) throws IOException {
+		PatrolEditDTO atUpdateDTO = new ObjectMapper().readValue(dto, PatrolEditDTO.class);
 
-        service.updateHseInfo(id, atUpdateDTO, images);
-        return ResponseEntity.ok("AT updated successfully");
-    }
+		service.updateReport(id, atUpdateDTO, images);
+		return ResponseEntity.ok().build();
+	}
 
-    @GetMapping("/risk_summary")
-    public ResponseEntity<List<RiskSummaryDTO>> getRiskSummary(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toD,
-            @RequestParam String fac,
-            @RequestParam(defaultValue = "Patrol") String type
-    ) {
-        return ResponseEntity.ok(
-                service.getRiskSummary(fromD, toD, fac, type)
-        );
-    }
 
-    // GET /api/patrol_report/summary/division?fromD=2026-01-02&toD=2026-01-28&fac=Fac_2&type=Patrol
-    @GetMapping("/summary/division")
-    public ResponseEntity<List<DivisionSummaryDTO>> byDivision(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toD,
-            @RequestParam String fac,
-            @RequestParam String type
-    ) {
-        return ResponseEntity.ok(service.summaryByDivision(fromD, toD, fac, type));
-    }
+	@PutMapping("/{id}/hse_recheck")
+	public ResponseEntity<?> hseRecheck(
+			@PathVariable Long id,
+			@RequestParam("data") String dto,
+			@RequestParam(value = "images", required = false)
+			List<MultipartFile> images
+	) throws IOException {
+		HseUpdateDTO atUpdateDTO = new ObjectMapper().readValue(dto, HseUpdateDTO.class);
 
-    // GET /api/patrol_report/pic-summary?fromD=2025-12-01&toD=2026-01-28&fac=Fac_2&type=Patrol&lvls=IV&lvls=V
+		service.updateHseInfo(id, atUpdateDTO, images);
+		return ResponseEntity.ok("AT updated successfully");
+	}
+
+	@GetMapping("/risk_summary")
+	public ResponseEntity<List<RiskSummaryDTO>> getRiskSummary(
+			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
+			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toD,
+			@RequestParam String fac,
+			@RequestParam(defaultValue = "Patrol") String type
+	) {
+		return ResponseEntity.ok(
+				service.getRiskSummary(fromD, toD, fac, type)
+		);
+	}
+
+	// GET /api/patrol_report/summary/division?fromD=2026-01-02&toD=2026-01-28&fac=Fac_2&type=Patrol
+	@GetMapping("/summary/division")
+	public ResponseEntity<List<DivisionSummaryDTO>> byDivision(
+			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
+			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toD,
+			@RequestParam String fac,
+			@RequestParam String type
+	) {
+		return ResponseEntity.ok(service.summaryByDivision(fromD, toD, fac, type));
+	}
+
+	// GET /api/patrol_report/pic-summary?fromD=2025-12-01&toD=2026-01-28&fac=Fac_2&type=Patrol&lvls=IV&lvls=V
 //    @GetMapping("/pic-summary")
 //    public List<PicSummaryDTO> picSummary(
 //            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromD,
@@ -250,15 +251,15 @@ public class PatrolReportController {
 //        return service.getPicSummary(fromD, toD, fac, type, lvls);
 //    }
 
-    // /api/patrol/summary?from=2025-12-05&to=2026-02-26&plant=Fac_2&type=Patrol
-    @GetMapping("/summary")
-    public PatrolSummaryResponseDTO summary(
-            @RequestParam("from") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam("to")   @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam("plant") String plant,
-            @RequestParam("type") String type
-    ) {
-        return service.getSummary(from, to, plant, type);
-    }
+	// /api/patrol/summary?from=2025-12-05&to=2026-02-26&plant=Fac_2&type=Patrol
+	@GetMapping("/summary")
+	public PatrolSummaryResponseDTO summary(
+			@RequestParam("from") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate from,
+			@RequestParam("to") @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) LocalDate to,
+			@RequestParam("plant") String plant,
+			@RequestParam("type") String type
+	) {
+		return service.getSummary(from, to, plant, type);
+	}
 
 }

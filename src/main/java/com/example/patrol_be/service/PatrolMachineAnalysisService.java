@@ -18,17 +18,18 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class PatrolMachineAiService {
+public class PatrolMachineAnalysisService {
 
 	private final PatrolReportRepo repo;
 	private final HSEPatrolGroupMasterRepo masterRepo;
 
-	private final PatrolCommentService patrolCommentService;
+	private final PatrolMachineAiClientService aiClientService;
 	private final ObjectMapper objectMapper = new ObjectMapper()
 			.findAndRegisterModules();
 
-	public String analyzeMachine(String machine) {
+	public String analyzeMachine(String machine, String area) {
 		String machineKey = blankToNull(machine);
+		String selectedArea = blankToNull(area);
 
 		if (machineKey == null) {
 			return """
@@ -42,26 +43,53 @@ public class PatrolMachineAiService {
 		}
 
 		try {
+			HSEPatrolGroupMaster master = masterRepo
+					.findFirstByMacIdIgnoreCase(machineKey)
+					.orElse(null);
+
+			String cate = master == null ? null : blankToNull(master.getCate());
+			String sourceType = cate == null ? "machine" : "same_cate";
+
 			List<MachineIssueHistoryDTO> history =
-					getMachineIssueHistory(null, null, null, machineKey, 6);
+					getMachineIssueHistory(
+							null,
+							null,
+							selectedArea,
+							machineKey,
+							18
+					);
 
 			if (history.isEmpty()) {
 				return """
 						{
 						  "found": false,
 						  "machine": "%s",
+						  "selectedArea": "%s",
+						  "cate": "%s",
+						  "sourceType": "%s",
 						  "message": "No patrol history found",
 						  "summaryVi": "",
 						  "summaryJp": ""
 						}
-						""".formatted(machineKey);
+						""".formatted(
+						machineKey,
+						Objects.toString(selectedArea, ""),
+						Objects.toString(cate, ""),
+						sourceType
+				);
 			}
 
-			String aiInputJson = buildAiInputJson(machineKey, history);
+			String aiInputJson = buildAiInputJson(
+					machineKey,
+					selectedArea,
+					cate,
+					sourceType,
+					history
+			);
 
 			System.out.println("AI INPUT JSON = " + aiInputJson);
 
-			String aiResult = patrolCommentService.analyzeMachineIssues(aiInputJson);
+			String aiResult = aiClientService.analyzeMachineIssues(aiInputJson);
 
 			System.out.println("AI RESULT = " + aiResult);
 
@@ -85,15 +113,11 @@ public class PatrolMachineAiService {
 
 	private String buildAiInputJson(
 			String machine,
+			String selectedArea,
+			String cate,
+			String sourceType,
 			List<MachineIssueHistoryDTO> history
 	) throws Exception {
-
-		List<String> areas = history.stream()
-				.map(MachineIssueHistoryDTO::getArea)
-				.filter(s -> !isBlank(s))
-				.map(String::trim)
-				.distinct()
-				.toList();
 
 		List<String> relatedMachines = history.stream()
 				.map(MachineIssueHistoryDTO::getMachine)
@@ -131,123 +155,14 @@ public class PatrolMachineAiService {
 		ObjectNode node = objectMapper.createObjectNode();
 
 		node.put("machine", machine);
+		node.put("selectedArea", Objects.toString(selectedArea, ""));
+		node.put("cate", Objects.toString(cate, ""));
+		node.put("sourceType", sourceType);
 		node.put("fac", fac);
 		node.put("division", division);
 		node.put("totalCases", totalCases);
 
-		node.set("areas", objectMapper.valueToTree(areas));
 		node.set("relatedMachines", objectMapper.valueToTree(relatedMachines));
-		node.set("comments", objectMapper.valueToTree(comments));
-
-		return objectMapper.writeValueAsString(node);
-	}
-
-
-	public String analyzeMachine1(String machine) {
-		String machineKey = blankToNull(machine);
-
-		if (machineKey == null) {
-			return """
-					{
-					  "found": false,
-					  "message": "Machine is required",
-					  "summaryVi": "",
-					  "summaryJp": ""
-					}
-					""";
-		}
-
-		try {
-			List<MachineIssueHistoryDTO> history = getMachineIssueHistory(
-					null,
-					null,
-					null,
-					machineKey,
-					6
-			);
-
-			if (history.isEmpty()) {
-				return """
-						{
-						  "found": false,
-						  "machine": "%s",
-						  "message": "No patrol history found for this machine",
-						  "summaryVi": "",
-						  "summaryJp": ""
-						}
-						""".formatted(machineKey);
-			}
-
-			String aiInputJson = buildAiInputJson1(machineKey, history);
-
-			System.out.println("AI INPUT JSON = " + aiInputJson);
-
-			String aiResult = patrolCommentService.analyzeMachineIssues(aiInputJson);
-
-			System.out.println("AI RESULT = " + aiResult);
-
-			return aiResult;
-
-		} catch (Exception e) {
-			e.printStackTrace();
-
-			return """
-					{
-					  "found": false,
-					  "machine": "%s",
-					  "message": "AI analyze failed: %s",
-					  "summaryVi": "",
-					  "summaryJp": ""
-					}
-					""".formatted(machineKey, safeJsonText(e.getMessage()));
-		}
-	}
-
-	private String buildAiInputJson1(
-			String machine,
-			List<MachineIssueHistoryDTO> history
-	) throws Exception {
-
-		List<String> areas = history.stream()
-				.map(MachineIssueHistoryDTO::getArea)
-				.filter(s -> !isBlank(s))
-				.map(String::trim)
-				.distinct()
-				.toList();
-
-		List<String> comments = history.stream()
-				.flatMap(h -> h.getComments().stream())
-				.filter(s -> !isBlank(s))
-				.map(String::trim)
-				.distinct()
-				.limit(30)
-				.toList();
-
-		int totalCases = history.stream()
-				.map(MachineIssueHistoryDTO::getTotalCases)
-				.filter(Objects::nonNull)
-				.mapToInt(Integer::intValue)
-				.sum();
-
-		String fac = history.stream()
-				.map(MachineIssueHistoryDTO::getFac)
-				.filter(s -> !isBlank(s))
-				.findFirst()
-				.orElse("");
-
-		String division = history.stream()
-				.map(MachineIssueHistoryDTO::getDivision)
-				.filter(s -> !isBlank(s))
-				.findFirst()
-				.orElse("");
-
-		ObjectNode node = objectMapper.createObjectNode();
-
-		node.put("machine", machine);
-		node.put("fac", fac);
-		node.put("division", division);
-		node.put("totalCases", totalCases);
-		node.set("areas", objectMapper.valueToTree(areas));
 		node.set("comments", objectMapper.valueToTree(comments));
 
 		return objectMapper.writeValueAsString(node);
@@ -261,6 +176,7 @@ public class PatrolMachineAiService {
 			Integer months
 	) {
 		String machineKey = blankToNull(machine);
+		String areaKey = blankToNull(area);
 
 		LocalDateTime fromDate = months == null || months <= 0
 				? null
@@ -285,7 +201,7 @@ public class PatrolMachineAiService {
 			reports = repo.findAiIssueHistory(
 					blankToNull(fac),
 					blankToNull(division),
-					blankToNull(area),
+					areaKey,
 					null,
 					fromDate
 			);
@@ -294,6 +210,8 @@ public class PatrolMachineAiService {
 		return reports.stream()
 				.filter(r -> !isBlank(r.getMachine()))
 				.filter(r -> !isBlank(r.getComment()))
+				.filter(r -> areaKey == null ||
+						normalize(r.getArea()).equals(normalize(areaKey)))
 				.sorted(
 						Comparator.comparing(
 								PatrolReport::getCreatedAt,
@@ -313,6 +231,7 @@ public class PatrolMachineAiService {
 				.map(this::toMachineIssueHistory)
 				.toList();
 	}
+
 
 	private List<String> findMachinesBySameCate(String machine) {
 		var masterOpt = masterRepo.findFirstByMacIdIgnoreCase(machine);
@@ -355,6 +274,12 @@ public class PatrolMachineAiService {
 				)
 				.totalCases(list.size())
 				.build();
+	}
+
+	private String normalize(String value) {
+		return value == null
+				? ""
+				: value.trim().replaceAll("\\s+", " ").toLowerCase();
 	}
 
 	private boolean isBlank(String value) {
