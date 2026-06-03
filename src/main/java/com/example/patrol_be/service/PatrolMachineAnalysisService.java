@@ -5,6 +5,7 @@ import com.example.patrol_be.model.HSEPatrolGroupMaster;
 import com.example.patrol_be.model.PatrolReport;
 import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
 import com.example.patrol_be.repository.PatrolReportRepo;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
@@ -91,9 +92,19 @@ public class PatrolMachineAnalysisService {
 
 			String aiResult = aiClientService.analyzeMachineIssues(aiInputJson);
 
+			JsonNode node = objectMapper.readTree(aiResult);
+
+			if (node.has("summaryVi")) {
+				((ObjectNode) node).put(
+						"summaryVi",
+						capitalizeBullets(node.path("summaryVi").asText())
+				);
+			}
 			System.out.println("AI RESULT = " + aiResult);
 
-			return aiResult;
+			return objectMapper.writeValueAsString(node);
+
+//			return aiResult;
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -108,6 +119,32 @@ public class PatrolMachineAnalysisService {
 					}
 					""".formatted(machineKey, safeJsonText(e.getMessage()));
 		}
+	}
+
+	private String capitalizeBullets(String text) {
+		if (text == null || text.isBlank()) {
+			return text;
+		}
+
+		return java.util.Arrays.stream(text.split("\n"))
+				.map(line -> {
+					String trimmed = line.trim();
+
+					if (!trimmed.startsWith("-")) {
+						return line;
+					}
+
+					String content = trimmed.substring(1).trim();
+
+					if (content.isEmpty()) {
+						return line;
+					}
+
+					return "- " +
+							Character.toUpperCase(content.charAt(0)) +
+							content.substring(1);
+				})
+				.collect(Collectors.joining("\n"));
 	}
 
 	private String keepVietnameseOnly(String text) {

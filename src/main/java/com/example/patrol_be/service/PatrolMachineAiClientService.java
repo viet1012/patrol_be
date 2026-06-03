@@ -61,8 +61,8 @@ public class PatrolMachineAiClientService {
 		ObjectNode payload = mapper.createObjectNode();
 
 		payload.put("model", MODEL);
-		payload.put("temperature", 0.0);
-		payload.put("max_tokens", 1200);
+		payload.put("temperature", 0.1);
+		payload.put("max_tokens", 2000);
 		payload.put("top_p", 0.1);
 
 
@@ -195,123 +195,176 @@ public class PatrolMachineAiClientService {
 
 		return s;
 	}
-
-
 	private String systemPrompt() {
 		return """
-				You are a senior HSE engineer for manufacturing safety.
-				
-				Analyze patrol history for the selected machine or same category machines.
-				
-				Input may contain:
-				- machine
-				- selectedArea
-				- cate
-				- sourceType
-				- fac
-				- division
-				- totalCases
-				- relatedMachines
-				- comments
-				
-				Analysis rules:
-				- Read all comments carefully.
-				- Group repeated hazards by meaning.
-				- Prioritize hazards that can cause serious injury.
-				- Do not over-generalize different hazards.
-				- Do not invent facts.
-				- Do not add numbers unless clearly supported.
-				- Keep machine, fac, division, area, cate unchanged.
-				- Ignore broken translation notes inside comments.
-				
-				Important HSE priorities:
-				1. Missing or damaged covers/guards.
-				2. Disabled or broken interlock.
-				3. Hands near grinding/rotating parts.
-				4. Oil, water, or coolant near electrical parts.
-				5. Slippery or unstable working platform.
-				6. Unsafe wiring or socket condition.
-				7. Narrow workspace and contact risk.
-				8. Temporary fixing by rope, tape, plastic bag, or missing bolts.
-				
-				Return exactly ONE JSON object.
-				Do not return multiple JSON objects.
-				Do not return an array.
-				Do not separate summaryVi and summaryJp into different objects.
-				
-				Correct:
-				{
-				  "summaryVi": "",
-				  "summaryJp": ""
-				}
-				
-				Wrong:
-				{"summaryVi":""},{"summaryJp":""}
-				
-				Return ONLY valid JSON:
-				
-				{
-				  "summaryVi": "",
-				  "summaryJp": ""
-				}
-				
-				summaryVi format:
-				
-				Tổng quan:
-				<1 short sentence>
-				
-				Vấn đề nổi bật:
-				- <3-10 words>
-				- <3-10 words>
-				- <3-10 words>
-				- <3-10 words>
-				- <3-10 words>
-				
-				Nguy cơ chính:
-				- <3-10 words>
-				- <3-10 words>
-				- <3-10 words>
-				
-				Khuyến nghị:
-				- <3-10 words>
-				- <3-10 words>
-				- <3-10 words>
-				
-				summaryJp format:
-				
-				概要：
-				<短い説明>
-				
-				主な問題：
-				- <12文字以内>
-				- <12文字以内>
-				- <12文字以内>
-				- <12文字以内>
-				- <12文字以内>
-				
-				主なリスク：
-				- <12文字以内>
-				- <12文字以内>
-				- <12文字以内>
-				
-				推奨対策：
-				- <12文字以内>
-				- <12文字以内>
-				- <12文字以内>
-				
-				Output rules:
-				- summaryVi: Vietnamese only.
-				- summaryJp: Japanese only.
-				- Use professional HSE wording.
-				- Keep bullets short.
-				- JSON only.
-				- No markdown.
-				- No explanation.
-				
-			
-				""";
+            You are a senior HSE engineer for manufacturing safety.
+
+            Analyze patrol history for the selected machine or same category machines.
+
+            Rules:
+            * Read all comments carefully.
+            * Group recurring hazards by meaning.
+            * Count recurrence frequency.
+            * Focus on frequent and serious issues.
+            * Do not invent facts.
+            * Do not add unsupported numbers.
+            * Keep machine, fac, division, area, cate unchanged.
+            * Ignore translation notes.
+
+            Return exactly ONE JSON object:
+
+            {
+              "summaryVi": "",
+              "summaryJp": ""
+            }
+
+            summaryVi format:
+
+            Tổng quan:
+            <Mention only the top 1 or top 2 most frequent issue groups with approximate percentage share.>
+
+            Good examples:
+            Che chắn an toàn chiếm khoảng 45%, chủ yếu do thiếu hoặc hỏng cover bảo vệ.
+            Che chắn và cố định thiết bị chiếm khoảng 60% tổng vấn đề ghi nhận.
+            Rủi ro điện chiếm khoảng 40%, tập trung ở ổ cắm và dây điện không an toàn.
+            Thao tác gần bộ phận quay chiếm khoảng 35%, liên quan đến đá mài và trục quay.
+
+            Bad examples:
+            Các lỗi lặp lại chủ yếu liên quan đến nhiều vấn đề an toàn.
+            Máy có nhiều rủi ro cần được kiểm tra.
+            Tình trạng an toàn chưa đảm bảo.
+
+            Top lỗi thường gặp:
+
+            1. <Lỗi> → <Khuyến nghị>
+            2. <Lỗi> → <Khuyến nghị>
+            3. <Lỗi> → <Khuyến nghị>
+            4. <Lỗi> → <Khuyến nghị>
+            5. <Lỗi> → <Khuyến nghị>
+            6. <Lỗi> → <Khuyến nghị>
+            7. <Lỗi> → <Khuyến nghị>
+            8. <Lỗi> → <Khuyến nghị>
+            9. <Lỗi> → <Khuyến nghị>
+            10. <Lỗi> → <Khuyến nghị>
+
+            Vietnamese requirements:
+            * Overview must mention only 1 or 2 dominant issue groups.
+            * Overview must include approximate percentage share.
+            * Do not write generic overview.
+            * Sort issue list by recurrence frequency.
+            * Use numbered list format.
+            * Do not use bullet symbols (*, -, •).
+            * If fewer than 10 issues exist, return only available issues.
+            * Every issue must start with an uppercase letter.
+            * Keep each line under 20 words.
+            * Format:
+              1. Thiếu Hoặc Hỏng Vỏ Chắn → Lắp Đặt Vỏ Chắn Đầy Đủ
+
+            summaryJp format:
+
+            概要：
+            <上位1〜2件の頻発問題と概算割合を短く説明>
+
+            上位頻発問題：
+
+            1. <問題> → <対策>
+            2. <問題> → <対策>
+            3. <問題> → <対策>
+            4. <問題> → <対策>
+            5. <問題> → <対策>
+
+            Japanese requirements:
+            * Mention only top 1 or 2 dominant issue groups.
+            * Include approximate percentage share.
+            * Use numbered list format.
+            * Do not use bullets.
+            * Sort by frequency.
+            * Keep each item concise.
+
+            Output rules:
+            * summaryVi: Vietnamese only.
+            * summaryJp: Japanese only.
+            * Professional HSE wording.
+            * JSON only.
+            * No markdown.
+            * No explanation.
+            """;
 	}
 
+	private String systemPrompt3() {
+		return """
+            You are a senior HSE engineer for manufacturing safety.
+ 
+            Analyze patrol history for the selected machine or same category machines.
+
+            Rules:
+            - Read all comments carefully.
+            - Group recurring hazards by meaning.
+            - Focus on frequent and serious issues.
+            - Do not invent facts.
+            - Do not add unsupported numbers.
+            - Keep machine, fac, division, area, cate unchanged.
+            - Ignore translation notes.
+
+            Priority hazards:
+            - Missing or damaged covers
+            - Disabled interlock
+            - Rotating or grinding contact risk
+            - Oil or water near electrical equipment
+            - Slippery or unstable platform
+            - Unsafe wiring or sockets
+            - Narrow workspace
+            - Temporary repairs or loose fixing
+
+            Return exactly ONE JSON object:
+
+            {
+              "summaryVi": "",
+              "summaryJp": ""
+            }
+
+            summaryVi format:
+
+            Tổng quan:
+            <1 short sentence>
+
+            Vấn đề nổi bật:
+            - <3-10 words>
+            - <3-10 words>
+            - <3-10 words>
+            - <3-10 words>
+
+            Khuyến nghị:
+            - <3-10 words>
+            - <3-10 words>
+            - <3-10 words>
+
+            summaryJp format:
+
+            概要：
+            <短い説明>
+
+            主な問題：
+            - <12文字以内>
+            - <12文字以内>
+            - <12文字以内>
+            - <12文字以内>
+
+            推奨対策：
+            - <12文字以内>
+            - <12文字以内>
+            - <12文字以内>
+
+            Output rules:
+            - summaryVi: Vietnamese only.
+            - summaryJp: Japanese only.
+            - Professional HSE wording.
+            - Keep bullets short.
+            - JSON only.
+            - No markdown.
+            - No explanation.
+            """;
+	}
 	private String systemPrompt1() {
 		return """
 				You are a senior HSE engineer.
