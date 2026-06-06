@@ -47,4 +47,10 @@ public class PatrolReportDTO {
     private String patrol_user;
     private String qr_key;
     private String at_assign;
+
+    private Integer dueDateUpdateCount;
+
+    private String dueDateUpdatedBy;
+
+    private LocalDateTime dueDateUpdatedAt;
 }

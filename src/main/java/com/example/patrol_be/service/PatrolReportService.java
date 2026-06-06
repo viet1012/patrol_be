@@ -113,7 +113,15 @@ public class PatrolReportService {
 				(String) r[28],                           // load_status
 				(String) r[29],               // patrol_user
 				(String) r[30],                   // qr_key
-				(String) r[31]
+				(String) r[31],// at_assign
+				r[32] == null
+						? 0
+						: ((Number) r[32]).intValue(),
+
+				(String) r[33],
+
+				(LocalDateTime) r[34]
+
 		);
 	}
 
@@ -479,6 +487,31 @@ public class PatrolReportService {
 			report.setAt_user_update_pic_date(LocalDateTime.now());
 			System.out.println("hehe1233");
 
+		}
+
+		// ===== ✅ UPDATE DUE DATE + COUNT =====
+		if (DTO.getDueDate() != null) {
+
+//			LocalDate oldDueDate = report.getDueDate();
+//			LocalDate newDueDate = DTO.getDueDate();
+//
+//			boolean isChanged = oldDueDate == null || !oldDueDate.equals(newDueDate);
+//
+//			if (isChanged) {
+//				report.setDueDate(newDueDate);
+
+				Integer currentCount = report.getDueDateUpdateCount();
+				report.setDueDateUpdateCount(
+						currentCount == null ? 1 : currentCount + 1
+				);
+
+				report.setDueDateUpdatedBy(DTO.getEditUser());
+				report.setDueDateUpdatedAt(DTO.getDueDate());
+
+//				System.out.println("DueDate changed: "
+//						+ oldDueDate + " -> " + newDueDate
+//						+ " by " + DTO.getEditUser());
+//			}
 		}
 
 		////////////////////////////////////////////////////////////

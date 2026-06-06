@@ -3,10 +3,13 @@ package com.example.patrol_be.dto;
 
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Data
 public class PatrolEditDTO {
+    private LocalDate dueDate;
+
     private String comment;
     private String countermeasure;
     private String editUser;
