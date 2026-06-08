@@ -48,26 +48,69 @@ public class Exce {
     private static boolean blank(String s) {
         return s == null || s.trim().isEmpty();
     }
+
     public String findPicSmart(String plant, String grp, String area, String macId) {
         plant = norm(plant);
         grp   = norm(grp);
         area  = norm(area);
         macId = norm(macId);
 
-        String pic = null;
+        System.out.println("FIND PIC INPUT => plant=[" + plant +
+                "], grp=[" + grp +
+                "], area=[" + area +
+                "], macId=[" + macId + "]");
 
-        if (!blank(area) && !blank(macId)) {
-            pic = hsePatrolGroupMasterRepo.findPicByPlantGrpAreaMac(plant, grp, area, macId);
-            if (!blank(pic)) return norm(pic);
+        String pic;
+
+        // 1. Check d? Plant + Group + Area + MacId
+        if (!blank(plant) && !blank(grp) && !blank(area) && !blank(macId)) {
+            pic = hsePatrolGroupMasterRepo.findPicByPlantGrpAreaMac(
+                    plant, grp, area, macId
+            );
+
+            System.out.println("PIC BY AREA + MAC => [" + pic + "]");
+
+            if (!blank(pic)) {
+                return norm(pic);
+            }
         }
 
-        if (!blank(area)) {
-            pic = hsePatrolGroupMasterRepo.findPicByPlantGrpArea(plant, grp, area);
-            if (!blank(pic)) return norm(pic);
+        // 2. Fallback Plant + Group + MacId
+        if (!blank(plant) && !blank(grp) && !blank(macId)) {
+            pic = hsePatrolGroupMasterRepo.findPicByPlantGrpMac(
+                    plant, grp, macId
+            );
+
+            System.out.println("PIC BY MAC ONLY => [" + pic + "]");
+
+            if (!blank(pic)) {
+                return norm(pic);
+            }
         }
 
-        pic = hsePatrolGroupMasterRepo.findPicByPlantGrp(plant, grp);
-        return blank(pic) ? null : norm(pic);
+        // 3. Fallback Plant + Group + Area
+        if (!blank(plant) && !blank(grp) && !blank(area)) {
+            pic = hsePatrolGroupMasterRepo.findPicByPlantGrpArea(
+                    plant, grp, area
+            );
+
+            System.out.println("PIC BY AREA => [" + pic + "]");
+
+            if (!blank(pic)) {
+                return norm(pic);
+            }
+        }
+
+        // 4. Fallback Plant + Group
+        if (!blank(plant) && !blank(grp)) {
+            pic = hsePatrolGroupMasterRepo.findPicByPlantGrp(plant, grp);
+
+            System.out.println("PIC BY GROUP => [" + pic + "]");
+
+            return blank(pic) ? null : norm(pic);
+        }
+
+        return null;
     }
 
     public synchronized void appendToExcel(ReportRequest req, MultipartFile[] images) throws IOException {

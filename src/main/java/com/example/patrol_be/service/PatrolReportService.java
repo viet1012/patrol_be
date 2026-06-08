@@ -4,7 +4,6 @@ import com.example.patrol_be.dto.*;
 import com.example.patrol_be.model.PatrolReport;
 import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
 import com.example.patrol_be.repository.PatrolReportRepo;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -346,20 +345,62 @@ public class PatrolReportService {
 		area = norm(area);
 		macId = norm(macId);
 
-		String pic = null;
+		System.out.println("FIND PIC INPUT => plant=[" + plant +
+				"], grp=[" + grp +
+				"], area=[" + area +
+				"], macId=[" + macId + "]");
 
-		if (!blank(area) && !blank(macId)) {
-			pic = hsePatrolGroupMasterRepo.findPicByPlantGrpAreaMac(plant, grp, area, macId);
-			if (!blank(pic)) return norm(pic);
+		String pic;
+
+		// 1. Check d? Plant + Group + Area + MacId
+		if (!blank(plant) && !blank(grp) && !blank(area) && !blank(macId)) {
+			pic = hsePatrolGroupMasterRepo.findPicByPlantGrpAreaMac(
+					plant, grp, area, macId
+			);
+
+			System.out.println("PIC BY AREA + MAC => [" + pic + "]");
+
+			if (!blank(pic)) {
+				return norm(pic);
+			}
 		}
 
-		if (!blank(area)) {
-			pic = hsePatrolGroupMasterRepo.findPicByPlantGrpArea(plant, grp, area);
-			if (!blank(pic)) return norm(pic);
+		// 2. Fallback Plant + Group + MacId
+		if (!blank(plant) && !blank(grp) && !blank(macId)) {
+			pic = hsePatrolGroupMasterRepo.findPicByPlantGrpMac(
+					plant, grp, macId
+			);
+
+			System.out.println("PIC BY MAC ONLY => [" + pic + "]");
+
+			if (!blank(pic)) {
+				return norm(pic);
+			}
 		}
 
-		pic = hsePatrolGroupMasterRepo.findPicByPlantGrp(plant, grp);
-		return blank(pic) ? null : norm(pic);
+		// 3. Fallback Plant + Group + Area
+		if (!blank(plant) && !blank(grp) && !blank(area)) {
+			pic = hsePatrolGroupMasterRepo.findPicByPlantGrpArea(
+					plant, grp, area
+			);
+
+			System.out.println("PIC BY AREA => [" + pic + "]");
+
+			if (!blank(pic)) {
+				return norm(pic);
+			}
+		}
+
+		// 4. Fallback Plant + Group
+		if (!blank(plant) && !blank(grp)) {
+			pic = hsePatrolGroupMasterRepo.findPicByPlantGrp(plant, grp);
+
+			System.out.println("PIC BY GROUP => [" + pic + "]");
+
+			return blank(pic) ? null : norm(pic);
+		}
+
+		return null;
 	}
 
 
@@ -500,13 +541,13 @@ public class PatrolReportService {
 //			if (isChanged) {
 //				report.setDueDate(newDueDate);
 
-				Integer currentCount = report.getDueDateUpdateCount();
-				report.setDueDateUpdateCount(
-						currentCount == null ? 1 : currentCount + 1
-				);
+			Integer currentCount = report.getDueDateUpdateCount();
+			report.setDueDateUpdateCount(
+					currentCount == null ? 1 : currentCount + 1
+			);
 
-				report.setDueDateUpdatedBy(DTO.getEditUser());
-				report.setDueDateUpdatedAt(DTO.getDueDate());
+			report.setDueDateUpdatedBy(DTO.getEditUser());
+			report.setDueDateUpdatedAt(DTO.getDueDate());
 
 //				System.out.println("DueDate changed: "
 //						+ oldDueDate + " -> " + newDueDate
