@@ -11,6 +11,10 @@ public interface PatrolSummaryRowView {
 	Long getBeforeIV();
 	Long getBeforeV();
 
+	Long getStillTimeTtl();
+	Long getThreeDaysTtl();
+	Long getLateTtl();
+
 	Long getFinishedTtl();
 	Long getFinishedI();
 	Long getFinishedII();

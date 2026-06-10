@@ -1,6 +1,7 @@
 package com.example.patrol_be.controller;
 
 import com.example.patrol_be.dto.*;
+import com.example.patrol_be.service.PatrolCommentService;
 import com.example.patrol_be.service.PatrolMachineAnalysisService;
 import com.example.patrol_be.service.PatrolPivotService;
 import com.example.patrol_be.service.PatrolReportService;
@@ -33,6 +34,8 @@ public class PatrolReportController {
 	private PatrolReportService service;
 	@Autowired
 	private PatrolPivotService pivotService;
+	@Autowired
+	private  PatrolCommentService patrolCommentService;
 
 	private String extractJson(String text) {
 
@@ -70,6 +73,21 @@ public class PatrolReportController {
 		JsonNode json = safeReadAiJson(aiText);
 
 		return ResponseEntity.ok(json);
+	}
+
+	@PostMapping("/translate-ai-summary")
+	public ResponseEntity<?> translateAiSummary(
+			@RequestBody TranslateAiSummaryRequest req
+	) {
+		String text = req.getText();
+
+		if (text == null || text.isBlank()) {
+			return ResponseEntity.ok(Map.of("text", ""));
+		}
+
+		String jp = patrolCommentService.getTranslateDefault(text);
+
+		return ResponseEntity.ok(Map.of("text", jp));
 	}
 
 	private JsonNode safeReadAiJson(String aiText) {

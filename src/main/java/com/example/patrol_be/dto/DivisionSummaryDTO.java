@@ -23,6 +23,10 @@ public class DivisionSummaryDTO {
     private double proDoneIV;
     private double proDoneV;
 
+    private long stillTime;
+    private long threeDaysAgo;
+    private long late;
+
     private double hseDoneTtl;
     private double hseDoneI;
     private double hseDoneII;

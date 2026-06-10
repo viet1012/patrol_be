@@ -741,19 +741,50 @@ public class PatrolReportService {
 
 			out.add(new DivisionSummaryDTO(
 					division,
-					toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]),
-					toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]),
-					toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]),
-					toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++])
+
+					// All
+					toLong(r[i++]), // allTtl
+					toLong(r[i++]), // allI
+					toLong(r[i++]), // allII
+					toLong(r[i++]), // allIII
+					toLong(r[i++]), // allIV
+					toLong(r[i++]), // allV
+
+					// Pro Done
+					toLong(r[i++]), // proDoneTtl
+					toLong(r[i++]), // proDoneI
+					toLong(r[i++]), // proDoneII
+					toLong(r[i++]), // proDoneIII
+					toLong(r[i++]), // proDoneIV
+					toLong(r[i++]), // proDoneV
+
+					// Remain
+					toLong(r[i++]), // remainTtl
+					toLong(r[i++]), // remainI
+					toLong(r[i++]), // remainII
+					toLong(r[i++]), // remainIII
+					toLong(r[i++]), // remainIV
+					toLong(r[i++]), // remainV
+
+					// Deadline
+					toLong(r[i++]), // stillTime
+					toLong(r[i++]), // threeDaysAgo
+					toLong(r[i++]), // late
+
+					// HSE Done
+					toLong(r[i++]), // hseDoneTtl
+					toLong(r[i++]), // hseDoneI
+					toLong(r[i++]), // hseDoneII
+					toLong(r[i++]), // hseDoneIII
+					toLong(r[i++]), // hseDoneIV
+					toLong(r[i++])  // hseDoneV
 			));
 		}
 
-		// ✅ SUM row
 		DivisionSummaryDTO sum = sumRow(out);
 		sum.setDivision("SUM");
 		out.add(sum);
 
-		// ✅ % row (chỉ TTL) - lưu theo basis points (x10000)
 		DivisionSummaryDTO pct = pctRowFrom(sum);
 		pct.setDivision("%");
 		out.add(pct);
@@ -780,20 +811,26 @@ public class PatrolReportService {
 			s.setProDoneIV(s.getProDoneIV() + d.getProDoneIV());
 			s.setProDoneV(s.getProDoneV() + d.getProDoneV());
 
-			s.setHseDoneTtl(s.getHseDoneTtl() + d.getHseDoneTtl());
-			s.setHseDoneI(s.getHseDoneI() + d.getHseDoneI());
-			s.setHseDoneII(s.getHseDoneII() + d.getHseDoneII());
-			s.setHseDoneIII(s.getHseDoneIII() + d.getHseDoneIII());
-			s.setHseDoneIV(s.getHseDoneIV() + d.getHseDoneIV());
-			s.setHseDoneV(s.getHseDoneV() + d.getHseDoneV());
-
 			s.setRemainTtl(s.getRemainTtl() + d.getRemainTtl());
 			s.setRemainI(s.getRemainI() + d.getRemainI());
 			s.setRemainII(s.getRemainII() + d.getRemainII());
 			s.setRemainIII(s.getRemainIII() + d.getRemainIII());
 			s.setRemainIV(s.getRemainIV() + d.getRemainIV());
 			s.setRemainV(s.getRemainV() + d.getRemainV());
+
+			// Deadline
+			s.setStillTime(s.getStillTime() + d.getStillTime());
+			s.setThreeDaysAgo(s.getThreeDaysAgo() + d.getThreeDaysAgo());
+			s.setLate(s.getLate() + d.getLate());
+
+			s.setHseDoneTtl(s.getHseDoneTtl() + d.getHseDoneTtl());
+			s.setHseDoneI(s.getHseDoneI() + d.getHseDoneI());
+			s.setHseDoneII(s.getHseDoneII() + d.getHseDoneII());
+			s.setHseDoneIII(s.getHseDoneIII() + d.getHseDoneIII());
+			s.setHseDoneIV(s.getHseDoneIV() + d.getHseDoneIV());
+			s.setHseDoneV(s.getHseDoneV() + d.getHseDoneV());
 		}
+
 		return s;
 	}
 
@@ -805,20 +842,7 @@ public class PatrolReportService {
 	 * - HseDoneTtl = HseDoneTtl / AllTtl
 	 * - RemainTtl  = RemainTtl  / AllTtl
 	 */
-//    private DivisionSummaryDTO pctRowFrom(DivisionSummaryDTO sum) {
-//        DivisionSummaryDTO p = new DivisionSummaryDTO();
-//        p.setDivision("%");
-//
-//        long all = sum.getAllTtl();
-//        p.setAllTtl(10000L);
-//
-//        p.setProDoneTtl(ratioBp(sum.getProDoneTtl(), all));
-//        p.setHseDoneTtl(ratioBp(sum.getHseDoneTtl(), all));
-//        p.setRemainTtl(ratioBp(sum.getRemainTtl(), all));
-//
-//        // các cột khác giữ 0 (vì bạn chỉ muốn % TTL)
-//        return p;
-//    }
+
 	private DivisionSummaryDTO pctRowFrom(DivisionSummaryDTO sum) {
 		DivisionSummaryDTO p = new DivisionSummaryDTO();
 		p.setDivision("%");
@@ -846,25 +870,6 @@ public class PatrolReportService {
 		return Math.round((part * 10000.0) / total) / 100.0;
 	}
 
-
-	public List<DivisionSummaryDTO> summaryByDivision1(LocalDate fromD, LocalDate toD, String fac, String type) {
-		List<Object[]> rows = repo.summaryByDivisionRaw(fromD, toD, fac, type);
-		List<DivisionSummaryDTO> out = new ArrayList<>(rows.size());
-
-		for (Object[] r : rows) {
-			int i = 0;
-			String division = (String) r[i++];
-
-			out.add(new DivisionSummaryDTO(
-					division,
-					toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]),
-					toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]),
-					toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]),
-					toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++]), toLong(r[i++])
-			));
-		}
-		return out;
-	}
 
 	private long toLong(Object o) {
 		if (o == null) return 0L;
@@ -945,11 +950,15 @@ public class PatrolReportService {
 		return PatrolPicRowDTO.builder()
 				.pic(r.getPic())
 				.before(risk(r.getBeforeTtl(), r.getBeforeI(), r.getBeforeII(), r.getBeforeIII(), r.getBeforeIV(), r.getBeforeV()))
+				.stillTimeTtl(n(r.getStillTimeTtl()))
+				.threeDaysTtl(n(r.getThreeDaysTtl()))
+				.lateTtl(n(r.getLateTtl()))
 				.finished(risk(r.getFinishedTtl(), r.getFinishedI(), r.getFinishedII(), r.getFinishedIII(), r.getFinishedIV(), r.getFinishedV()))
 				.remain(risk(r.getRemainTtl(), r.getRemainI(), r.getRemainII(), r.getRemainIII(), r.getRemainIV(), r.getRemainV()))
 				.recheckAllTotal(n(r.getRecheckAllTtl()))
 				.recheckOk(risk(r.getRecheckOkTtl(), r.getRecheckOkI(), r.getRecheckOkII(), r.getRecheckOkIII(), r.getRecheckOkIV(), r.getRecheckOkV()))
 				.recheckNg(risk(r.getRecheckNgTtl(), r.getRecheckNgI(), r.getRecheckNgII(), r.getRecheckNgIII(), r.getRecheckNgIV(), r.getRecheckNgV()))
+
 				.build();
 	}
 

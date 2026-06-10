@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,24 +30,30 @@ public class PatrolMachineAnalysisService {
 			.findAndRegisterModules();
 
 	public String analyzeMachine(String machine, String area) {
+		long t0 = System.nanoTime();
+
 		String machineKey = blankToNull(machine);
 		String selectedArea = blankToNull(area);
 
 		if (machineKey == null) {
 			return """
-					{
-					  "found": false,
-					  "message": "Machine is required",
-					  "summaryVi": "",
-					  "summaryJp": ""
-					}
-					""";
+                {
+                  "found": false,
+                  "message": "Machine is required",
+                  "summaryVi": "",
+                  "summaryJp": ""
+                }
+                """;
 		}
 
 		try {
+			long t1 = System.nanoTime();
+
 			HSEPatrolGroupMaster master = masterRepo
 					.findFirstByMacIdIgnoreCase(machineKey)
 					.orElse(null);
+
+			long t2 = System.nanoTime();
 
 			String cate = master == null ? null : blankToNull(master.getCate());
 			String sourceType = cate == null ? "machine" : "same_cate";
@@ -57,22 +64,28 @@ public class PatrolMachineAnalysisService {
 							null,
 							selectedArea,
 							machineKey,
-							18
+							6
 					);
 
+			long t3 = System.nanoTime();
+
 			if (history.isEmpty()) {
+				System.out.println("AI PERF master=" + ms(t2 - t1) + "ms");
+				System.out.println("AI PERF history=" + ms(t3 - t2) + "ms");
+				System.out.println("AI PERF total=" + ms(System.nanoTime() - t0) + "ms");
+
 				return """
-						{
-						  "found": false,
-						  "machine": "%s",
-						  "selectedArea": "%s",
-						  "cate": "%s",
-						  "sourceType": "%s",
-						  "message": "No patrol history found",
-						  "summaryVi": "",
-						  "summaryJp": ""
-						}
-						""".formatted(
+                    {
+                      "found": false,
+                      "machine": "%s",
+                      "selectedArea": "%s",
+                      "cate": "%s",
+                      "sourceType": "%s",
+                      "message": "No patrol history found",
+                      "summaryVi": "",
+                      "summaryJp": ""
+                    }
+                    """.formatted(
 						machineKey,
 						Objects.toString(selectedArea, ""),
 						Objects.toString(cate, ""),
@@ -88,11 +101,17 @@ public class PatrolMachineAnalysisService {
 					history
 			);
 
+			long t4 = System.nanoTime();
+
 			System.out.println("AI INPUT JSON = " + aiInputJson);
 
 			String aiResult = aiClientService.analyzeMachineIssues(aiInputJson);
 
+			long t5 = System.nanoTime();
+
 			JsonNode node = objectMapper.readTree(aiResult);
+
+			long t6 = System.nanoTime();
 
 			if (node.has("summaryVi")) {
 				((ObjectNode) node).put(
@@ -100,24 +119,48 @@ public class PatrolMachineAnalysisService {
 						capitalizeBullets(node.path("summaryVi").asText())
 				);
 			}
+
+			long t7 = System.nanoTime();
+
+			((ObjectNode) node).put("elapsedMs", ms(t7 - t0));
+			((ObjectNode) node).put("dbMasterMs", ms(t2 - t1));
+			((ObjectNode) node).put("historyMs", ms(t3 - t2));
+			((ObjectNode) node).put("buildJsonMs", ms(t4 - t3));
+			((ObjectNode) node).put("aiCallMs", ms(t5 - t4));
+			((ObjectNode) node).put("parseJsonMs", ms(t6 - t5));
+			((ObjectNode) node).put("postProcessMs", ms(t7 - t6));
+
 			System.out.println("AI RESULT = " + aiResult);
+			System.out.println("AI PERF machine=" + machineKey);
+			System.out.println("AI PERF dbMaster=" + ms(t2 - t1) + "ms");
+			System.out.println("AI PERF history=" + ms(t3 - t2) + "ms");
+			System.out.println("AI PERF buildJson=" + ms(t4 - t3) + "ms");
+			System.out.println("AI PERF aiCall=" + ms(t5 - t4) + "ms");
+			System.out.println("AI PERF parseJson=" + ms(t6 - t5) + "ms");
+			System.out.println("AI PERF postProcess=" + ms(t7 - t6) + "ms");
+			System.out.println("AI PERF total=" + ms(t7 - t0) + "ms");
 
 			return objectMapper.writeValueAsString(node);
-
-//			return aiResult;
 
 		} catch (Exception e) {
 			e.printStackTrace();
 
+			long totalMs = ms(System.nanoTime() - t0);
+
 			return """
-					{
-					  "found": false,
-					  "machine": "%s",
-					  "message": "AI analyze failed: %s",
-					  "summaryVi": "",
-					  "summaryJp": ""
-					}
-					""".formatted(machineKey, safeJsonText(e.getMessage()));
+                {
+                  "found": false,
+                  "machine": "%s",
+                  "message": "AI analyze failed: %s",
+                  "summaryVi": "",
+                  "summaryJp": "",
+                  "elapsedMs": %d
+                }
+                """.formatted(
+					machineKey,
+					safeJsonText(e.getMessage()),
+					totalMs
+			);
 		}
 	}
 
@@ -385,4 +428,9 @@ public class PatrolMachineAnalysisService {
 				.replace("\\", "\\\\")
 				.replace("\"", "\\\"");
 	}
+
+	private long ms(long nanoTime) {
+		return TimeUnit.NANOSECONDS.toMillis(nanoTime);
+	}
+
 }

@@ -19,4 +19,8 @@ public class PatrolPicRowDTO {
 	private long recheckAllTotal;
 	private RiskBreakdownDTO recheckOk;
 	private RiskBreakdownDTO recheckNg;
+
+	private Long stillTimeTtl;
+	private Long threeDaysTtl;
+	private Long lateTtl;
 }
