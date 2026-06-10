@@ -23,6 +23,13 @@ public class DivisionSummaryDTO {
     private double proDoneIV;
     private double proDoneV;
 
+    private double remainTtl;
+    private double remainI;
+    private double remainII;
+    private double remainIII;
+    private double remainIV;
+    private double remainV;
+
     private long stillTime;
     private long threeDaysAgo;
     private long late;
@@ -34,10 +41,5 @@ public class DivisionSummaryDTO {
     private double hseDoneIV;
     private double hseDoneV;
 
-    private double remainTtl;
-    private double remainI;
-    private double remainII;
-    private double remainIII;
-    private double remainIV;
-    private double remainV;
+
 }
