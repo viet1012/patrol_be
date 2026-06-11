@@ -372,62 +372,6 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 	);
 
 	@Query(value = """
-			WITH src AS (
-			    SELECT
-			        division_group = CASE
-			            WHEN division IN ('Fac_A','Outside','Outside_A','Outside_B','Outside_C','WH')
-			                THEN 'Fac_A & Outside'
-			            ELSE division
-			        END,
-			        riskTotal,
-			        st = LTRIM(RTRIM(UPPER(ISNULL(at_status,''))))
-			    FROM F2_Patrol_Report
-			  WHERE createdAt >= :fromD
-						      AND createdAt <  DATEADD(DAY, 1, :toD)
-						      AND [type] = :type
-						      AND plant = :fac
-			)
-			SELECT
-			    division_group AS division,
-			
-			    COUNT(1) AS All_TTL,
-			    SUM(CASE WHEN riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS All_I,
-			    SUM(CASE WHEN riskTotal = 'II'  THEN 1 ELSE 0 END) AS All_II,
-			    SUM(CASE WHEN riskTotal = 'III' THEN 1 ELSE 0 END) AS All_III,
-			    SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS All_IV,
-			    SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS All_V,
-			
-			    -- Pro done: DONE or COMPLETED (đã normalize st)
-			    SUM(CASE WHEN st IN ('Pro_DONE','CLOSED') THEN 1 ELSE 0 END) AS Pro_Done_TTL,
-			    SUM(CASE WHEN st IN ('Pro_DONE','CLOSED') AND riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS Pro_Done_I,
-			    SUM(CASE WHEN st IN ('Pro_DONE','CLOSED') AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS Pro_Done_II,
-			    SUM(CASE WHEN st IN ('Pro_DONE','CLOSED') AND riskTotal = 'III' THEN 1 ELSE 0 END) AS Pro_Done_III,
-			    SUM(CASE WHEN st IN ('Pro_DONE','CLOSED') AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS Pro_Done_IV,
-			    SUM(CASE WHEN st IN ('Pro_DONE','CLOSED') AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS Pro_Done_V,
-			
-			    -- HSE done: chỉ COMPLETED
-			    SUM(CASE WHEN st = 'CLOSED' THEN 1 ELSE 0 END) AS HSE_Done_TTL,
-			    SUM(CASE WHEN st = 'CLOSED' AND riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS HSE_Done_I,
-			    SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS HSE_Done_II,
-			    SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'III' THEN 1 ELSE 0 END) AS HSE_Done_III,
-			    SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS HSE_Done_IV,
-			    SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS HSE_Done_V,
-			
-			    -- Remain: WAIT/REDO (đã normalize st)
-			    SUM(CASE WHEN st IN ('DOING','REDO') THEN 1 ELSE 0 END) AS Remain_TTL,
-			    SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS Remain_I,
-			    SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS Remain_II,
-			    SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'III' THEN 1 ELSE 0 END) AS Remain_III,
-			    SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS Remain_IV,
-			    SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS Remain_V
-			
-			FROM src
-			GROUP BY division_group
-			ORDER BY division_group
-			""", nativeQuery = true)
-	List<Object[]> summaryByDivisionRaw1(@Param("fromD") LocalDate fromD, @Param("toD") LocalDate toD, @Param("fac") String fac, @Param("type") String type);
-
-	@Query(value = """
         ;WITH base AS (
             SELECT
                 fac = CASE
@@ -457,18 +401,21 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
             beforeIV  = SUM(CASE WHEN lvl = 'IV'  THEN 1 ELSE 0 END),
             beforeV   = SUM(CASE WHEN lvl = 'V'   THEN 1 ELSE 0 END),
 
-            stillTimeTtl = SUM(CASE
-                WHEN deadlineDate > DATEADD(DAY, 3, CAST(GETDATE() AS date))
-                THEN 1 ELSE 0 END),
-
-            threeDaysTtl = SUM(CASE
-                WHEN deadlineDate >= CAST(GETDATE() AS date)
-                 AND deadlineDate <= DATEADD(DAY, 3, CAST(GETDATE() AS date))
-                THEN 1 ELSE 0 END),
-
-            lateTtl = SUM(CASE
-                WHEN deadlineDate < CAST(GETDATE() AS date)
-                THEN 1 ELSE 0 END),
+			stillTimeTtl = SUM(CASE
+			    WHEN st IN ('DOING','REDO')
+			     AND deadlineDate > DATEADD(DAY, 3, CAST(GETDATE() AS date))
+			    THEN 1 ELSE 0 END),
+			
+			threeDaysTtl = SUM(CASE
+			    WHEN st IN ('DOING','REDO')
+			     AND deadlineDate >= CAST(GETDATE() AS date)
+			     AND deadlineDate <= DATEADD(DAY, 3, CAST(GETDATE() AS date))
+			    THEN 1 ELSE 0 END),
+			
+			lateTtl = SUM(CASE
+			    WHEN st IN ('DOING','REDO')
+			     AND deadlineDate < CAST(GETDATE() AS date)
+			    THEN 1 ELSE 0 END),
 
             finishedTtl = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') THEN 1 ELSE 0 END),
             finishedI   = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),

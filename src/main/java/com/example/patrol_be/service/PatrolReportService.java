@@ -878,12 +878,6 @@ public class PatrolReportService {
 	}
 
 
-//	public List<PicSummaryDTO> getPicSummary(LocalDate fromD, LocalDate toD, String fac, String type, List<String> lvls) {
-//		return repo.fetchPicSummaryRaw(fromD, toD, fac, type, lvls)
-//				.stream()
-//				.map(this::mapRow)
-//				.toList();
-//	}
 
 	public PatrolSummaryResponseDTO getSummary(LocalDate fromD, LocalDate toD, String plant, String type) {
 		List<String> lvls = List.of("-", "I", "II", "III", "IV", "V");
