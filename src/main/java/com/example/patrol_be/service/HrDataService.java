@@ -25,66 +25,85 @@ public class HrDataService {
         var emp = hrDataRepository.findByCode(code)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        String role = normalizeRole(emp.getRole());
+        List<String> roles = normalizeRoles(emp.getRole());
 
         return new AuthMeResponse(
                 emp.getEmpId(),
                 emp.getEmpName(),
                 emp.getPlant(),
-                role,
-                buildPermissions(role)
+                String.join(",", roles),
+                buildPermissions(roles)
         );
     }
 
-    private String normalizeRole(String role) {
-        if (role == null) return "User";
-        role = role.trim().toUpperCase();
-        if (role.equals("ADMIN")) return "Admin";
-        if (role.equals("HSE")) return "HSE";
-        if (role.equals("QA")) return "QA";
-        return "User";
+    private List<String> normalizeRoles(String role) {
+        if (role == null || role.isBlank()) return List.of("User");
+
+        return List.of(role.split(","))
+                .stream()
+                .map(String::trim)
+                .map(String::toUpperCase)
+                .map(r -> switch (r) {
+                    case "ADMIN" -> "Admin";
+                    case "HSE" -> "HSE";
+                    case "QA" -> "QA";
+                    default -> "User";
+                })
+                .distinct()
+                .toList();
     }
 
     /**
      * RULE QUYỀN – CHỈ 1 CHỖ DUY NHẤT
      */
-    private Map<String, Map<String, Boolean>> buildPermissions(String role) {
+    private Map<String, Map<String, Boolean>> buildPermissions(List<String> roles) {
 
         Map<String, Map<String, Boolean>> p = new HashMap<>();
 
-        // init all false
-        for (String g : List.of("Patrol", "Audit", "QualityPatrol","AssetUpdate")) {
+        for (String g : List.of("Patrol", "Audit", "QualityPatrol", "AssetUpdate")) {
             p.put(g, action(false, false, false, false));
         }
 
-        switch (role) {
+        for (String role : roles) {
+            switch (role) {
 
-            case "Admin" -> {
-                for (String g : p.keySet()) {
-                    p.put(g, action(true, true, true, true));
+                case "Admin" -> {
+                    for (String g : p.keySet()) {
+                        p.put(g, merge(p.get(g), action(true, true, false, true)));
+                    }
                 }
-            }
 
-            case "HSE" -> {
-                p.put("Patrol", action(true, true, true, true));
-                p.put("Audit", action(true, true, true, true));
-                p.put("QualityPatrol", action(false, false, false, true));
-            }
+                case "HSE" -> {
+                    p.put("Patrol", merge(p.get("Patrol"), action(true, true, true, true)));
+                    p.put("Audit", merge(p.get("Audit"), action(true, true, true, true)));
+                    p.put("QualityPatrol", merge(p.get("QualityPatrol"), action(false, false, false, true)));
+                }
 
-            case "QA" -> {
-                p.put("QualityPatrol", action(true, true, true, true));
-                p.put("Patrol", action(true, true, false, true));
-                p.put("Audit", action(false, false, false, true));
-            }
+                case "QA" -> {
+                    p.put("QualityPatrol", merge(p.get("QualityPatrol"), action(true, true, true, true)));
+                    p.put("Patrol", merge(p.get("Patrol"), action(true, true, false, true)));
+                    p.put("Audit", merge(p.get("Audit"), action(false, false, false, true)));
+                }
 
-            default -> { // User
-                p.put("Patrol", action(true, true, false, true));
+                default -> {
+                    p.put("Patrol", merge(p.get("Patrol"), action(true, true, false, true)));
+                }
             }
         }
 
         return p;
     }
-
+    private Map<String, Boolean> merge(
+            Map<String, Boolean> oldPerm,
+            Map<String, Boolean> newPerm
+    ) {
+        return Map.of(
+                "before", oldPerm.getOrDefault("before", false) || newPerm.getOrDefault("before", false),
+                "after", oldPerm.getOrDefault("after", false) || newPerm.getOrDefault("after", false),
+                "recheck", oldPerm.getOrDefault("recheck", false) || newPerm.getOrDefault("recheck", false),
+                "summary", oldPerm.getOrDefault("summary", false) || newPerm.getOrDefault("summary", false)
+        );
+    }
     private Map<String, Boolean> action(
             boolean before,
             boolean after,
