@@ -58,7 +58,6 @@ public class PatrolReportService {
 			LocalDate to
 	) {
 //        System.out.println("Group: " + grp);
-
 		return repo.search(
 						normalize(plant),
 						normalize(division),
@@ -68,7 +67,6 @@ public class PatrolReportService {
 
 						normalize(grp),          // ✅ ĐÚNG VỊ TRÍ
 						normalize(afStatus),     // ✅ ĐÚNG VỊ TRÍ
-
 						normalizeKeepEmpty(pic),
 						normalize(patrolUser),
 						normalize(qrKey),
@@ -119,7 +117,8 @@ public class PatrolReportService {
 
 				(String) r[33],
 
-				(LocalDateTime) r[34]
+				(LocalDateTime) r[34],
+				(String) r[35]
 
 		);
 	}
@@ -549,9 +548,9 @@ public class PatrolReportService {
 			report.setDueDateUpdatedBy(DTO.getEditUser());
 			report.setDueDateUpdatedAt(DTO.getDueDate());
 
-//				System.out.println("DueDate changed: "
-//						+ oldDueDate + " -> " + newDueDate
-//						+ " by " + DTO.getEditUser());
+				System.out.println("DueDate changed: "
+
+						+ " by " + DTO.getEditUser());
 //			}
 		}
 

@@ -53,4 +53,6 @@ public class PatrolReportDTO {
     private String dueDateUpdatedBy;
 
     private LocalDateTime dueDateUpdatedAt;
+    private String hse_user;
+
 }
