@@ -12,6 +12,16 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
+	@Query("""
+			    SELECT COUNT(p)
+			    FROM PatrolReport p
+			    WHERE p.qr_key = :qrKey
+			      AND (
+			            p.at_status IS NULL
+			            OR LOWER(TRIM(p.at_status)) <> 'Closed'
+			          )
+			""")
+	long countOpenByQrKey(@Param("qrKey") String qrKey);
 
 	@Query(value = """
 			    SELECT
@@ -117,14 +127,14 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 	);
 
 	@Query("""
-    SELECT p
-    FROM PatrolReport p
-    WHERE LOWER(p.machine) IN :machines
-      AND p.comment IS NOT NULL
-      AND p.comment <> ''
-      AND (:fromDate IS NULL OR p.createdAt >= :fromDate)
-    ORDER BY p.createdAt DESC
-""")
+			    SELECT p
+			    FROM PatrolReport p
+			    WHERE LOWER(p.machine) IN :machines
+			      AND p.comment IS NOT NULL
+			      AND p.comment <> ''
+			      AND (:fromDate IS NULL OR p.createdAt >= :fromDate)
+			    ORDER BY p.createdAt DESC
+			""")
 	List<PatrolReport> findAiIssueHistoryByMachines(
 			@Param("machines") List<String> machines,
 			@Param("fromDate") LocalDateTime fromDate
@@ -295,76 +305,76 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 
 
 	@Query(value = """
-        WITH src AS (
-            SELECT
-                division_group = CASE
-                    WHEN division IN ('Fac_A','Outside','Outside_A','Outside_B','Outside_C','WH')
-                        THEN 'Fac_A & Outside'
-                    ELSE division
-                END,
-                riskTotal,
-                deadline_date = COALESCE(due_date_updated_at, dueDate),
-                st = LTRIM(RTRIM(UPPER(ISNULL(at_status,''))))
-            FROM F2_Patrol_Report
-            WHERE createdAt >= :fromD
-              AND createdAt < DATEADD(DAY, 1, :toD)
-              AND [type] = :type
-              AND plant = :fac
-        )
-        SELECT
-            division_group AS division,
-
-            COUNT(1) AS All_TTL,
-            SUM(CASE WHEN riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS All_I,
-            SUM(CASE WHEN riskTotal = 'II'  THEN 1 ELSE 0 END) AS All_II,
-            SUM(CASE WHEN riskTotal = 'III' THEN 1 ELSE 0 END) AS All_III,
-            SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS All_IV,
-            SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS All_V,
-
-            SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') THEN 1 ELSE 0 END) AS Pro_Done_TTL,
-            SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS Pro_Done_I,
-            SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS Pro_Done_II,
-            SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND riskTotal = 'III' THEN 1 ELSE 0 END) AS Pro_Done_III,
-            SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS Pro_Done_IV,
-            SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS Pro_Done_V,
-
-            SUM(CASE WHEN st IN ('DOING','REDO') THEN 1 ELSE 0 END) AS Remain_TTL,
-            SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS Remain_I,
-            SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS Remain_II,
-            SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'III' THEN 1 ELSE 0 END) AS Remain_III,
-            SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS Remain_IV,
-            SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS Remain_V,
-
-		 	SUM(CASE
-		        WHEN st IN ('DOING','REDO')
-		         AND deadline_date > DATEADD(DAY, 3, CAST(GETDATE() AS date))
-		        THEN 1 ELSE 0
-		    END) AS Still_Time,
-		
-		    SUM(CASE
-		        WHEN st IN ('DOING','REDO')
-		         AND deadline_date >= CAST(GETDATE() AS date)
-		         AND deadline_date <= DATEADD(DAY, 3, CAST(GETDATE() AS date))
-		        THEN 1 ELSE 0
-		    END) AS Three_Days_Ago,
-		
-		    SUM(CASE
-		        WHEN st IN ('DOING','REDO')
-		         AND deadline_date < CAST(GETDATE() AS date)
-		        THEN 1 ELSE 0
-		    END) AS Late,
-
-            SUM(CASE WHEN st = 'CLOSED' THEN 1 ELSE 0 END) AS HSE_Done_TTL,
-            SUM(CASE WHEN st = 'CLOSED' AND riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS HSE_Done_I,
-            SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS HSE_Done_II,
-            SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'III' THEN 1 ELSE 0 END) AS HSE_Done_III,
-            SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS HSE_Done_IV,
-            SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS HSE_Done_V
-
-        FROM src
-        GROUP BY division_group
-        ORDER BY division_group
-        """, nativeQuery = true)
+			    WITH src AS (
+			        SELECT
+			            division_group = CASE
+			                WHEN division IN ('Fac_A','Outside','Outside_A','Outside_B','Outside_C','WH')
+			                    THEN 'Fac_A & Outside'
+			                ELSE division
+			            END,
+			            riskTotal,
+			            deadline_date = COALESCE(due_date_updated_at, dueDate),
+			            st = LTRIM(RTRIM(UPPER(ISNULL(at_status,''))))
+			        FROM F2_Patrol_Report
+			        WHERE createdAt >= :fromD
+			          AND createdAt < DATEADD(DAY, 1, :toD)
+			          AND [type] = :type
+			          AND plant = :fac
+			    )
+			    SELECT
+			        division_group AS division,
+			
+			        COUNT(1) AS All_TTL,
+			        SUM(CASE WHEN riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS All_I,
+			        SUM(CASE WHEN riskTotal = 'II'  THEN 1 ELSE 0 END) AS All_II,
+			        SUM(CASE WHEN riskTotal = 'III' THEN 1 ELSE 0 END) AS All_III,
+			        SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS All_IV,
+			        SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS All_V,
+			
+			        SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') THEN 1 ELSE 0 END) AS Pro_Done_TTL,
+			        SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS Pro_Done_I,
+			        SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS Pro_Done_II,
+			        SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND riskTotal = 'III' THEN 1 ELSE 0 END) AS Pro_Done_III,
+			        SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS Pro_Done_IV,
+			        SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS Pro_Done_V,
+			
+			        SUM(CASE WHEN st IN ('DOING','REDO') THEN 1 ELSE 0 END) AS Remain_TTL,
+			        SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS Remain_I,
+			        SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS Remain_II,
+			        SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'III' THEN 1 ELSE 0 END) AS Remain_III,
+			        SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS Remain_IV,
+			        SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS Remain_V,
+			
+			SUM(CASE
+			      WHEN st IN ('DOING','REDO')
+			       AND deadline_date > DATEADD(DAY, 3, CAST(GETDATE() AS date))
+			      THEN 1 ELSE 0
+			  END) AS Still_Time,
+			
+			  SUM(CASE
+			      WHEN st IN ('DOING','REDO')
+			       AND deadline_date >= CAST(GETDATE() AS date)
+			       AND deadline_date <= DATEADD(DAY, 3, CAST(GETDATE() AS date))
+			      THEN 1 ELSE 0
+			  END) AS Three_Days_Ago,
+			
+			  SUM(CASE
+			      WHEN st IN ('DOING','REDO')
+			       AND deadline_date < CAST(GETDATE() AS date)
+			      THEN 1 ELSE 0
+			  END) AS Late,
+			
+			        SUM(CASE WHEN st = 'CLOSED' THEN 1 ELSE 0 END) AS HSE_Done_TTL,
+			        SUM(CASE WHEN st = 'CLOSED' AND riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS HSE_Done_I,
+			        SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS HSE_Done_II,
+			        SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'III' THEN 1 ELSE 0 END) AS HSE_Done_III,
+			        SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS HSE_Done_IV,
+			        SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS HSE_Done_V
+			
+			    FROM src
+			    GROUP BY division_group
+			    ORDER BY division_group
+			""", nativeQuery = true)
 	List<Object[]> summaryByDivisionRaw(
 			@Param("fromD") LocalDate fromD,
 			@Param("toD") LocalDate toD,
@@ -373,35 +383,35 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 	);
 
 	@Query(value = """
-        ;WITH base AS (
-            SELECT
-                fac = CASE
-                        WHEN division IN ('Fac_A','Outside','Outside_A','Outside_B','Outside_C','WH')
-                            THEN 'Fac_A & Outside'
-                        ELSE division
-                      END,
-                pic,
-                lvl = riskTotal,
-                st  = LTRIM(RTRIM(UPPER(ISNULL(at_status, '')))),
-                deadlineDate = CAST(ISNULL(due_date_updated_at, dueDate) AS date)
-            FROM F2_Patrol_Report
-            WHERE createdAt >= :fromD
-              AND createdAt < DATEADD(day, 1, :toD)
-              AND [type] = :type
-              AND plant = :fac
-              AND riskTotal IN (:lvls)
-        )
-        SELECT
-            fac = fac,
-            pic = CASE WHEN GROUPING(pic) = 1 THEN 'TOTAL' ELSE pic END,
-
-            beforeTtl = COUNT(1),
-            beforeI   = SUM(CASE WHEN lvl IN ('-', 'I') THEN 1 ELSE 0 END),
-            beforeII  = SUM(CASE WHEN lvl = 'II'  THEN 1 ELSE 0 END),
-            beforeIII = SUM(CASE WHEN lvl = 'III' THEN 1 ELSE 0 END),
-            beforeIV  = SUM(CASE WHEN lvl = 'IV'  THEN 1 ELSE 0 END),
-            beforeV   = SUM(CASE WHEN lvl = 'V'   THEN 1 ELSE 0 END),
-
+			     ;WITH base AS (
+			         SELECT
+			             fac = CASE
+			                     WHEN division IN ('Fac_A','Outside','Outside_A','Outside_B','Outside_C','WH')
+			                         THEN 'Fac_A & Outside'
+			                     ELSE division
+			                   END,
+			             pic,
+			             lvl = riskTotal,
+			             st  = LTRIM(RTRIM(UPPER(ISNULL(at_status, '')))),
+			             deadlineDate = CAST(ISNULL(due_date_updated_at, dueDate) AS date)
+			         FROM F2_Patrol_Report
+			         WHERE createdAt >= :fromD
+			           AND createdAt < DATEADD(day, 1, :toD)
+			           AND [type] = :type
+			           AND plant = :fac
+			           AND riskTotal IN (:lvls)
+			     )
+			     SELECT
+			         fac = fac,
+			         pic = CASE WHEN GROUPING(pic) = 1 THEN 'TOTAL' ELSE pic END,
+			
+			         beforeTtl = COUNT(1),
+			         beforeI   = SUM(CASE WHEN lvl IN ('-', 'I') THEN 1 ELSE 0 END),
+			         beforeII  = SUM(CASE WHEN lvl = 'II'  THEN 1 ELSE 0 END),
+			         beforeIII = SUM(CASE WHEN lvl = 'III' THEN 1 ELSE 0 END),
+			         beforeIV  = SUM(CASE WHEN lvl = 'IV'  THEN 1 ELSE 0 END),
+			         beforeV   = SUM(CASE WHEN lvl = 'V'   THEN 1 ELSE 0 END),
+			
 			stillTimeTtl = SUM(CASE
 			    WHEN st IN ('DOING','REDO')
 			     AND deadlineDate > DATEADD(DAY, 3, CAST(GETDATE() AS date))
@@ -417,46 +427,46 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			    WHEN st IN ('DOING','REDO')
 			     AND deadlineDate < CAST(GETDATE() AS date)
 			    THEN 1 ELSE 0 END),
-
-            finishedTtl = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') THEN 1 ELSE 0 END),
-            finishedI   = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
-            finishedII  = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl = 'II'  THEN 1 ELSE 0 END),
-            finishedIII = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl = 'III' THEN 1 ELSE 0 END),
-            finishedIV  = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl = 'IV'  THEN 1 ELSE 0 END),
-            finishedV   = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl = 'V'   THEN 1 ELSE 0 END),
-
-            remainTtl = SUM(CASE WHEN st IN ('DOING','REDO') THEN 1 ELSE 0 END),
-            remainI   = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
-            remainII  = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'II'  THEN 1 ELSE 0 END),
-            remainIII = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'III' THEN 1 ELSE 0 END),
-            remainIV  = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'IV'  THEN 1 ELSE 0 END),
-            remainV   = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'V'   THEN 1 ELSE 0 END),
-
-            recheckAllTtl = SUM(CASE WHEN st IN ('CLOSED','REDO') THEN 1 ELSE 0 END),
-
-            recheckOkTtl = SUM(CASE WHEN st = 'CLOSED' THEN 1 ELSE 0 END),
-            recheckOkI   = SUM(CASE WHEN st = 'CLOSED' AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
-            recheckOkII  = SUM(CASE WHEN st = 'CLOSED' AND lvl = 'II'  THEN 1 ELSE 0 END),
-            recheckOkIII = SUM(CASE WHEN st = 'CLOSED' AND lvl = 'III' THEN 1 ELSE 0 END),
-            recheckOkIV  = SUM(CASE WHEN st = 'CLOSED' AND lvl = 'IV'  THEN 1 ELSE 0 END),
-            recheckOkV   = SUM(CASE WHEN st = 'CLOSED' AND lvl = 'V'   THEN 1 ELSE 0 END),
-
-            recheckNgTtl = SUM(CASE WHEN st = 'REDO' THEN 1 ELSE 0 END),
-            recheckNgI   = SUM(CASE WHEN st = 'REDO' AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
-            recheckNgII  = SUM(CASE WHEN st = 'REDO' AND lvl = 'II'  THEN 1 ELSE 0 END),
-            recheckNgIII = SUM(CASE WHEN st = 'REDO' AND lvl = 'III' THEN 1 ELSE 0 END),
-            recheckNgIV  = SUM(CASE WHEN st = 'REDO' AND lvl = 'IV'  THEN 1 ELSE 0 END),
-            recheckNgV   = SUM(CASE WHEN st = 'REDO' AND lvl = 'V'   THEN 1 ELSE 0 END)
-
-        FROM base
-        WHERE fac IS NOT NULL
-        GROUP BY GROUPING SETS
-        (
-          (fac, pic),
-          (fac)
-        )
-        ORDER BY fac, GROUPING(pic), beforeTtl DESC
-        """, nativeQuery = true)
+			
+			         finishedTtl = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') THEN 1 ELSE 0 END),
+			         finishedI   = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
+			         finishedII  = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl = 'II'  THEN 1 ELSE 0 END),
+			         finishedIII = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl = 'III' THEN 1 ELSE 0 END),
+			         finishedIV  = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			         finishedV   = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl = 'V'   THEN 1 ELSE 0 END),
+			
+			         remainTtl = SUM(CASE WHEN st IN ('DOING','REDO') THEN 1 ELSE 0 END),
+			         remainI   = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
+			         remainII  = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'II'  THEN 1 ELSE 0 END),
+			         remainIII = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'III' THEN 1 ELSE 0 END),
+			         remainIV  = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			         remainV   = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'V'   THEN 1 ELSE 0 END),
+			
+			         recheckAllTtl = SUM(CASE WHEN st IN ('CLOSED','REDO') THEN 1 ELSE 0 END),
+			
+			         recheckOkTtl = SUM(CASE WHEN st = 'CLOSED' THEN 1 ELSE 0 END),
+			         recheckOkI   = SUM(CASE WHEN st = 'CLOSED' AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
+			         recheckOkII  = SUM(CASE WHEN st = 'CLOSED' AND lvl = 'II'  THEN 1 ELSE 0 END),
+			         recheckOkIII = SUM(CASE WHEN st = 'CLOSED' AND lvl = 'III' THEN 1 ELSE 0 END),
+			         recheckOkIV  = SUM(CASE WHEN st = 'CLOSED' AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			         recheckOkV   = SUM(CASE WHEN st = 'CLOSED' AND lvl = 'V'   THEN 1 ELSE 0 END),
+			
+			         recheckNgTtl = SUM(CASE WHEN st = 'REDO' THEN 1 ELSE 0 END),
+			         recheckNgI   = SUM(CASE WHEN st = 'REDO' AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
+			         recheckNgII  = SUM(CASE WHEN st = 'REDO' AND lvl = 'II'  THEN 1 ELSE 0 END),
+			         recheckNgIII = SUM(CASE WHEN st = 'REDO' AND lvl = 'III' THEN 1 ELSE 0 END),
+			         recheckNgIV  = SUM(CASE WHEN st = 'REDO' AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			         recheckNgV   = SUM(CASE WHEN st = 'REDO' AND lvl = 'V'   THEN 1 ELSE 0 END)
+			
+			     FROM base
+			     WHERE fac IS NOT NULL
+			     GROUP BY GROUPING SETS
+			     (
+			       (fac, pic),
+			       (fac)
+			     )
+			     ORDER BY fac, GROUPING(pic), beforeTtl DESC
+			""", nativeQuery = true)
 	List<PatrolSummaryRowView> summaryByFacAndPic(
 			@Param("fromD") LocalDate fromD,
 			@Param("toD") LocalDate toD,

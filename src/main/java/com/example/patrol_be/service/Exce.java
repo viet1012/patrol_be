@@ -31,11 +31,19 @@ public class Exce {
     private final Path excelFilePath = BASE_DIR.resolve(EXCEL_FILE_NAME);
     private final Path imageFolderPath = BASE_DIR.resolve(IMAGE_FOLDER_NAME);
 
+    public boolean canUseQr(String qrKey) {
+        qrKey = norm(qrKey);
 
-    private Path getExcelFilePathByPlant(String plant) {
-        String safePlant = plant == null ? "default" : plant.replaceAll("\\W+", "_");
-        String fileName = "Safety_Patrol_" + safePlant + ".xlsx";
-        return BASE_DIR.resolve(fileName);
+        if (blank(qrKey)) return true;
+
+        // Chỉ cho tối đa 5 số
+        if (!qrKey.matches("^\\d{1,5}$")) {
+            throw new RuntimeException("Invalid QR code. QR must be numbers only and max 5 digits.");
+        }
+
+        long openCount = reportRepo.countOpenByQrKey(qrKey);
+
+        return openCount == 0;
     }
 
     // ===========================
@@ -45,6 +53,7 @@ public class Exce {
         if (s == null) return null;
         return s.replace('\u00A0', ' ').trim();
     }
+
     private static boolean blank(String s) {
         return s == null || s.trim().isEmpty();
     }
@@ -148,6 +157,22 @@ public class Exce {
         }
 
         // 4) Lưu vào database
+
+        String qrKey = norm(req.getQr_key());
+
+        if (!blank(qrKey)) {
+            if (!qrKey.matches("^\\d{1,5}$")) {
+                throw new RuntimeException("Invalid QR code. QR must be numbers only and max 5 digits.");
+            }
+
+            boolean canUseQr = canUseQr(qrKey);
+
+            if (!canUseQr) {
+                throw new RuntimeException("QR code already exists and is not Closed.");
+            }
+
+            req.setQr_key(qrKey);
+        }
         PatrolReport rpt = new PatrolReport();
         rpt.setStt(stt);
         rpt.setType(req.getType());
@@ -194,7 +219,8 @@ public class Exce {
         }
         rpt.setPatrol_user(req.getUserCreate());
         rpt.setAt_status("Doing");
-        rpt.setQr_key(req.getQr_key());
+//        rpt.setQr_key(req.getQr_key());
+        rpt.setQr_key(qrKey);
         rpt.setQr_scan_sts(req.getQr_scan_sts());
 
         reportRepo.save(rpt);
