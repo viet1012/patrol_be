@@ -491,6 +491,14 @@ public class PatrolReportService {
 		if (DTO.getRiskTotal() != null) {
 			report.setRiskTotal(DTO.getRiskTotal().trim());
 		}
+		LocalDate newDueDate;
+
+		if ("IV".equals(DTO.getRiskTotal()) || "V".equals(DTO.getRiskTotal())) {
+			newDueDate = LocalDate.now().plusDays(14);
+		} else {
+			newDueDate = LocalDate.now().plusDays(28);
+		}
+		report.setDueDate(newDueDate);
 
 		if (DTO.getCheckInfo() != null) {
 			System.out.println("CheckInf: " + DTO.getCheckInfo().trim());
