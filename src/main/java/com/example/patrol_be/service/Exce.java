@@ -177,7 +177,6 @@ public class Exce {
         rpt.setStt(stt);
         rpt.setType(req.getType());
 
-//        String grp = req.getGroup().replace(" ", "").trim();
         rpt.setGrp(req.getGroup());
         rpt.setPlant(req.getPlant());
         rpt.setDivision(req.getDivision());
@@ -193,7 +192,7 @@ public class Exce {
         rpt.setCountermeasure(req.getCountermeasure());
         rpt.setCheckInfo(req.getCheck());
         rpt.setImageNames(String.join(",", savedImageNames));
-//        rpt.setPic(hsePatrolGroupMasterRepo.findPIC(rpt.getPlant(), rpt.getMachine()));
+
         String pic = findPicSmart(
                 req.getPlant(),
                 req.getDivision(),
@@ -219,7 +218,6 @@ public class Exce {
         }
         rpt.setPatrol_user(req.getUserCreate());
         rpt.setAt_status("Doing");
-//        rpt.setQr_key(req.getQr_key());
         rpt.setQr_key(qrKey);
         rpt.setQr_scan_sts(req.getQr_scan_sts());
 
