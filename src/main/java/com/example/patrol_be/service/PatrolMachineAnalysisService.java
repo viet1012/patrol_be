@@ -112,6 +112,8 @@ public class PatrolMachineAnalysisService {
 			JsonNode node = objectMapper.readTree(aiResult);
 
 			long t6 = System.nanoTime();
+			ObjectNode obj = (ObjectNode) node;
+			obj.put("cate", Objects.toString(cate, ""));
 
 			if (node.has("summaryVi")) {
 				((ObjectNode) node).put(
@@ -127,8 +129,6 @@ public class PatrolMachineAnalysisService {
 			((ObjectNode) node).put("historyMs", ms(t3 - t2));
 			((ObjectNode) node).put("buildJsonMs", ms(t4 - t3));
 			((ObjectNode) node).put("aiCallMs", ms(t5 - t4));
-			((ObjectNode) node).put("parseJsonMs", ms(t6 - t5));
-			((ObjectNode) node).put("postProcessMs", ms(t7 - t6));
 
 			System.out.println("AI RESULT = " + aiResult);
 			System.out.println("AI PERF machine=" + machineKey);
@@ -287,7 +287,7 @@ public class PatrolMachineAnalysisService {
 
 		node.set("relatedMachines", objectMapper.valueToTree(relatedMachines));
 		node.set("comments", objectMapper.valueToTree(comments));
-
+		System.out.println("System.out.println(comments); "+comments);
 		return objectMapper.writeValueAsString(node);
 	}
 
