@@ -1,5 +1,7 @@
 package com.example.patrol_be.service;
 
+import com.example.patrol_be.dto.DuplicateQrException;
+import com.example.patrol_be.dto.InvalidQrException;
 import com.example.patrol_be.model.PatrolReport;
 import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
 import com.example.patrol_be.repository.PatrolReportRepo;
@@ -38,7 +40,9 @@ public class Exce {
 
         // Chỉ cho tối đa 5 số
         if (!qrKey.matches("^\\d{1,5}$")) {
-            throw new RuntimeException("Invalid QR code. QR must be numbers only and max 5 digits.");
+            throw new InvalidQrException(
+                    "QR code must contain only numbers and have a maximum of 5 digits."
+            );
         }
 
         long openCount = reportRepo.countOpenByQrKey(qrKey);
@@ -123,6 +127,21 @@ public class Exce {
     }
 
     public synchronized void appendToExcel(ReportRequest req, MultipartFile[] images) throws IOException {
+        String qrKey = norm(req.getQr_key());
+
+        if (!blank(qrKey)) {
+            if (!qrKey.matches("^\\d{1,5}$")) {
+                throw new RuntimeException("Invalid QR code. QR must be numbers only and max 5 digits.");
+            }
+
+            boolean canUseQr = canUseQr(qrKey);
+
+            if (!canUseQr) {
+                throw new DuplicateQrException(qrKey);
+            }
+
+            req.setQr_key(qrKey);
+        }
 
         if (!Files.exists(imageFolderPath)) Files.createDirectories(imageFolderPath);
 
@@ -158,23 +177,7 @@ public class Exce {
 
         // 4) Lưu vào database
 
-        String qrKey = norm(req.getQr_key());
 
-        if (!blank(qrKey)) {
-            if (!qrKey.matches("^\\d{1,5}$")) {
-                throw new RuntimeException("Invalid QR code. QR must be numbers only and max 5 digits.");
-            }
-
-            boolean canUseQr = canUseQr(qrKey);
-
-            if (!canUseQr) {
-                throw new RuntimeException(
-                        String.format("QR code: '%s' already exists and is not Close.", qrKey)
-                );
-            }
-
-            req.setQr_key(qrKey);
-        }
         PatrolReport rpt = new PatrolReport();
         rpt.setStt(stt);
         rpt.setType(req.getType());
