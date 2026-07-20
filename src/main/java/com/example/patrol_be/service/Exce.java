@@ -168,7 +168,9 @@ public class Exce {
             boolean canUseQr = canUseQr(qrKey);
 
             if (!canUseQr) {
-                throw new RuntimeException("QR code already exists and is not Closed.");
+                throw new RuntimeException(
+                        String.format("QR code: '%s' already exists and is not Close.", qrKey)
+                );
             }
 
             req.setQr_key(qrKey);
