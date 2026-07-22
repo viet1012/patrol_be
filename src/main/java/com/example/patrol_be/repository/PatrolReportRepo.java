@@ -23,6 +23,23 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			""")
 	long countOpenByQrKey(@Param("qrKey") String qrKey);
 
+	@Query("""
+        SELECT CASE
+            WHEN COUNT(r) > 0 THEN true
+            ELSE false
+        END
+        FROM PatrolReport r
+        WHERE r.qr_key = :qrKey
+          AND (
+                r.at_status IS NULL
+                OR r.at_status <> :closedStatus
+              )
+        """)
+	boolean existsOpenByQrKey(
+			@Param("qrKey") String qrKey,
+			@Param("closedStatus") String closedStatus
+	);
+
 	@Query(value = """
 			    SELECT
 			        id,

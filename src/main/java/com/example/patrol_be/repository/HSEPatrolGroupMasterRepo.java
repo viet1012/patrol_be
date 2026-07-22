@@ -26,6 +26,43 @@ public interface HSEPatrolGroupMasterRepo extends JpaRepository<HSEPatrolGroupMa
             """, nativeQuery = true)
     List<Object[]> findAllMachines();
 
+    @Query(
+            value = """
+            SELECT TOP (1)
+                PIC
+            FROM dbo.HSE_Patrol_Group_Master
+            WHERE Plant = :plant
+              AND Grp = :grp
+              AND PIC IS NOT NULL
+              AND PIC <> ''
+            ORDER BY
+                CASE
+                    WHEN :area IS NOT NULL
+                     AND :macId IS NOT NULL
+                     AND Area = :area
+                     AND MacId = :macId
+                    THEN 1
+
+                    WHEN :macId IS NOT NULL
+                     AND MacId = :macId
+                    THEN 2
+
+                    WHEN :area IS NOT NULL
+                     AND Area = :area
+                    THEN 3
+
+                    ELSE 4
+                END
+            """,
+            nativeQuery = true
+    )
+    String resolvePic(
+            @Param("plant") String plant,
+            @Param("grp") String grp,
+            @Param("area") String area,
+            @Param("macId") String macId
+    );
+
 
     @Query(value = """
     SELECT TOP 1 PIC
