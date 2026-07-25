@@ -1,5 +1,6 @@
 package com.example.patrol_be.controller;
 
+import com.example.patrol_be.dto.QrCheckResponse;
 import com.example.patrol_be.dto.ReportRequest;
 import com.example.patrol_be.service.Exce;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,16 @@ public class ReportController {
 
     private final Exce excelService;
     private final ObjectMapper objectMapper;
+
+    @GetMapping("/check-qr")
+    public ResponseEntity<QrCheckResponse> checkQr(
+            @RequestParam String qrKey
+    ) {
+        QrCheckResponse response = excelService.checkQr(qrKey);
+
+        return ResponseEntity.ok(response);
+    }
+
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> saveReport(

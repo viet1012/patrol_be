@@ -266,6 +266,7 @@ package com.example.patrol_be.service;
 
 import com.example.patrol_be.dto.DuplicateQrException;
 import com.example.patrol_be.dto.InvalidQrException;
+import com.example.patrol_be.dto.QrCheckResponse;
 import com.example.patrol_be.dto.ReportRequest;
 import com.example.patrol_be.model.PatrolReport;
 import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
@@ -342,20 +343,6 @@ public class Exce {
 				|| value.trim().isEmpty();
 	}
 
-	public boolean canUseQr(String qrKey) {
-		String normalizedQr = normalize(qrKey);
-
-		if (isBlank(normalizedQr)) {
-			return true;
-		}
-
-		validateQr(normalizedQr);
-
-		return !reportRepo.existsOpenByQrKey(
-				normalizedQr,
-				STATUS_CLOSED
-		);
-	}
 
 	// ============================================================
 	// CREATE REPORT
@@ -396,9 +383,60 @@ public class Exce {
 		return normalizedQr;
 	}
 
-	// ============================================================
-	// DUE DATE
-	// ============================================================
+	@Transactional(readOnly = true)
+	public QrCheckResponse checkQr(String qrKey) {
+		String normalizedQr = normalize(qrKey);
+
+		if (isBlank(normalizedQr)) {
+			return QrCheckResponse.builder()
+					.qrKey(null)
+					.valid(false)
+					.available(false)
+					.duplicate(false)
+					.message("QR code is required.")
+					.build();
+		}
+
+		if (!normalizedQr.matches(QR_PATTERN)) {
+			return QrCheckResponse.builder()
+					.qrKey(normalizedQr)
+					.valid(false)
+					.available(false)
+					.duplicate(false)
+					.message(
+							"QR code must contain only numbers "
+									+ "and have a maximum of 5 digits."
+					)
+					.build();
+		}
+
+		boolean duplicate = reportRepo.existsOpenByQrKey(
+				normalizedQr,
+				STATUS_CLOSED
+		);
+
+		if (duplicate) {
+			return QrCheckResponse.builder()
+					.qrKey(normalizedQr)
+					.valid(true)
+					.available(false)
+					.duplicate(true)
+					.message(
+							"QR code "
+									+ normalizedQr
+									+ " already exists and has not been closed."
+					)
+					.build();
+		}
+
+		return QrCheckResponse.builder()
+				.qrKey(normalizedQr)
+				.valid(true)
+				.available(true)
+				.duplicate(false)
+				.message("QR code is available.")
+				.build();
+	}
 
 	@Transactional
 	public void appendToExcel(
@@ -447,6 +485,8 @@ public class Exce {
 			);
 
 			request.setComment(finalComment);
+//			request.setComment(request.getComment());
+
 			request.setCountermeasure(finalCountermeasure);
 
 			String pic = resolvePic(
@@ -623,93 +663,7 @@ public class Exce {
 	// SAVE IMAGES
 	// ============================================================
 
-	public String findPicSmart1(
-			String plant,
-			String grp,
-			String area,
-			String macId
-	) {
-		String normalizedPlant = normalize(plant);
-		String normalizedGroup = normalize(grp);
-		String normalizedArea = normalize(area);
-		String normalizedMacId = normalize(macId);
 
-		if (isBlank(normalizedPlant)
-				|| isBlank(normalizedGroup)) {
-			log.info(
-					"Cannot resolve PIC because plant or group is empty: plant={}, group={}",
-					normalizedPlant,
-					normalizedGroup
-			);
-
-			return null;
-		}
-
-		log.info(
-				"Resolve PIC: plant={}, group={}, area={}, machine={}",
-				normalizedPlant,
-				normalizedGroup,
-				normalizedArea,
-				normalizedMacId
-		);
-
-		String pic;
-
-		// 1. Plant + Group + Area + Machine
-		if (!isBlank(normalizedArea)
-				&& !isBlank(normalizedMacId)) {
-
-			pic = hsePatrolGroupMasterRepo
-					.findPicByPlantGrpAreaMac(
-							normalizedPlant,
-							normalizedGroup,
-							normalizedArea,
-							normalizedMacId
-					);
-
-			if (!isBlank(pic)) {
-				return normalize(pic);
-			}
-		}
-
-		// 2. Plant + Group + Machine
-		if (!isBlank(normalizedMacId)) {
-			pic = hsePatrolGroupMasterRepo
-					.findPicByPlantGrpMac(
-							normalizedPlant,
-							normalizedGroup,
-							normalizedMacId
-					);
-
-			if (!isBlank(pic)) {
-				return normalize(pic);
-			}
-		}
-
-		// 3. Plant + Group + Area
-		if (!isBlank(normalizedArea)) {
-			pic = hsePatrolGroupMasterRepo
-					.findPicByPlantGrpArea(
-							normalizedPlant,
-							normalizedGroup,
-							normalizedArea
-					);
-
-			if (!isBlank(pic)) {
-				return normalize(pic);
-			}
-		}
-
-		// 4. Plant + Group
-		pic = hsePatrolGroupMasterRepo.findPicByPlantGrp(
-				normalizedPlant,
-				normalizedGroup
-		);
-
-		return isBlank(pic)
-				? null
-				: normalize(pic);
-	}
 
 	private String translateAndAppend(
 			String originalText,
