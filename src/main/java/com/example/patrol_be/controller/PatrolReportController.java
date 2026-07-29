@@ -1,8 +1,8 @@
 package com.example.patrol_be.controller;
 
+import com.example.patrol_be.analysis.application.PatrolMachineAnalysisService;
 import com.example.patrol_be.dto.*;
 import com.example.patrol_be.service.PatrolCommentService;
-import com.example.patrol_be.service.PatrolMachineAnalysisService;
 import com.example.patrol_be.service.PatrolPivotService;
 import com.example.patrol_be.service.PatrolReportService;
 import lombok.RequiredArgsConstructor;

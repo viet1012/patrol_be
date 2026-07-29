@@ -12,16 +12,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
-	@Query("""
-			    SELECT COUNT(p)
-			    FROM PatrolReport p
-			    WHERE p.qr_key = :qrKey
-			      AND (
-			            p.at_status IS NULL
-			            OR LOWER(TRIM(p.at_status)) <> 'Closed'
-			          )
-			""")
-	long countOpenByQrKey(@Param("qrKey") String qrKey);
+
 
 	@Query("""
         SELECT CASE
@@ -56,6 +47,8 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			        riskTotal,
 			        comment,
 			        countermeasure,
+					comment_jp,
+              		countermeasure_jp,
 			        checkInfo,
 			        imageNames,
 			        createdAt,

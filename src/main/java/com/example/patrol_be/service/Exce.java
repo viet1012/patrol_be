@@ -474,25 +474,23 @@ public class Exce {
 			savedImageNames = saveImageFiles(images);
 			request.setImageFileNames(savedImageNames);
 
-			String finalComment = translateAndAppend(
-					request.getComment(),
-					"comment"
-			);
-
-			String finalCountermeasure = translateAndAppend(
-					request.getCountermeasure(),
-					"countermeasure"
-			);
-
-			request.setComment(finalComment);
-//			request.setComment(request.getComment());
-
-			request.setCountermeasure(finalCountermeasure);
+			/*
+			 * Không gọi AI translate tại API nữa.
+			 *
+			 * Frontend sẽ gửi:
+			 *
+			 * Người Việt:
+			 * comment
+			 * countermeasure
+			 *
+			 * Người Nhật:
+			 * comment_japanese
+			 * countermeasure_jp
+			 */
 
 			String pic = resolvePic(
 					request.getPlant(),
 					request.getDivision(),
-
 					request.getArea(),
 					request.getMachine()
 			);
@@ -508,20 +506,21 @@ public class Exce {
 			reportRepo.saveAndFlush(report);
 
 			log.info(
-					"Patrol report created: stt={}, plant={}, type={}, qrKey={}, pic={}, imageCount={}",
+					"Patrol report created: "
+							+ "stt={}, plant={}, type={}, qrKey={}, "
+							+ "pic={}, imageCount={}, "
+							+ "hasCommentVi={}, hasCommentJp={}",
 					stt,
 					request.getPlant(),
 					request.getType(),
 					qrKey,
 					pic,
-					savedImageNames.size()
+					savedImageNames.size(),
+					!isBlank(request.getComment()),
+					!isBlank(request.getComment_jp())
 			);
 
 		} catch (DataIntegrityViolationException exception) {
-			/*
-			 * Xóa ảnh nếu database từ chối insert,
-			 * ví dụ unique index phát hiện QR trùng.
-			 */
 			deleteSavedImages(savedImageNames);
 
 			if (!isBlank(qrKey)) {
@@ -569,9 +568,31 @@ public class Exce {
 		report.setRiskSev(request.getRiskSev());
 		report.setRiskTotal(request.getRiskTotal());
 
-		report.setComment(request.getComment());
-		report.setCountermeasure(request.getCountermeasure());
-		report.setCheckInfo(request.getCheck());
+		/*
+		 * Nội dung tiếng Việt
+		 */
+		report.setComment(
+				normalize(request.getComment())
+		);
+
+		report.setCountermeasure(
+				normalize(request.getCountermeasure())
+		);
+
+		/*
+		 * Nội dung tiếng Nhật
+		 */
+		report.setComment_jp(
+				normalize(request.getComment_jp())
+		);
+
+		report.setCountermeasure_jp(
+				normalize(request.getCountermeasure_jp())
+		);
+
+		report.setCheckInfo(
+				request.getCheck()
+		);
 
 		report.setImageNames(
 				String.join(",", savedImageNames)
@@ -851,27 +872,74 @@ public class Exce {
 	private void normalizeRequest(
 			ReportRequest request
 	) {
-		request.setType(normalize(request.getType()));
-		request.setGroup(normalize(request.getGroup()));
-		request.setPlant(normalize(request.getPlant()));
-		request.setDivision(normalize(request.getDivision()));
-		request.setArea(normalize(request.getArea()));
-		request.setMachine(normalize(request.getMachine()));
+		request.setType(
+				normalize(request.getType())
+		);
 
-		request.setRiskFreq(normalize(request.getRiskFreq()));
-		request.setRiskProb(normalize(request.getRiskProb()));
-		request.setRiskSev(normalize(request.getRiskSev()));
-		request.setRiskTotal(normalize(request.getRiskTotal()));
+		request.setGroup(
+				normalize(request.getGroup())
+		);
 
-		request.setComment(normalize(request.getComment()));
+		request.setPlant(
+				normalize(request.getPlant())
+		);
+
+		request.setDivision(
+				normalize(request.getDivision())
+		);
+
+		request.setArea(
+				normalize(request.getArea())
+		);
+
+		request.setMachine(
+				normalize(request.getMachine())
+		);
+
+		request.setRiskFreq(
+				normalize(request.getRiskFreq())
+		);
+
+		request.setRiskProb(
+				normalize(request.getRiskProb())
+		);
+
+		request.setRiskSev(
+				normalize(request.getRiskSev())
+		);
+
+		request.setRiskTotal(
+				normalize(request.getRiskTotal())
+		);
+
+		request.setComment(
+				normalize(request.getComment())
+		);
+
 		request.setCountermeasure(
 				normalize(request.getCountermeasure())
 		);
-		request.setCheck(normalize(request.getCheck()));
+
+		request.setComment_jp(
+				normalize(request.getComment_jp())
+		);
+
+		request.setCountermeasure_jp(
+				normalize(request.getCountermeasure_jp())
+		);
+
+		request.setCheck(
+				normalize(request.getCheck())
+		);
+
 		request.setUserCreate(
 				normalize(request.getUserCreate())
 		);
-		request.setQr_key(normalize(request.getQr_key()));
+
+		request.setQr_key(
+				normalize(request.getQr_key())
+		);
+
 		request.setQr_scan_sts(
 				normalize(request.getQr_scan_sts())
 		);
@@ -904,10 +972,17 @@ public class Exce {
 				"Machine is required."
 		);
 
-		requireText(
-				request.getComment(),
-				"Comment is required."
-		);
+		boolean hasVietnameseComment =
+				!isBlank(request.getComment());
+
+		boolean hasJapaneseComment =
+				!isBlank(request.getComment_jp());
+
+		if (!hasVietnameseComment && !hasJapaneseComment) {
+			throw new IllegalArgumentException(
+					"Comment is required."
+			);
+		}
 	}
 
 	private void requireText(

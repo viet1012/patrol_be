@@ -24,6 +24,8 @@ public class PatrolReportDTO {
 
     private String comment;
     private String countermeasure;
+    private String comment_jp;
+    private String countermeasure_jp;
     private String checkInfo;
 
     private List<String> imageNames;  // đổi thành List<String>

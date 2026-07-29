@@ -42,8 +42,12 @@ public class PatrolReport {
 	@Column(columnDefinition = "NVARCHAR(MAX)")
 	private String comment;
 
+	private String comment_jp;
+
 	@Column(columnDefinition = "NVARCHAR(MAX)")
 	private String countermeasure;
+
+	private String countermeasure_jp;
 
 	@Column(columnDefinition = "NVARCHAR(MAX)")
 	private String checkInfo;

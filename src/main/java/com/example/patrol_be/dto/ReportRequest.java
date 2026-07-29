@@ -32,6 +32,10 @@ public class ReportRequest {
     private String comment;
     private String countermeasure;
 
+    private String comment_jp;
+    private String countermeasure_jp;
+
+
     private String check;
 
     // Danh sách tên file ảnh đã lưu (sẽ được set từ service)

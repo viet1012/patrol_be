@@ -91,35 +91,32 @@ public class PatrolReportService {
 				(String) r[9],                           // riskProb
 				(String) r[10],                          // riskSev
 				(String) r[11],                          // riskTotal
-				(String) r[12],                          // comment
-				(String) r[13],                          // countermeasure
-				(String) r[14],                          // checkInfo
-				splitImages((String) r[15]),             // imageNames
-				(LocalDateTime) r[16],                    // createdAt
-				(String) r[17],                          // pic
-				(LocalDateTime) r[18],                    // dueDate
-				splitImages((String) r[19]),             // at_imageNames
-				(String) r[20],                          // at_comment
-				(LocalDateTime) r[21],                    // at_date
-				(String) r[22],                          // at_pic
-				(String) r[23],                          // at_status
-				(String) r[24],                          // hse_judge
-				splitImages((String) r[25]),             // hse_imageNames
-				(String) r[26],                          // hse_comment
-				(LocalDateTime) r[27],                    // hse_date
-				(String) r[28],                           // load_status
-				(String) r[29],               // patrol_user
-				(String) r[30],                   // qr_key
-				(String) r[31],// at_assign
-				r[32] == null
-						? 0
-						: ((Number) r[32]).intValue(),
-
-				(String) r[33],
-
-				(LocalDateTime) r[34],
-				(String) r[35]
-
+				(String) r[12], // comment
+				(String) r[13], // countermeasure
+				(String) r[14], // comment_japanese
+				(String) r[15], // countermeasure_jp
+				(String) r[16], // checkInfo
+				splitImages((String) r[17]), // imageNames
+				(LocalDateTime) r[18],       // createdAt
+				(String) r[19],              // pic
+				(LocalDateTime) r[20],       // dueDate
+				splitImages((String) r[21]), // at_imageNames
+				(String) r[22],              // at_comment
+				(LocalDateTime) r[23],       // at_date
+				(String) r[24],              // at_pic
+				(String) r[25],              // at_status
+				(String) r[26],              // hse_judge
+				splitImages((String) r[27]), // hse_imageNames
+				(String) r[28],              // hse_comment
+				(LocalDateTime) r[29],       // hse_date
+				(String) r[30],              // load_status
+				(String) r[31],              // patrol_user
+				(String) r[32],              // qr_key
+				(String) r[33],              // at_assign
+				r[34] == null ? 0 : ((Number) r[34]).intValue(), // dueDateUpdateCount
+				(String) r[35],              // dueDateUpdatedBy
+				(LocalDateTime) r[36],       // dueDateUpdatedAt
+				(String) r[37]               // hse_user
 		);
 	}
 
