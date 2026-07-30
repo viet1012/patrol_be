@@ -64,7 +64,6 @@ public class PatrolReportService {
 						normalize(area),
 						normalize(machine),
 						normalize(type),
-
 						normalize(grp),          // ✅ ĐÚNG VỊ TRÍ
 						normalize(afStatus),     // ✅ ĐÚNG VỊ TRÍ
 						normalizeKeepEmpty(pic),
@@ -102,21 +101,23 @@ public class PatrolReportService {
 				(LocalDateTime) r[20],       // dueDate
 				splitImages((String) r[21]), // at_imageNames
 				(String) r[22],              // at_comment
-				(LocalDateTime) r[23],       // at_date
-				(String) r[24],              // at_pic
-				(String) r[25],              // at_status
-				(String) r[26],              // hse_judge
-				splitImages((String) r[27]), // hse_imageNames
-				(String) r[28],              // hse_comment
-				(LocalDateTime) r[29],       // hse_date
-				(String) r[30],              // load_status
-				(String) r[31],              // patrol_user
-				(String) r[32],              // qr_key
-				(String) r[33],              // at_assign
-				r[34] == null ? 0 : ((Number) r[34]).intValue(), // dueDateUpdateCount
-				(String) r[35],              // dueDateUpdatedBy
-				(LocalDateTime) r[36],       // dueDateUpdatedAt
-				(String) r[37]               // hse_user
+				(String) r[23],              // at_comment_jp
+				(LocalDateTime) r[24],       // at_date
+				(String) r[25],              // at_user
+				(String) r[26],              // at_status
+				(String) r[27],              // hse_judge
+				splitImages((String) r[28]), // hse_imageNames
+				(String) r[29],              // hse_comment
+				(String) r[30],              // hse_comment_jp
+				(LocalDateTime) r[31],       // hse_date
+				(String) r[32],              // load_status
+				(String) r[33],              // patrol_user
+				(String) r[34],              // qr_key
+				(String) r[35],              // at_assign
+				r[36] == null ? 0 : ((Number) r[36]).intValue(), // dueDateUpdateCount
+				(String) r[37],              // dueDateUpdatedBy
+				(LocalDateTime) r[38],       // dueDateUpdatedAt
+				(String) r[39]               // hse_user
 		);
 	}
 
@@ -304,18 +305,18 @@ public class PatrolReportService {
 		}
 
 		String finalComment = DTO.getAtComment();
-		try {
-			if (finalComment != null && !finalComment.isBlank()) {
-
-				String translated = patrolCommentService.getTranslateDefault(finalComment);
-
-				if (translated != null) {
-					finalComment += "\n" + translated;
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace(); // ? in l?i luôn cho d? debug
-		}
+//		try {
+//			if (finalComment != null && !finalComment.isBlank()) {
+//
+//				String translated = patrolCommentService.getTranslateDefault(finalComment);
+//
+//				if (translated != null) {
+//					finalComment += "\n" + translated;
+//				}
+//			}
+//		} catch (Exception e) {
+//			e.printStackTrace(); // ? in l?i luôn cho d? debug
+//		}
 
 
 		String imageNames = String.join(",", newImages);
@@ -526,9 +527,11 @@ public class PatrolReportService {
 		if (DTO.getAtComment() != null) {
 			System.out.println("getAtComment: " + DTO.getAtComment().trim());
 
+//			report.setAt_comment(
+//					translateWithOriginal(DTO.getAtComment())
+//			);
 			report.setAt_comment(
-					translateWithOriginal(DTO.getAtComment())
-			);
+					DTO.getAtComment());
 		}
 
 		if (DTO.getAtStatus() != null) {
@@ -701,16 +704,16 @@ public class PatrolReportService {
 
 		// ===== COMMENT (kèm translate) =====
 		String finalComment = DTO.getHseComment();
-		try {
-			if (finalComment != null && !finalComment.isBlank()) {
-				String translated = patrolCommentService.getTranslateDefault(finalComment);
-				if (translated != null && !translated.isBlank()) {
-					finalComment = finalComment + "\n" + translated;
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+//		try {
+//			if (finalComment != null && !finalComment.isBlank()) {
+//				String translated = patrolCommentService.getTranslateDefault(finalComment);
+//				if (translated != null && !translated.isBlank()) {
+//					finalComment = finalComment + "\n" + translated;
+//				}
+//			}
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//		}
 
 		String imageNames = String.join(",", newImages);
 

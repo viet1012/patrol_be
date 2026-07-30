@@ -36,12 +36,14 @@ public class PatrolReportDTO {
 
     private List<String> at_imageNames;  // đổi thành List<String>
     private String at_comment;
+    private String atCommentJp;
     private LocalDateTime at_date;       // đổi thành LocalDateTime
     private String at_pic;
     private String at_status;
 
     private String hse_judge;
     private List<String> hse_imageNames;  // đổi thành List<String>
+    private String hseCommentJp;
     private String hse_comment;
     private LocalDateTime hse_date;        // đổi thành LocalDateTime
 
