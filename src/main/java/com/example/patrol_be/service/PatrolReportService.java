@@ -442,140 +442,78 @@ public class PatrolReportService {
 		PatrolReport report = repo.findById(reportId)
 				.orElseThrow(() -> new RuntimeException("Report not found"));
 
-		// ===== 1️⃣ UPDATE COMMENT & COUNTERMEASURE =====
+		// =====================================================
+		// 1. UPDATE COMMENT
+		// =====================================================
 		if (DTO.getComment() != null) {
 			report.setComment(
 					translateWithOriginal(DTO.getComment())
 			);
 		}
 
+		// =====================================================
+		// 2. UPDATE COUNTERMEASURE
+		// =====================================================
 		if (DTO.getCountermeasure() != null) {
 			report.setCountermeasure(
 					translateWithOriginal(DTO.getCountermeasure())
 			);
 		}
 
-		// ===== ✅ 1.5️⃣ UPDATE META FIELDS =====
+		// =====================================================
+		// 3. UPDATE META FIELDS
+		// =====================================================
 		if (DTO.getGrp() != null) {
 			report.setGrp(DTO.getGrp().trim());
 		}
+
 		if (DTO.getPlant() != null) {
 			report.setPlant(DTO.getPlant().trim());
 		}
+
 		if (DTO.getDivision() != null) {
 			report.setDivision(DTO.getDivision().trim());
 		}
+
 		if (DTO.getArea() != null) {
 			report.setArea(DTO.getArea().trim());
 		}
+
 		if (DTO.getMachine() != null) {
-			// nếu muốn convert "<Null>" => null
-			String m = DTO.getMachine().trim();
-			report.setMachine(m.equalsIgnoreCase("<Null>") || m.isEmpty() ? null : m);
+			String value = DTO.getMachine().trim();
+
+			report.setMachine(
+					value.isEmpty() || value.equalsIgnoreCase("<Null>")
+							? null
+							: value
+			);
 		}
 
-// =====================================================
-// UPDATE RISK + RECALCULATE DUE DATE
-// =====================================================
+		// =====================================================
+		// 4. MANUAL PIC UPDATE
+		// =====================================================
+		if (DTO.getPic() != null) {
 
-		String oldRiskTotal = normalizeRisk(report.getRiskTotal());
+			String value = DTO.getPic().trim();
 
-		String newRiskTotal = DTO.getRiskTotal() == null
-				? oldRiskTotal
-				: normalizeRisk(DTO.getRiskTotal());
-
-		if (DTO.getRiskFreq() != null) {
-			report.setRiskFreq(DTO.getRiskFreq().trim());
-		}
-
-		if (DTO.getRiskProb() != null) {
-			report.setRiskProb(DTO.getRiskProb().trim());
-		}
-
-		if (DTO.getRiskSev() != null) {
-			report.setRiskSev(DTO.getRiskSev().trim());
-		}
-
-		/*
-		 * UI chỉ gửi riskTotal khi người dùng thay đổi Risk.
-		 * Vì vậy chỉ cần riskTotal != null là tính lại Due Date.
-		 */
-		if (DTO.getRiskTotal() != null) {
-			report.setRiskTotal(newRiskTotal);
-
-			LocalDate createdDate = getCreatedDate(report);
-			int dueDays = getDueDaysByRisk(newRiskTotal);
-
-			LocalDate oldDueDate = report.getDueDate();
-			LocalDate calculatedDueDate = createdDate.plusDays(dueDays);
-
-			report.setDueDate(calculatedDueDate);
-
+			report.setPic(
+					value.isEmpty()
+							? null
+							: value
+			);
 
 			System.out.println(
-					"========== RISK UPDATE =========="
+					"[PIC UPDATE] reportId=" + reportId +
+							", pic=" + value +
+							", editUser=" + DTO.getEditUser()
 			);
-			System.out.println("Report ID       : " + report.getId());
-			System.out.println("Old Risk        : " + oldRiskTotal);
-			System.out.println("New Risk        : " + newRiskTotal);
-			System.out.println("Created Date    : " + createdDate);
-			System.out.println("Due Days        : " + dueDays);
-			System.out.println("Old Due Date    : " + oldDueDate);
-			System.out.println("New Due Date    : " + calculatedDueDate);
-			System.out.println("=================================");
 		}
+
 		// =====================================================
-		// MANUAL REVISE DUE DATE
-		// dueDateUpdatedAt = ngày Due Date được người dùng revise
+		// 5. AUTO FIND PIC
+		// Chỉ chạy khi UI KHÔNG gửi PIC
+		// và một trong các meta field thay đổi
 		// =====================================================
-
-		if (DTO.getDueDate() != null) {
-
-			LocalDate newRevisedDueDate = DTO.getDueDate();
-			LocalDate oldRevisedDueDate = report.getDueDateUpdatedAt();
-
-			/*
-			 * So sánh với ngày hiệu lực hiện tại.
-			 * Nếu đã từng revise thì so với revised date.
-			 * Nếu chưa từng revise thì so với original due date.
-			 */
-			LocalDate currentEffectiveDueDate =
-					oldRevisedDueDate != null
-							? oldRevisedDueDate
-							: report.getDueDate();
-
-			boolean dueDateChanged =
-					currentEffectiveDueDate == null
-							|| !currentEffectiveDueDate.equals(newRevisedDueDate);
-
-			if (dueDateChanged) {
-
-				Integer currentCount = report.getDueDateUpdateCount();
-
-				report.setDueDateUpdateCount(
-						currentCount == null ? 1 : currentCount + 1
-				);
-
-				report.setDueDateUpdatedBy(DTO.getEditUser());
-
-				// Lưu ngày Due Date revise vào cột mới
-				report.setDueDateUpdatedAt(newRevisedDueDate);
-
-				System.out.println("========== DUE DATE REVISED ==========");
-				System.out.println("Report ID          : " + report.getId());
-				System.out.println("Original Due Date  : " + report.getDueDate());
-				System.out.println("Old Revised Date   : " + oldRevisedDueDate);
-				System.out.println("New Revised Date   : " + newRevisedDueDate);
-				System.out.println("Revised By         : " + DTO.getEditUser());
-				System.out.println(
-						"Revision Count      : " + report.getDueDateUpdateCount()
-				);
-				System.out.println("======================================");
-			}
-		}
-		////////////////////////////////////////////////////////////
-		/// AUTO FIND PIC ONLY WHEN META CHANGED
-		////////////////////////////////////////////////////////////
 		boolean needAutoFindPic =
 				DTO.getPic() == null &&
 						(
@@ -587,7 +525,7 @@ public class PatrolReportService {
 
 		if (needAutoFindPic) {
 
-			String pic = findPicSmart(
+			String foundPic = findPicSmart(
 
 					DTO.getPlant() != null
 							? DTO.getPlant()
@@ -606,54 +544,387 @@ public class PatrolReportService {
 							: report.getMachine()
 			);
 
-			////////////////////////////////////////////////////////////
-			/// ONLY UPDATE WHEN FOUND
-			////////////////////////////////////////////////////////////
-			if (pic != null && !pic.trim().isEmpty()) {
+			if (foundPic != null && !foundPic.trim().isEmpty()) {
 
-				report.setPic(pic);
+				report.setPic(foundPic.trim());
+
+				System.out.println(
+						"[AUTO PIC] reportId=" + reportId +
+								", pic=" + foundPic.trim()
+				);
 			}
 		}
 
-		report.setEdit_date(LocalDateTime.now());
-		report.setEdit_user(DTO.getEditUser());
+		// =====================================================
+		// 6. UPDATE RISK
+		// =====================================================
 
-		// ===== 2️⃣ HANDLE IMAGE LIST =====
-		List<String> images = new ArrayList<>();
+		String oldRiskTotal = normalizeRisk(
+				report.getRiskTotal()
+		);
 
-		if (report.getImageNames() != null && !report.getImageNames().isBlank()) {
+		String newRiskTotal =
+				DTO.getRiskTotal() == null
+						? oldRiskTotal
+						: normalizeRisk(DTO.getRiskTotal());
+
+		if (DTO.getRiskFreq() != null) {
+			report.setRiskFreq(
+					DTO.getRiskFreq().trim()
+			);
+		}
+
+		if (DTO.getRiskProb() != null) {
+			report.setRiskProb(
+					DTO.getRiskProb().trim()
+			);
+		}
+
+		if (DTO.getRiskSev() != null) {
+			report.setRiskSev(
+					DTO.getRiskSev().trim()
+			);
+		}
+
+		// =====================================================
+		// 7. RISK TOTAL CHANGED
+		// -> RECALCULATE ORIGINAL DUE DATE
+		// =====================================================
+		if (DTO.getRiskTotal() != null) {
+
+			report.setRiskTotal(newRiskTotal);
+
+			LocalDate createdDate = getCreatedDate(report);
+
+			int dueDays = getDueDaysByRisk(
+					newRiskTotal
+			);
+
+			LocalDate oldDueDate =
+					report.getDueDate();
+
+			LocalDate calculatedDueDate =
+					createdDate.plusDays(dueDays);
+
+			report.setDueDate(
+					calculatedDueDate
+			);
+
+			System.out.println(
+					"========== RISK UPDATE =========="
+			);
+
+			System.out.println(
+					"Report ID       : " + report.getId()
+			);
+
+			System.out.println(
+					"Old Risk        : " + oldRiskTotal
+			);
+
+			System.out.println(
+					"New Risk        : " + newRiskTotal
+			);
+
+			System.out.println(
+					"Created Date    : " + createdDate
+			);
+
+			System.out.println(
+					"Due Days        : " + dueDays
+			);
+
+			System.out.println(
+					"Old Due Date    : " + oldDueDate
+			);
+
+			System.out.println(
+					"New Due Date    : " + calculatedDueDate
+			);
+
+			System.out.println(
+					"================================="
+			);
+		}
+
+		// =====================================================
+		// 8. MANUAL REVISE DUE DATE
+		//
+		// dueDate          = original due date
+		// dueDateUpdatedAt = revised due date
+		// =====================================================
+		if (DTO.getDueDate() != null) {
+
+			LocalDate newRevisedDueDate =
+					DTO.getDueDate();
+
+			LocalDate oldRevisedDueDate =
+					report.getDueDateUpdatedAt();
+
+			// Nếu đã từng revise thì dùng revised date hiện tại.
+			// Nếu chưa từng revise thì dùng original due date.
+			LocalDate currentEffectiveDueDate =
+					oldRevisedDueDate != null
+							? oldRevisedDueDate
+							: report.getDueDate();
+
+			boolean dueDateChanged =
+					currentEffectiveDueDate == null ||
+							!currentEffectiveDueDate.equals(
+									newRevisedDueDate
+							);
+
+			if (dueDateChanged) {
+
+				Integer currentCount =
+						report.getDueDateUpdateCount();
+
+				report.setDueDateUpdateCount(
+						currentCount == null
+								? 1
+								: currentCount + 1
+				);
+
+				report.setDueDateUpdatedBy(
+						DTO.getEditUser()
+				);
+
+				report.setDueDateUpdatedAt(
+						newRevisedDueDate
+				);
+
+				System.out.println(
+						"========== DUE DATE REVISED =========="
+				);
+
+				System.out.println(
+						"Report ID          : " + report.getId()
+				);
+
+				System.out.println(
+						"Original Due Date  : " + report.getDueDate()
+				);
+
+				System.out.println(
+						"Old Revised Date   : " + oldRevisedDueDate
+				);
+
+				System.out.println(
+						"New Revised Date   : " + newRevisedDueDate
+				);
+
+				System.out.println(
+						"Revised By         : " + DTO.getEditUser()
+				);
+
+				System.out.println(
+						"Revision Count     : " +
+								report.getDueDateUpdateCount()
+				);
+
+				System.out.println(
+						"======================================"
+				);
+			}
+		}
+
+		// =====================================================
+		// 9. UPDATE AFTER COMMENT
+		// =====================================================
+		if (DTO.getAtComment() != null) {
+
+			String value =
+					DTO.getAtComment().trim();
+
+			report.setAt_comment(
+					value.isEmpty()
+							? null
+							: value
+			);
+		}
+
+		// =====================================================
+		// 10. UPDATE AFTER STATUS
+		// =====================================================
+		if (DTO.getAtStatus() != null) {
+
+			String value =
+					DTO.getAtStatus().trim();
+
+			report.setAt_status(
+					value.isEmpty()
+							? null
+							: value
+			);
+		}
+
+		// =====================================================
+		// 11. UPDATE AFTER USER
+		// =====================================================
+		if (DTO.getAtUser() != null) {
+
+			String value =
+					DTO.getAtUser().trim();
+
+			report.setAt_user(
+					value.isEmpty()
+							? null
+							: value
+			);
+		}
+
+		// =====================================================
+		// 12. UPDATE ASSIGN
+		// =====================================================
+		if (DTO.getAtAssign() != null) {
+
+			String value = DTO.getAtAssign().trim();
+
+			report.setAt_assign(
+					value.isEmpty() ? null : value
+			);
+
+			// ai là người thực hiện assign
+			if (DTO.getEditUser() != null && !DTO.getEditUser().trim().isEmpty()) {
+				report.setAt_user_update_assign(
+						DTO.getEditUser().trim()
+				);
+			}
+
+			// thời gian assign
+			report.setAt_user_update_assign_date(
+					LocalDateTime.now()
+			);
+
+			System.out.println(
+					"[ASSIGN] reportId=" + reportId +
+							", atAssign=" + value +
+							", assignedBy=" + DTO.getEditUser() +
+							", assignedAt=" + report.getAt_user_update_assign_date()
+			);
+		}
+
+		// =====================================================
+		// 13. UPDATE CHECK INFO
+		// =====================================================
+		if (DTO.getCheckInfo() != null) {
+
+			String value =
+					DTO.getCheckInfo().trim();
+
+			report.setCheckInfo(
+					value.isEmpty()
+							? null
+							: value
+			);
+		}
+
+		// =====================================================
+		// 14. UPDATE EDIT INFO
+		// =====================================================
+		report.setEdit_date(
+				LocalDateTime.now()
+		);
+
+		if (DTO.getEditUser() != null) {
+
+			String value =
+					DTO.getEditUser().trim();
+
+			if (!value.isEmpty()) {
+				report.setEdit_user(value);
+			}
+		}
+
+		// =====================================================
+		// 15. LOAD CURRENT IMAGE LIST
+		// =====================================================
+		List<String> images =
+				new ArrayList<>();
+
+		if (
+				report.getImageNames() != null &&
+						!report.getImageNames().isBlank()
+		) {
+
 			images.addAll(
-					Arrays.stream(report.getImageNames().split(","))
+					Arrays.stream(
+									report.getImageNames().split(",")
+							)
 							.map(String::trim)
+							.filter(s -> !s.isEmpty())
 							.toList()
 			);
 		}
 
-		// ===== 3️⃣ DELETE IMAGES =====
+		// =====================================================
+		// 16. DELETE IMAGES
+		// =====================================================
 		if (DTO.getDeleteImages() != null) {
+
 			for (String img : DTO.getDeleteImages()) {
-				if (images.remove(img)) {
-					deleteImageFile(img);
+
+				if (img == null) {
+					continue;
+				}
+
+				String imageName =
+						img.trim();
+
+				if (imageName.isEmpty()) {
+					continue;
+				}
+
+				if (images.remove(imageName)) {
+					deleteImageFile(imageName);
 				}
 			}
 		}
 
-		// ===== 4️⃣ ADD NEW IMAGES =====
-		if (newImages != null && !newImages.isEmpty()) {
-			for (MultipartFile file : newImages) {
-				if (file == null || file.isEmpty()) continue;
+		// =====================================================
+		// 17. ADD NEW IMAGES
+		// =====================================================
+		if (
+				newImages != null &&
+						!newImages.isEmpty()
+		) {
 
-				String newImageName = saveSingleImage(file);
-				images.add(newImageName);
+			for (MultipartFile file : newImages) {
+
+				if (
+						file == null ||
+								file.isEmpty()
+				) {
+					continue;
+				}
+
+				String newImageName =
+						saveSingleImage(file);
+
+				images.add(
+						newImageName
+				);
 			}
 		}
 
-		// ===== 5️⃣ SAVE IMAGE NAMES =====
-		report.setImageNames(images.isEmpty() ? null : String.join(",", images));
+		// =====================================================
+		// 18. SAVE IMAGE NAMES
+		// =====================================================
+		report.setImageNames(
+				images.isEmpty()
+						? null
+						: String.join(",", images)
+		);
 
+		// =====================================================
+		// 19. SAVE DATABASE
+		// =====================================================
 		repo.save(report);
-	}
 
+		System.out.println(
+				"[REPORT UPDATED] id=" + reportId
+		);
+	}
 
 	@Transactional
 	public void updateHseInfo(
@@ -836,6 +1107,7 @@ public class PatrolReportService {
 		 */
 		return report.getCreatedAt().toLocalDate();
 	}
+
 	private DivisionSummaryDTO sumRow(List<DivisionSummaryDTO> rows) {
 		DivisionSummaryDTO s = new DivisionSummaryDTO();
 		s.setDivision("SUM");
@@ -920,7 +1192,6 @@ public class PatrolReportService {
 		if (o instanceof Number n) return n.longValue();
 		return Long.parseLong(o.toString());
 	}
-
 
 
 	public PatrolSummaryResponseDTO getSummary(LocalDate fromD, LocalDate toD, String plant, String type) {
@@ -1022,7 +1293,6 @@ public class PatrolReportService {
 	private Double round2(double x) {
 		return Math.round(x * 100.0) / 100.0; // 0.74 => 74% trên UI
 	}
-
 
 
 	private Integer toInt(Object o) {
