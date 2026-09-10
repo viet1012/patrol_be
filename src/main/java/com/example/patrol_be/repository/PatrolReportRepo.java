@@ -15,17 +15,17 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 
 
 	@Query("""
-        SELECT CASE
-            WHEN COUNT(r) > 0 THEN true
-            ELSE false
-        END
-        FROM PatrolReport r
-        WHERE r.qr_key = :qrKey
-          AND (
-                r.at_status IS NULL
-                OR r.at_status <> :closedStatus
-              )
-        """)
+			SELECT CASE
+			    WHEN COUNT(r) > 0 THEN true
+			    ELSE false
+			END
+			FROM PatrolReport r
+			WHERE r.qr_key = :qrKey
+			  AND (
+			        r.at_status IS NULL
+			        OR r.at_status <> :closedStatus
+			      )
+			""")
 	boolean existsOpenByQrKey(
 			@Param("qrKey") String qrKey,
 			@Param("closedStatus") String closedStatus
@@ -48,31 +48,31 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			        comment,
 			        countermeasure,
 					comment_jp,
-              		countermeasure_jp,
+			           		countermeasure_jp,
 			        checkInfo,
 			        imageNames,
 			        createdAt,
 			        pic,
 			        dueDate,
 					at_imageNames,
-                    at_comment,
-	                 at_comment_jp,
-	                 at_date,
-	                 at_user,
-	                 at_status,
-	                 hse_judge,
-	                 hse_imageNames,
-	                 hse_comment,
-	                 hse_comment_jp,
-	                 hse_date,
-	                 load_status,
-	                 patrol_user,
-	                 qr_key,
-	                 at_assign,
-	                 due_date_update_count,
-	                 due_date_updated_by,
-	                 due_date_updated_at,
-	                 hse_user
+			                 at_comment,
+			               at_comment_jp,
+			               at_date,
+			               at_user,
+			               at_status,
+			               hse_judge,
+			               hse_imageNames,
+			               hse_comment,
+			               hse_comment_jp,
+			               hse_date,
+			               load_status,
+			               patrol_user,
+			               qr_key,
+			               at_assign,
+			               due_date_update_count,
+			               due_date_updated_by,
+			               due_date_updated_at,
+			               hse_user
 			    FROM F2_Patrol_Report
 			    WHERE (:type IS NULL OR LTRIM(RTRIM(type)) = LTRIM(RTRIM(:type)))
 			      AND (:grp IS NULL OR REPLACE(grp, ' ', '') LIKE '%' + REPLACE(:grp, ' ', '') + '%')
@@ -357,35 +357,35 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			        SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS Remain_IV,
 			        SUM(CASE WHEN st IN ('DOING','REDO') AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS Remain_V,
 			
-			SUM(CASE
-			      WHEN st IN ('DOING','REDO')
-			       AND deadline_date > DATEADD(DAY, 3, CAST(GETDATE() AS date))
-			      THEN 1 ELSE 0
-			  END) AS Still_Time,
-			
-			  SUM(CASE
-			      WHEN st IN ('DOING','REDO')
-			       AND deadline_date >= CAST(GETDATE() AS date)
-			       AND deadline_date <= DATEADD(DAY, 3, CAST(GETDATE() AS date))
-			      THEN 1 ELSE 0
-			  END) AS Three_Days_Ago,
-			
-			  SUM(CASE
-			      WHEN st IN ('DOING','REDO')
-			       AND deadline_date < CAST(GETDATE() AS date)
-			      THEN 1 ELSE 0
-			  END) AS Late,
-			
+					SUM(CASE
+					      WHEN st IN ('DOING','REDO')
+					       AND deadline_date > DATEADD(DAY, 3, CAST(GETDATE() AS date))
+					      THEN 1 ELSE 0
+					  END) AS Still_Time,
+					
+					SUM(CASE
+					      WHEN st IN ('DOING','REDO')
+					       AND deadline_date >= CAST(GETDATE() AS date)
+					       AND deadline_date <= DATEADD(DAY, 3, CAST(GETDATE() AS date))
+					      THEN 1 ELSE 0
+					  END) AS Three_Days_Ago,
+					
+					SUM(CASE
+					      WHEN st IN ('DOING','REDO')
+					       AND deadline_date < CAST(GETDATE() AS date)
+					      THEN 1 ELSE 0
+					  END) AS Late,
+					
 			        SUM(CASE WHEN st = 'CLOSED' THEN 1 ELSE 0 END) AS HSE_Done_TTL,
 			        SUM(CASE WHEN st = 'CLOSED' AND riskTotal IN ('-', 'I') THEN 1 ELSE 0 END) AS HSE_Done_I,
 			        SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'II'  THEN 1 ELSE 0 END) AS HSE_Done_II,
 			        SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'III' THEN 1 ELSE 0 END) AS HSE_Done_III,
 			        SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'IV'  THEN 1 ELSE 0 END) AS HSE_Done_IV,
 			        SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS HSE_Done_V
-			
-			    FROM src
-			    GROUP BY division_group
-			    ORDER BY division_group
+					
+					    FROM src
+					    GROUP BY division_group
+					    ORDER BY division_group
 			""", nativeQuery = true)
 	List<Object[]> summaryByDivisionRaw(
 			@Param("fromD") LocalDate fromD,
