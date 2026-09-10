@@ -556,7 +556,6 @@ public class Exce {
 					);
 				}
 
-				savedNames.add(fileName);
 			}
 
 			return savedNames;
