@@ -1,12 +1,8 @@
 package com.example.patrol_be.fixedasset.controller;
 
-import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSaveRequest;
-import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSaveResponse;
-import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSummaryDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetMachineDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetScanInfoDto;
-import com.example.patrol_be.fixedasset.service.FixedAssetService;
+import java.util.List;
+
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,9 +10,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSaveRequest;
+import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSaveResponse;
+import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSummaryDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetMachineDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetScanInfoDto;
+import com.example.patrol_be.fixedasset.service.FixedAssetService;
 
 @RestController
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 @RequestMapping("/api/fixed-assets")
 public class FixedAssetController {
     private final FixedAssetService service;
