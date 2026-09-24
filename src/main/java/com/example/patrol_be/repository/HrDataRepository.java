@@ -1,14 +1,16 @@
 package com.example.patrol_be.repository;
 
-import com.example.patrol_be.model.HseEmp;
-import org.springframework.data.jpa.repository.*;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import com.example.patrol_be.model.HseEmp;
 
 @Repository
-public interface HrDataRepository extends JpaRepository<HseEmp, Integer> {
+public interface HrDataRepository extends JpaRepository<HseEmp, String> {
 
     @Query(value = "SELECT TOP 1 EmpName FROM HSE_EmpID WHERE EmpID = :code", nativeQuery = true)
     String findNameByCode(@Param("code") String code);

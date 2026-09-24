@@ -1,0 +1,23 @@
+# LOCAL / DEVELOPMENT performance-baseline profile.
+# Activate with:  --spring.profiles.active=perf   or   SPRING_PROFILES_ACTIVE=perf
+# Do NOT enable in production: statistics add per-session/per-query bookkeeping and extra log lines.
+spring:
+  jpa:
+    properties:
+      hibernate:
+        # Collect query / statement / session counters and timings
+        generate_statistics: true
+        # Log any SQL statement slower than this many ms (logger org.hibernate.SQL_SLOW)
+        log_slow_query: 500
+
+logging:
+  level:
+    # One "Session Metrics" block per Hibernate session: JDBC statement count/time, flushes, etc.
+    # (Hibernate 7.x logger name; Hibernate 6 used org.hibernate.engine.internal.StatisticalLoggingSessionEventListener)
+    org.hibernate.session.metrics: DEBUG
+    # Per-query line: query text (no bind values), execution time, row count
+    org.hibernate.stat: DEBUG
+    # Slow statements (threshold above)
+    org.hibernate.SQL_SLOW: INFO
+    # Keep bind-parameter logging OFF explicitly
+    org.hibernate.orm.jdbc.bind: OFF
