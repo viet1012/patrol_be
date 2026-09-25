@@ -4,6 +4,7 @@ import lombok.Data;
 
 @Data
 public class FixedAssetAuditSaveRequest {
+    private String div;
     private String fac;
     private String floor;
     private String positionA;
@@ -12,4 +13,5 @@ public class FixedAssetAuditSaveRequest {
     private String userId;
     private String userName;
     private String note;
+    private Boolean confirmLocationMismatch;
 }

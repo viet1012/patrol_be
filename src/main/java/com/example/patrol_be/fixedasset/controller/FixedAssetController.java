@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.patrol_be.fixedasset.dto.FixedAssetAuditCheckRequest;
+import com.example.patrol_be.fixedasset.dto.FixedAssetAuditCheckResponse;
 import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSaveRequest;
 import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSaveResponse;
 import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSummaryDto;
@@ -85,6 +87,13 @@ public class FixedAssetController {
     @GetMapping("/audited-machine-codes")
     public List<String> getAuditedMachineCodes() {
         return service.getAuditedMachineCodes();
+    }
+
+    @PostMapping("/audit-check")
+    public FixedAssetAuditCheckResponse checkAudit(
+            @RequestBody FixedAssetAuditCheckRequest request
+    ) {
+        return service.checkAudit(request);
     }
 
     @PostMapping("/audit")

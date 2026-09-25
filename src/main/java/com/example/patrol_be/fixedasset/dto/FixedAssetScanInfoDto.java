@@ -10,7 +10,13 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class FixedAssetScanInfoDto {
     private String machineCode;
+    private String div;
+    /** MachineCode exists in F2_FIXED_ASSET (direct lookup, no MAP join). */
     private boolean existsInMaster;
+    /** MASTER Floor / PositionA / PositionAA are all present in F2_FIXED_ASSET. */
+    private boolean masterLocationResolved;
+    /** The exact MASTER location resolves to one Fac in MAP; false -> fac is null. */
+    private boolean masterMappingValid;
     private String fac;
     private String floor;
     private String positionA;

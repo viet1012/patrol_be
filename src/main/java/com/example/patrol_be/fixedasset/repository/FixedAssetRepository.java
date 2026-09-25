@@ -1,13 +1,16 @@
 package com.example.patrol_be.fixedasset.repository;
 
-import com.example.patrol_be.fixedasset.dto.FixedAssetMachineDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
-
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import com.example.patrol_be.fixedasset.dto.FixedAssetMachineDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetMasterMachineDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetResolvedLocationDto;
 
 @Repository
 public class FixedAssetRepository {
@@ -30,7 +33,7 @@ public class FixedAssetRepository {
         String sql = """
                 SELECT DISTINCT map.Fac
                 """ + JOIN_CLAUSE + """
-                WHERE fa.Div = 'KVH'
+                WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
                     AND map.Fac IS NOT NULL
                     AND LTRIM(RTRIM(map.Fac)) <> ''
                 ORDER BY map.Fac
@@ -43,7 +46,7 @@ public class FixedAssetRepository {
         String sql = """
                 SELECT DISTINCT fa.[Floor]
                 """ + JOIN_CLAUSE + """
-                WHERE fa.Div = 'KVH'
+                WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
                     AND map.Fac = ?
                     AND fa.[Floor] IS NOT NULL
                     AND LTRIM(RTRIM(fa.[Floor])) <> ''
@@ -57,7 +60,7 @@ public class FixedAssetRepository {
         String sql = """
                 SELECT DISTINCT fa.PositionA
                 """ + JOIN_CLAUSE + """
-                WHERE fa.Div = 'KVH'
+                WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
                     AND map.Fac = ?
                     AND fa.[Floor] = ?
                     AND fa.PositionA IS NOT NULL
@@ -72,7 +75,7 @@ public class FixedAssetRepository {
         String sql = """
                 SELECT DISTINCT fa.PositionAA
                 """ + JOIN_CLAUSE + """
-                WHERE fa.Div = 'KVH'
+                WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
                     AND map.Fac = ?
                     AND fa.[Floor] = ?
                     AND fa.PositionA = ?
@@ -93,7 +96,7 @@ public class FixedAssetRepository {
         String sql = """
                 SELECT DISTINCT fa.MachineCode, fa.FAName
                 """ + JOIN_CLAUSE + """
-                WHERE fa.Div = 'KVH'
+                WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
                     AND map.Fac = ?
                     AND fa.[Floor] = ?
                     AND fa.PositionA = ?
@@ -116,7 +119,64 @@ public class FixedAssetRepository {
         );
     }
 
-    public List<FixedAssetMachineLocationDto> findMachineLocationsByCode(String machineCode) {
+    /**
+     * Authoritative MASTER lookup: LEFT JOIN keeps the F2_FIXED_ASSET row when
+     * its location has no MAP row, while resolving Fac when a mapping exists.
+     * Physical duplicates with the same logical location collapse into one row.
+     */
+    public List<FixedAssetMasterMachineDto> findMasterMachinesByCode(String machineCode) {
+        String sql = """
+                SELECT
+                    LTRIM(RTRIM(map.Fac)) AS Fac,
+                    LTRIM(RTRIM(fa.Div)) AS Div,
+                    LTRIM(RTRIM(fa.MachineCode)) AS MachineCode,
+                    LTRIM(RTRIM(fa.[Floor])) AS Floor,
+                    LTRIM(RTRIM(fa.PositionA)) AS PositionA,
+                    LTRIM(RTRIM(fa.PositionAA)) AS PositionAA,
+                    MAX(fa.FAName) AS FAName
+                FROM F2Database.dbo.F2_FIXED_ASSET fa
+                LEFT JOIN F2Database.dbo.F2_FIXED_ASSET_MAP map
+                    ON fa.Div = map.Div
+                    AND fa.[Floor] = map.[Floor]
+                    AND fa.PositionA = map.A
+                    AND fa.PositionAA = map.AA
+                WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
+                    AND fa.MachineCode IS NOT NULL
+                    AND LTRIM(RTRIM(fa.MachineCode)) = ?
+                GROUP BY
+                    LTRIM(RTRIM(map.Fac)),
+                    LTRIM(RTRIM(fa.Div)),
+                    LTRIM(RTRIM(fa.MachineCode)),
+                    LTRIM(RTRIM(fa.[Floor])),
+                    LTRIM(RTRIM(fa.PositionA)),
+                    LTRIM(RTRIM(fa.PositionAA))
+                ORDER BY Floor, PositionA, PositionAA, Fac
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (resultSet, rowNum) -> new FixedAssetMasterMachineDto(
+                        resultSet.getString("Fac"),
+                        resultSet.getString("Div"),
+                        resultSet.getString("MachineCode"),
+                        resultSet.getString("Floor"),
+                        resultSet.getString("PositionA"),
+                        resultSet.getString("PositionAA"),
+                        resultSet.getString("FAName")
+                ),
+                machineCode
+        );
+    }
+
+    /**
+     * Joined MASTER + MAP lookup. NOT an existence test: a machine whose MASTER
+     * location has no exact MAP row is missing here. Use
+     * {@link #findMasterMachinesByCode(String)} to decide MASTER existence.
+     */
+    public List<FixedAssetMachineLocationDto> findMachineLocationsByCode(
+            String div,
+            String machineCode
+    ) {
         String sql = """
                 SELECT
                     map.Fac AS Fac,
@@ -126,7 +186,7 @@ public class FixedAssetRepository {
                     LTRIM(RTRIM(fa.MachineCode)) AS MachineCode,
                     MAX(fa.FAName) AS FAName
                 """ + JOIN_CLAUSE + """
-                WHERE fa.Div = 'KVH'
+                WHERE LTRIM(RTRIM(fa.Div)) = ?
                     AND LTRIM(RTRIM(fa.MachineCode)) = ?
                 GROUP BY
                     map.Fac,
@@ -151,7 +211,38 @@ public class FixedAssetRepository {
                         resultSet.getString("MachineCode"),
                         resultSet.getString("FAName")
                 ),
+                div,
                 machineCode
+        );
+    }
+
+    public List<FixedAssetResolvedLocationDto> findLocationsByFloorAndPositionAA(
+            String floor,
+            String positionAA
+    ) {
+        String sql = """
+                SELECT DISTINCT
+                    LTRIM(RTRIM(map.Fac)) AS Fac,
+                    LTRIM(RTRIM(map.[Floor])) AS Floor,
+                    LTRIM(RTRIM(map.A)) AS PositionA,
+                    LTRIM(RTRIM(map.AA)) AS PositionAA
+                FROM F2Database.dbo.F2_FIXED_ASSET_MAP map
+                WHERE LTRIM(RTRIM(map.Div)) = 'KVH'
+                    AND LTRIM(RTRIM(map.[Floor])) = ?
+                    AND LTRIM(RTRIM(map.AA)) = ?
+                ORDER BY Fac, Floor, PositionA, PositionAA
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (resultSet, rowNum) -> new FixedAssetResolvedLocationDto(
+                        resultSet.getString("Fac"),
+                        resultSet.getString("Floor"),
+                        resultSet.getString("PositionA"),
+                        resultSet.getString("PositionAA")
+                ),
+                floor,
+                positionAA
         );
     }
 
@@ -211,7 +302,7 @@ public class FixedAssetRepository {
         String sql = """
                 SELECT COUNT(DISTINCT LTRIM(RTRIM(MachineCode)))
                 FROM F2Database.dbo.F2_FIXED_ASSET
-                WHERE Div = 'KVH'
+                WHERE LTRIM(RTRIM(Div)) = 'KVH'
                     AND MachineCode IS NOT NULL
                     AND LTRIM(RTRIM(MachineCode)) <> ''
                 """;
@@ -234,7 +325,7 @@ public class FixedAssetRepository {
                     AND EXISTS (
                         SELECT 1
                         FROM F2Database.dbo.F2_FIXED_ASSET fa
-                        WHERE fa.Div = 'KVH'
+                        WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
                             AND LTRIM(RTRIM(fa.MachineCode)) = LTRIM(RTRIM(a.MachineCode))
                     )
                 """;
@@ -258,7 +349,7 @@ public class FixedAssetRepository {
                 SELECT CASE WHEN EXISTS (
                     SELECT 1
                 """ + JOIN_CLAUSE + """
-                    WHERE fa.Div = 'KVH'
+                    WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
                         AND map.Fac = ?
                         AND fa.[Floor] = ?
                         AND fa.PositionA = ?
@@ -271,17 +362,17 @@ public class FixedAssetRepository {
         return result != null && result == 1;
     }
 
-    public boolean existsMachine(String machineCode) {
+    public boolean existsMachine(String div, String machineCode) {
         String sql = """
                 SELECT CASE WHEN EXISTS (
                     SELECT 1
                     FROM F2Database.dbo.F2_FIXED_ASSET
-                    WHERE Div = 'KVH'
+                    WHERE LTRIM(RTRIM(Div)) = ?
                         AND LTRIM(RTRIM(MachineCode)) = ?
                 ) THEN 1 ELSE 0 END
                 """;
 
-        Integer result = jdbcTemplate.queryForObject(sql, Integer.class, machineCode);
+        Integer result = jdbcTemplate.queryForObject(sql, Integer.class, div, machineCode);
         return result != null && result == 1;
     }
 
