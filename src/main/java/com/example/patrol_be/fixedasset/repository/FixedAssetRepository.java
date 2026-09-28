@@ -11,6 +11,7 @@ import com.example.patrol_be.fixedasset.dto.FixedAssetMachineDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMasterMachineDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetResolvedLocationDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAuditDto;
 
 @Repository
 public class FixedAssetRepository {
@@ -246,30 +247,35 @@ public class FixedAssetRepository {
         );
     }
 
-    public LocalDateTime findLatestAuditInPeriod(
+    public FixedAssetLatestAuditDto findLatestAuditInPeriod(
             String machineCode,
             LocalDateTime periodStart,
             LocalDateTime nextPeriodStart
     ) {
         String sql = """
-                SELECT MAX(UpdatedAt) AS LastAuditedAt
+                SELECT TOP 1
+                    UserId,
+                    UserName,
+                    UpdatedAt
                 FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT
                 WHERE MachineCode IS NOT NULL
                     AND LTRIM(RTRIM(MachineCode)) = ?
                     AND UpdatedAt >= ?
                     AND UpdatedAt < ?
+                ORDER BY UpdatedAt DESC, UserId DESC, UserName DESC
                 """;
 
-        return jdbcTemplate.queryForObject(
+        return jdbcTemplate.query(
                 sql,
-                (resultSet, rowNum) -> {
-                    Timestamp value = resultSet.getTimestamp("LastAuditedAt");
-                    return value == null ? null : value.toLocalDateTime();
-                },
+                (resultSet, rowNum) -> new FixedAssetLatestAuditDto(
+                        resultSet.getString("UserId"),
+                        resultSet.getString("UserName"),
+                        resultSet.getTimestamp("UpdatedAt").toLocalDateTime()
+                ),
                 machineCode,
                 Timestamp.valueOf(periodStart),
                 Timestamp.valueOf(nextPeriodStart)
-        );
+        ).stream().findFirst().orElse(null);
     }
 
     public LocalDateTime findLatestAuditInPeriodForUpdate(

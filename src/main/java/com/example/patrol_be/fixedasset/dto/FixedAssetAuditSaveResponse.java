@@ -17,6 +17,8 @@ public class FixedAssetAuditSaveResponse {
     private String machineCode;
     private LocalDateTime updatedAt;
     private LocalDateTime lastAuditedAt;
+    private String lastAuditedUserId;
+    private String lastAuditedUserName;
     private String masterFac;
     private String masterFloor;
     private String masterPositionA;

@@ -11,6 +11,8 @@ public class FixedAssetAuditCheckResponse {
     private String machineCode;
     private boolean alreadyAudited;
     private LocalDateTime lastAuditedAt;
+    private String lastAuditedUserId;
+    private String lastAuditedUserName;
     /** MachineCode exists in F2_FIXED_ASSET (direct lookup, no MAP join). */
     private boolean existsInMaster;
     /** MASTER Floor / PositionA / PositionAA are all present in F2_FIXED_ASSET. */

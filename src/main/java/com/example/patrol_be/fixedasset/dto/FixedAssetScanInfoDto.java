@@ -24,6 +24,8 @@ public class FixedAssetScanInfoDto {
     private String faName;
     private boolean auditedInCurrentPeriod;
     private LocalDateTime lastAuditedAt;
+    private String lastAuditedUserId;
+    private String lastAuditedUserName;
     private LocalDate periodStart;
     private LocalDate periodEnd;
 }

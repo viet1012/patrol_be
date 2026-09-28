@@ -8,6 +8,7 @@ import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSummaryDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMachineDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMasterMachineDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAuditDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetScanInfoDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetResolvedLocationDto;
 import com.example.patrol_be.fixedasset.repository.FixedAssetRepository;
@@ -103,7 +104,7 @@ public class FixedAssetService {
         AuditPeriod period = currentAuditPeriod();
         MasterMachine master = findMaster(normalizedMachineCode);
 
-        LocalDateTime lastAuditedAt = repository.findLatestAuditInPeriod(
+        FixedAssetLatestAuditDto latestAudit = repository.findLatestAuditInPeriod(
                 normalizedMachineCode,
                 period.startDateTime(),
                 period.nextStartDateTime()
@@ -120,8 +121,10 @@ public class FixedAssetService {
                 master == null ? null : master.positionA(),
                 master == null ? null : master.positionAA(),
                 master == null ? null : master.faName(),
-                lastAuditedAt != null,
-                lastAuditedAt,
+                latestAudit != null,
+                latestAudit == null ? null : latestAudit.getUpdatedAt(),
+                latestAudit == null ? null : latestAudit.getUserId(),
+                latestAudit == null ? null : latestAudit.getUserName(),
                 period.start(),
                 period.end()
         );
@@ -160,7 +163,7 @@ public class FixedAssetService {
         String positionAA = requireValue(request.getPositionAA(), "PositionAA");
         AuditPeriod period = currentAuditPeriod();
 
-        LocalDateTime lastAuditedAt = repository.findLatestAuditInPeriod(
+        FixedAssetLatestAuditDto latestAudit = repository.findLatestAuditInPeriod(
                 machineCode,
                 period.startDateTime(),
                 period.nextStartDateTime()
@@ -180,7 +183,7 @@ public class FixedAssetService {
         boolean locationMatch = existsInMaster
                 && actualLocationResolved
                 && locationsMatch(master, actualLocation);
-        boolean alreadyAudited = lastAuditedAt != null;
+        boolean alreadyAudited = latestAudit != null;
         boolean requiresConfirmation = !alreadyAudited && existsInMaster && !locationMatch;
         String message;
 
@@ -199,7 +202,9 @@ public class FixedAssetService {
         return new FixedAssetAuditCheckResponse(
                 machineCode,
                 alreadyAudited,
-                lastAuditedAt,
+                latestAudit == null ? null : latestAudit.getUpdatedAt(),
+                latestAudit == null ? null : latestAudit.getUserId(),
+                latestAudit == null ? null : latestAudit.getUserName(),
                 existsInMaster,
                 existsInMaster && master.locationResolved(),
                 existsInMaster && master.mappingValid(),
@@ -242,6 +247,11 @@ public class FixedAssetService {
         );
 
         if (lastAuditedAt != null) {
+            FixedAssetLatestAuditDto latestAudit = repository.findLatestAuditInPeriod(
+                    machineCode,
+                    period.startDateTime(),
+                    period.nextStartDateTime()
+            );
             return new FixedAssetAuditSaveResponse(
                     true,
                     false,
@@ -252,6 +262,8 @@ public class FixedAssetService {
                     machineCode,
                     null,
                     lastAuditedAt,
+                    latestAudit == null ? null : latestAudit.getUserId(),
+                    latestAudit == null ? null : latestAudit.getUserName(),
                     null,
                     null,
                     null,
@@ -280,6 +292,8 @@ public class FixedAssetService {
                             true,
                             true,
                             machineCode,
+                            null,
+                            null,
                             null,
                             null,
                             master.fac(),
@@ -320,6 +334,8 @@ public class FixedAssetService {
                         machineCode,
                         updatedAt,
                         null,
+                        null,
+                        null,
                         master.fac(),
                         master.floor(),
                         master.positionA(),
@@ -356,6 +372,8 @@ public class FixedAssetService {
                     true,
                     true,
                     machineCode,
+                    null,
+                    null,
                     null,
                     null,
                     master.fac(),
@@ -406,6 +424,8 @@ public class FixedAssetService {
                 false,
                 machineCode,
                 updatedAt,
+                null,
+                null,
                 null,
                 unknownMachine ? null : master.fac(),
                 unknownMachine ? null : master.floor(),
