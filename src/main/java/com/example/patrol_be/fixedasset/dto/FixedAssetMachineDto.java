@@ -8,4 +8,5 @@ import lombok.Data;
 public class FixedAssetMachineDto {
     private String machineCode;
     private String faName;
+    private boolean auditedInPeriod;
 }

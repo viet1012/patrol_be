@@ -11,6 +11,7 @@ import com.example.patrol_be.fixedasset.dto.FixedAssetMasterMachineDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAuditDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetScanInfoDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetResolvedLocationDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetZoneProgressDto;
 import com.example.patrol_be.fixedasset.repository.FixedAssetRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,11 +63,19 @@ public class FixedAssetService {
             String positionA,
             String positionAA
     ) {
+        String normalizedFac = requireValue(fac, "Fac");
+        String normalizedFloor = requireValue(floor, "Floor");
+        String normalizedPositionA = requireValue(positionA, "PositionA");
+        String normalizedPositionAA = requireValue(positionAA, "PositionAA");
+        AuditPeriod period = currentAuditPeriod();
+
         return repository.findMachines(
-                requireValue(fac, "Fac"),
-                requireValue(floor, "Floor"),
-                requireValue(positionA, "PositionA"),
-                requireValue(positionAA, "PositionAA")
+                normalizedFac,
+                normalizedFloor,
+                normalizedPositionA,
+                normalizedPositionAA,
+                period.startDateTime(),
+                period.nextStartDateTime()
         );
     }
 
@@ -149,6 +158,16 @@ public class FixedAssetService {
                 auditedMachines,
                 remainingMachines,
                 completionPercent
+        );
+    }
+
+    public List<FixedAssetZoneProgressDto> getZoneProgress(String fac, String floor) {
+        AuditPeriod period = currentAuditPeriod();
+        return repository.findZoneProgress(
+                requireValue(fac, "Fac"),
+                requireValue(floor, "Floor"),
+                period.startDateTime(),
+                period.nextStartDateTime()
         );
     }
 

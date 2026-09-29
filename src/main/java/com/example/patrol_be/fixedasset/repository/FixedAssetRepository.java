@@ -12,6 +12,7 @@ import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMasterMachineDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetResolvedLocationDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAuditDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetZoneProgressDto;
 
 @Repository
 public class FixedAssetRepository {
@@ -92,11 +93,26 @@ public class FixedAssetRepository {
             String fac,
             String floor,
             String positionA,
-            String positionAA
+            String positionAA,
+            LocalDateTime periodStart,
+            LocalDateTime nextPeriodStart
     ) {
+        // Audit filter matches countAuditedMasterMachinesInPeriod / findZoneProgress.
         String sql = """
-                SELECT DISTINCT fa.MachineCode, fa.FAName
+                SELECT DISTINCT
+                    fa.MachineCode,
+                    fa.FAName,
+                    CASE WHEN audited.MachineCode IS NULL THEN 0 ELSE 1 END AS AuditedInPeriod
                 """ + JOIN_CLAUSE + """
+                LEFT JOIN (
+                    SELECT DISTINCT LTRIM(RTRIM(a.MachineCode)) AS MachineCode
+                    FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT a
+                    WHERE a.MachineCode IS NOT NULL
+                        AND LTRIM(RTRIM(a.MachineCode)) <> ''
+                        AND a.UpdatedAt >= ?
+                        AND a.UpdatedAt < ?
+                ) audited
+                    ON audited.MachineCode = LTRIM(RTRIM(fa.MachineCode))
                 WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
                     AND map.Fac = ?
                     AND fa.[Floor] = ?
@@ -111,8 +127,11 @@ public class FixedAssetRepository {
                 sql,
                 (resultSet, rowNum) -> new FixedAssetMachineDto(
                         resultSet.getString("MachineCode"),
-                        resultSet.getString("FAName")
+                        resultSet.getString("FAName"),
+                        resultSet.getInt("AuditedInPeriod") == 1
                 ),
+                Timestamp.valueOf(periodStart),
+                Timestamp.valueOf(nextPeriodStart),
                 fac,
                 floor,
                 positionA,
@@ -343,6 +362,64 @@ public class FixedAssetRepository {
                 Timestamp.valueOf(nextPeriodStart)
         );
         return count == null ? 0 : count;
+    }
+
+    /**
+     * Per-zone progress for one Fac + Floor in a single grouped query.
+     * total: same MASTER population as {@link #countMasterMachines()}, limited
+     * to mapped locations. audited: same audit filter as
+     * {@link #countAuditedMasterMachinesInPeriod(LocalDateTime, LocalDateTime)}.
+     */
+    public List<FixedAssetZoneProgressDto> findZoneProgress(
+            String fac,
+            String floor,
+            LocalDateTime periodStart,
+            LocalDateTime nextPeriodStart
+    ) {
+        String sql = """
+                SELECT
+                    LTRIM(RTRIM(fa.PositionA)) AS PositionA,
+                    LTRIM(RTRIM(fa.PositionAA)) AS PositionAA,
+                    COUNT(DISTINCT LTRIM(RTRIM(fa.MachineCode))) AS Total,
+                    COUNT(DISTINCT audited.MachineCode) AS Audited
+                """ + JOIN_CLAUSE + """
+                LEFT JOIN (
+                    SELECT DISTINCT LTRIM(RTRIM(a.MachineCode)) AS MachineCode
+                    FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT a
+                    WHERE a.MachineCode IS NOT NULL
+                        AND LTRIM(RTRIM(a.MachineCode)) <> ''
+                        AND a.UpdatedAt >= ?
+                        AND a.UpdatedAt < ?
+                ) audited
+                    ON audited.MachineCode = LTRIM(RTRIM(fa.MachineCode))
+                WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
+                    AND map.Fac = ?
+                    AND fa.[Floor] = ?
+                    AND fa.MachineCode IS NOT NULL
+                    AND LTRIM(RTRIM(fa.MachineCode)) <> ''
+                    AND fa.PositionA IS NOT NULL
+                    AND LTRIM(RTRIM(fa.PositionA)) <> ''
+                    AND fa.PositionAA IS NOT NULL
+                    AND LTRIM(RTRIM(fa.PositionAA)) <> ''
+                GROUP BY
+                    LTRIM(RTRIM(fa.PositionA)),
+                    LTRIM(RTRIM(fa.PositionAA))
+                ORDER BY PositionA, PositionAA
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (resultSet, rowNum) -> new FixedAssetZoneProgressDto(
+                        resultSet.getString("PositionA"),
+                        resultSet.getString("PositionAA"),
+                        resultSet.getLong("Total"),
+                        resultSet.getLong("Audited")
+                ),
+                Timestamp.valueOf(periodStart),
+                Timestamp.valueOf(nextPeriodStart),
+                fac,
+                floor
+        );
     }
 
     public boolean existsLocation(
