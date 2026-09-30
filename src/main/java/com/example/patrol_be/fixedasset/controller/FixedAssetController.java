@@ -18,6 +18,7 @@ import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSummaryDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMachineDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetScanInfoDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetZoneLockDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetZoneProgressDto;
 import com.example.patrol_be.fixedasset.service.FixedAssetService;
 
@@ -91,6 +92,11 @@ public class FixedAssetController {
             @RequestParam String floor
     ) {
         return service.getZoneProgress(fac, floor);
+    }
+
+    @GetMapping("/zone-lock")
+    public FixedAssetZoneLockDto getZoneLock(@RequestParam String userId) {
+        return service.getZoneLock(userId);
     }
 
     @GetMapping("/audited-machine-codes")

@@ -12,6 +12,7 @@ import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMasterMachineDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetResolvedLocationDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAuditDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAutoAuditDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetZoneProgressDto;
 
 @Repository
@@ -466,7 +467,8 @@ public class FixedAssetRepository {
             String userId,
             String userName,
             LocalDateTime updatedAt,
-            String note
+            String note,
+            String auditMode
     ) {
         String sql = """
                 INSERT INTO F2Database.dbo.F2_FIXED_ASSET_AUDIT
@@ -477,9 +479,10 @@ public class FixedAssetRepository {
                     UserId,
                     UserName,
                     UpdatedAt,
-                    Note
+                    Note,
+                    AuditMode
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         return jdbcTemplate.update(
@@ -490,7 +493,74 @@ public class FixedAssetRepository {
                 userId,
                 userName,
                 Timestamp.valueOf(updatedAt),
-                note
+                note,
+                auditMode
+        );
+    }
+
+    public FixedAssetLatestAutoAuditDto findLatestAutoAuditInPeriod(
+            String userId,
+            LocalDateTime periodStart,
+            LocalDateTime nextPeriodStart
+    ) {
+        String sql = """
+                SELECT TOP 1
+                    LTRIM(RTRIM(A_Act)) AS PositionA,
+                    LTRIM(RTRIM(AA_Act)) AS PositionAA,
+                    UpdatedAt
+                FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT
+                WHERE UserId IS NOT NULL
+                    AND LTRIM(RTRIM(UserId)) = ?
+                    AND AuditMode = 'AUTO'
+                    AND A_Act IS NOT NULL
+                    AND LTRIM(RTRIM(A_Act)) <> ''
+                    AND AA_Act IS NOT NULL
+                    AND LTRIM(RTRIM(AA_Act)) <> ''
+                    AND UpdatedAt >= ?
+                    AND UpdatedAt < ?
+                ORDER BY UpdatedAt DESC, Id DESC
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (resultSet, rowNum) -> new FixedAssetLatestAutoAuditDto(
+                        resultSet.getString("PositionA"),
+                        resultSet.getString("PositionAA"),
+                        resultSet.getTimestamp("UpdatedAt").toLocalDateTime()
+                ),
+                userId,
+                Timestamp.valueOf(periodStart),
+                Timestamp.valueOf(nextPeriodStart)
+        ).stream().findFirst().orElse(null);
+    }
+
+    public List<FixedAssetResolvedLocationDto> findLocationsByPositionAAndAA(
+            String positionA,
+            String positionAA
+    ) {
+        String sql = """
+                SELECT DISTINCT
+                    LTRIM(RTRIM(map.Fac)) AS Fac,
+                    LTRIM(RTRIM(map.[Floor])) AS Floor,
+                    LTRIM(RTRIM(map.A)) AS PositionA,
+                    LTRIM(RTRIM(map.AA)) AS PositionAA
+                FROM F2Database.dbo.F2_FIXED_ASSET_MAP map
+                WHERE LTRIM(RTRIM(map.Div)) = 'KVH'
+                    AND LTRIM(RTRIM(map.A)) = ?
+                    AND LTRIM(RTRIM(map.AA)) = ?
+                ORDER BY Fac, Floor, PositionA, PositionAA
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (resultSet, rowNum) -> new FixedAssetResolvedLocationDto(
+                        resultSet.getString("Fac"),
+                        resultSet.getString("Floor"),
+                        resultSet.getString("PositionA"),
+                        resultSet.getString("PositionAA")
+                ),
+                positionA,
+                positionAA
         );
     }
 

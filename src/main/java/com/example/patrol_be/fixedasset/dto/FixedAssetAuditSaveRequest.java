@@ -14,4 +14,5 @@ public class FixedAssetAuditSaveRequest {
     private String userName;
     private String note;
     private Boolean confirmLocationMismatch;
+    private String mode;
 }

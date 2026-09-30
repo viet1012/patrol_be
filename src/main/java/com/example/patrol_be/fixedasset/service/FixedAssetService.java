@@ -9,6 +9,8 @@ import com.example.patrol_be.fixedasset.dto.FixedAssetMachineDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMasterMachineDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAuditDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAutoAuditDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetZoneLockDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetScanInfoDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetResolvedLocationDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetZoneProgressDto;
@@ -19,7 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 @Service
 public class FixedAssetService {
@@ -27,6 +31,11 @@ public class FixedAssetService {
     private static final String LOCATION_MISMATCH_NOTE_PREFIX = "LOCATION_MISMATCH";
     private static final String ACTUAL_LOCATION_NOT_MAPPED_NOTE_PREFIX =
             "ACTUAL_LOCATION_NOT_MAPPED";
+    private static final Set<String> AUDIT_MODES = Set.of("AUTO", "MANUAL");
+    private static final String ZONE_LOCK_INCOMPLETE = "INCOMPLETE";
+    private static final String ZONE_LOCK_COMPLETED = "COMPLETED";
+    private static final String ZONE_LOCK_NO_AUTO_AUDIT = "NO_AUTO_AUDIT";
+    private static final String ZONE_LOCK_UNRESOLVED = "UNRESOLVED";
 
     private final FixedAssetRepository repository;
 
@@ -171,6 +180,66 @@ public class FixedAssetService {
         );
     }
 
+    /**
+     * Current Auto zone lock, derived from the user's latest AUTO audit in the
+     * period. Progress comes from findZoneProgress so it always equals
+     * /zone-progress for the same zone.
+     */
+    public FixedAssetZoneLockDto getZoneLock(String userId) {
+        String normalizedUserId = requireValue(userId, "UserId");
+        AuditPeriod period = currentAuditPeriod();
+
+        FixedAssetLatestAutoAuditDto latestAuto = repository.findLatestAutoAuditInPeriod(
+                normalizedUserId,
+                period.startDateTime(),
+                period.nextStartDateTime()
+        );
+        if (latestAuto == null) {
+            return new FixedAssetZoneLockDto(
+                    false, ZONE_LOCK_NO_AUTO_AUDIT, null, null, null, null, null, null, null);
+        }
+
+        List<FixedAssetResolvedLocationDto> locations = repository.findLocationsByPositionAAndAA(
+                latestAuto.getPositionA(),
+                latestAuto.getPositionAA()
+        );
+        // (A, AA) is not unique across Fac/Floor in MAP (e.g. Fac_A 1F/2F):
+        // never guess the floor.
+        if (locations.size() != 1) {
+            return new FixedAssetZoneLockDto(
+                    false, ZONE_LOCK_UNRESOLVED, null, null, null, null, null, null,
+                    latestAuto.getUpdatedAt());
+        }
+
+        FixedAssetResolvedLocationDto location = locations.get(0);
+        FixedAssetZoneProgressDto progress = repository.findZoneProgress(
+                        location.getFac(),
+                        location.getFloor(),
+                        period.startDateTime(),
+                        period.nextStartDateTime()
+                ).stream()
+                .filter(zone -> sameZoneValue(zone.getPositionA(), location.getPositionA())
+                        && sameZoneValue(zone.getPositionAA(), location.getPositionAA()))
+                .findFirst()
+                .orElse(null);
+
+        long total = progress == null ? 0 : progress.getTotal();
+        long audited = progress == null ? 0 : progress.getAudited();
+        boolean locked = total > 0 && audited < total;
+
+        return new FixedAssetZoneLockDto(
+                locked,
+                locked ? ZONE_LOCK_INCOMPLETE : ZONE_LOCK_COMPLETED,
+                location.getFac(),
+                location.getFloor(),
+                location.getPositionA(),
+                location.getPositionAA(),
+                total,
+                audited,
+                latestAuto.getUpdatedAt()
+        );
+    }
+
     @Transactional(readOnly = true)
     public FixedAssetAuditCheckResponse checkAudit(FixedAssetAuditCheckRequest request) {
         if (request == null) {
@@ -257,6 +326,7 @@ public class FixedAssetService {
         String userId = requireValue(request.getUserId(), "UserId");
         String userName = requireValue(request.getUserName(), "UserName");
         String note = request.getNote() == null ? null : request.getNote().trim();
+        String auditMode = normalizeAuditMode(request.getMode());
         AuditPeriod period = currentAuditPeriod();
 
         LocalDateTime lastAuditedAt = repository.findLatestAuditInPeriodForUpdate(
@@ -336,7 +406,8 @@ public class FixedAssetService {
                         userId,
                         userName,
                         updatedAt,
-                        note
+                        note,
+                        auditMode
                 );
 
                 if (inserted != 1) {
@@ -427,7 +498,8 @@ public class FixedAssetService {
                 userId,
                 userName,
                 updatedAt,
-                note
+                note,
+                auditMode
         );
 
         if (inserted != 1) {
@@ -572,6 +644,20 @@ public class FixedAssetService {
                 && sameLocationValue(master.floor(), actual.getFloor())
                 && sameLocationValue(master.positionA(), actual.getPositionA())
                 && sameLocationValue(master.positionAA(), actual.getPositionAA());
+    }
+
+    /** "AUTO" / "MANUAL" (case-insensitive, trimmed); anything else -> null, never rejected. */
+    private String normalizeAuditMode(String mode) {
+        if (mode == null) {
+            return null;
+        }
+        String normalized = mode.trim().toUpperCase(Locale.ROOT);
+        return AUDIT_MODES.contains(normalized) ? normalized : null;
+    }
+
+    /** Case-insensitive like the DB collation (SQL_Latin1_General_CP1_CI_AS). */
+    private boolean sameZoneValue(String first, String second) {
+        return first != null && second != null && first.trim().equalsIgnoreCase(second.trim());
     }
 
     private boolean hasText(String value) {
