@@ -2443,6 +2443,7 @@ public class PatrolReportExportExcelService {
 		}
 
 		String[] headers = {
+				"Fac",
 				"Division",
 
 				"All_TTL",
@@ -2488,22 +2489,22 @@ public class PatrolReportExportExcelService {
 			Cell cell = headerRow.createCell(i);
 			cell.setCellValue(headers[i]);
 
-			if (i >= 1 && i <= 6) {
+			if (i >= 2 && i <= 7) {
 				cell.setCellStyle(styles.headerBlue);
-			} else if (i >= 7 && i <= 12) {
+			} else if (i >= 8 && i <= 13) {
 				cell.setCellStyle(styles.headerGreen);
-			} else if (i >= 13 && i <= 18) {
+			} else if (i >= 14 && i <= 19) {
 				cell.setCellStyle(styles.headerRed);
-			} else if (i >= 19 && i <= 21) {
+			} else if (i >= 20 && i <= 22) {
 				cell.setCellStyle(styles.headerOrange);
-			} else if (i >= 22 && i <= 27) {
+			} else if (i >= 23 && i <= 28) {
 				cell.setCellStyle(styles.headerYellow);
 			} else {
 				cell.setCellStyle(styles.headerDefault);
 			}
 		}
 
-		sheet.createFreezePane(1, 1);
+		sheet.createFreezePane(2, 1);
 
 		sheet.setAutoFilter(
 				new CellRangeAddress(
@@ -2545,6 +2546,13 @@ public class PatrolReportExportExcelService {
 			CellStyle numberStyle = sumRow
 					? styles.sumCell
 					: styles.cell;
+
+			setText(
+					row,
+					column++,
+					dto.getPlant(),
+					labelStyle
+			);
 
 			setText(
 					row,
@@ -2695,15 +2703,16 @@ public class PatrolReportExportExcelService {
 		/*
 		 * Width.
 		 */
-		setColumnWidth(sheet, 0, 20);
+		setColumnWidth(sheet, 0, 12);
+		setColumnWidth(sheet, 1, 20);
 
-		for (int i = 1; i < headers.length; i++) {
+		for (int i = 2; i < headers.length; i++) {
 			setColumnWidth(sheet, i, 14);
 		}
 
-		setColumnWidth(sheet, 19, 16);
 		setColumnWidth(sheet, 20, 16);
-		setColumnWidth(sheet, 21, 14);
+		setColumnWidth(sheet, 21, 16);
+		setColumnWidth(sheet, 22, 14);
 	}
 
 	/*

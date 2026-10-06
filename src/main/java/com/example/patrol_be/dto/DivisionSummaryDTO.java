@@ -7,6 +7,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class DivisionSummaryDTO {
+    private String plant;
     private String division;
 
     private double allTtl;

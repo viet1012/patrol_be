@@ -1,5 +1,6 @@
 package com.example.patrol_be.service;
 
+import com.example.patrol_be.constants.PatrolConstants;
 import com.example.patrol_be.dto.*;
 import com.example.patrol_be.model.PatrolReport;
 import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
@@ -59,7 +60,7 @@ public class PatrolReportService {
 	) {
 //        System.out.println("Group: " + grp);
 		return repo.search(
-						normalize(plant),
+						PatrolConstants.isAllFac(plant) ? null : normalize(plant), // SPC => tất cả nhà máy
 						normalize(division),
 						normalize(area),
 						normalize(machine),
@@ -1012,7 +1013,8 @@ public class PatrolReportService {
 						((Number) r[4]).intValue(), // ii
 						((Number) r[5]).intValue(), // iii
 						((Number) r[6]).intValue(), // iv
-						((Number) r[7]).intValue()  // v
+						((Number) r[7]).intValue(), // v
+						(String) r[8]    // plant
 				))
 				.toList();
 	}
@@ -1026,9 +1028,11 @@ public class PatrolReportService {
 
 		for (Object[] r : rows) {
 			int i = 0;
+			String plant = (String) r[i++];
 			String division = (String) r[i++];
 
 			out.add(new DivisionSummaryDTO(
+					plant,
 					division,
 
 					// All
@@ -1110,6 +1114,7 @@ public class PatrolReportService {
 
 	private DivisionSummaryDTO sumRow(List<DivisionSummaryDTO> rows) {
 		DivisionSummaryDTO s = new DivisionSummaryDTO();
+		s.setPlant("");
 		s.setDivision("SUM");
 
 		for (DivisionSummaryDTO d : rows) {
@@ -1161,6 +1166,7 @@ public class PatrolReportService {
 
 	private DivisionSummaryDTO pctRowFrom(DivisionSummaryDTO sum) {
 		DivisionSummaryDTO p = new DivisionSummaryDTO();
+		p.setPlant("");
 		p.setDivision("%");
 
 		long all = (long) sum.getAllTtl();
@@ -1199,13 +1205,15 @@ public class PatrolReportService {
 
 		var rows = repo.summaryByFacAndPic(fromD, toD, plant, type, lvls);
 
-		Map<String, List<PatrolSummaryRowView>> byFac = rows.stream()
-				.collect(Collectors.groupingBy(PatrolSummaryRowView::getFac, LinkedHashMap::new, Collectors.toList()));
+		// key = [plant, fac] để không gộp các division trùng tên giữa các nhà máy (fac = SPC)
+		Map<List<String>, List<PatrolSummaryRowView>> byFac = rows.stream()
+				.collect(Collectors.groupingBy(r -> Arrays.asList(r.getPlant(), r.getFac()), LinkedHashMap::new, Collectors.toList()));
 
 		List<PatrolFacSummaryDTO> facs = new ArrayList<>();
 
 		for (var e : byFac.entrySet()) {
-			String fac = e.getKey();
+			String facPlant = e.getKey().get(0);
+			String fac = e.getKey().get(1);
 			List<PatrolSummaryRowView> list = e.getValue();
 
 			PatrolSummaryRowView totalRow = list.stream()
@@ -1236,6 +1244,7 @@ public class PatrolReportService {
 			Double ngRate = reAll == 0 ? null : round2(reNg / beforeTtl);
 
 			facs.add(PatrolFacSummaryDTO.builder()
+					.plant(facPlant)
 					.fac(fac)
 					.rows(detailRows)
 					.total(totalDTO)

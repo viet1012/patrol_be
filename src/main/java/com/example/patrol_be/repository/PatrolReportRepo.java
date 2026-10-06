@@ -246,8 +246,11 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			    FROM F2_Patrol_Report
 			
 			    WHERE
-			        LTRIM(RTRIM(plant))
-			            = LTRIM(RTRIM(:plant))
+			        (
+			            :plant = 'SPC'
+			            OR LTRIM(RTRIM(plant))
+			                = LTRIM(RTRIM(:plant))
+			        )
 			
 			      AND
 			        LTRIM(RTRIM(at_status))
@@ -274,6 +277,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			        )
 			
 			    ORDER BY total DESC
+			    OPTION (RECOMPILE)
 			
 			""", nativeQuery = true)
 	List<Object[]> pivotByPicAndRisk(
@@ -299,18 +303,21 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			          SUM(CASE WHEN riskTotal = 'II'  THEN 1 ELSE 0 END) AS [II],
 			          SUM(CASE WHEN riskTotal = 'III' THEN 1 ELSE 0 END) AS [III],
 			          SUM(CASE WHEN riskTotal = 'IV'  THEN 1 ELSE 0 END) AS [IV],
-			          SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS [V]
+			          SUM(CASE WHEN riskTotal = 'V'   THEN 1 ELSE 0 END) AS [V],
+			
+			          -- plant ở cột cuối để giữ nguyên index các cột cũ
+			          CASE WHEN GROUPING(plant) = 1 THEN '' ELSE plant END AS plant
 			    FROM F2_Patrol_Report
 			        WHERE createdAt >= :fromD
 			          AND createdAt <  DATEADD(DAY, 1, :toD)
 			          AND [type] = :type
-			          AND plant = :fac
-			        GROUP BY ROLLUP (grp, division)
-			        -- ❌ bỏ subtotal theo grp, chỉ giữ detail + TOTAL
-			        HAVING NOT (GROUPING(division)=1 AND GROUPING(grp)=0)
+			          AND (:fac = 'SPC' OR plant = :fac)
+			        -- chỉ giữ detail + TOTAL; tách theo plant để SPC không gộp division trùng tên
+			        GROUP BY GROUPING SETS ((plant, grp, division), ())
 			        ORDER BY
 			          CASE WHEN GROUPING(grp)=1 AND GROUPING(division)=1 THEN 1 ELSE 0 END,
-			          grp, division;
+			          plant, grp, division
+			        OPTION (RECOMPILE);
 			
 			""", nativeQuery = true)
 	List<Object[]> summaryRiskRaw(@Param("fromD") LocalDate fromD, @Param("toD") LocalDate toD, @Param("fac") String fac, @Param("type") String type);
@@ -319,6 +326,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 	@Query(value = """
 			    WITH src AS (
 			        SELECT
+			            plant,
 			            division_group = CASE
 			                WHEN division IN ('Fac_A','Outside','Outside_A','Outside_B','Outside_C','WH')
 			                    THEN 'Fac_A & Outside'
@@ -331,9 +339,10 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			        WHERE createdAt >= :fromD
 			          AND createdAt < DATEADD(DAY, 1, :toD)
 			          AND [type] = :type
-			          AND plant = :fac
+			          AND (:fac = 'SPC' OR plant = :fac)
 			    )
 			    SELECT
+			        plant,
 			        division_group AS division,
 			
 			        COUNT(1) AS All_TTL,
@@ -384,8 +393,9 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			        SUM(CASE WHEN st = 'CLOSED' AND riskTotal = 'V'   THEN 1 ELSE 0 END) AS HSE_Done_V
 					
 					    FROM src
-					    GROUP BY division_group
-					    ORDER BY division_group
+					    GROUP BY plant, division_group
+					    ORDER BY plant, division_group
+					    OPTION (RECOMPILE)
 			""", nativeQuery = true)
 	List<Object[]> summaryByDivisionRaw(
 			@Param("fromD") LocalDate fromD,
@@ -397,6 +407,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 	@Query(value = """
 			     ;WITH base AS (
 			         SELECT
+			             plant,
 			             fac = CASE
 			                     WHEN division IN ('Fac_A','Outside','Outside_A','Outside_B','Outside_C','WH')
 			                         THEN 'Fac_A & Outside'
@@ -410,10 +421,11 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			         WHERE createdAt >= :fromD
 			           AND createdAt < DATEADD(day, 1, :toD)
 			           AND [type] = :type
-			           AND plant = :fac
+			           AND (:fac = 'SPC' OR plant = :fac)
 			           AND riskTotal IN (:lvls)
 			     )
 			     SELECT
+			         plant = plant,
 			         fac = fac,
 			         pic = CASE WHEN GROUPING(pic) = 1 THEN 'TOTAL' ELSE pic END,
 			
@@ -474,10 +486,11 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			     WHERE fac IS NOT NULL
 			     GROUP BY GROUPING SETS
 			     (
-			       (fac, pic),
-			       (fac)
+			       (plant, fac, pic),
+			       (plant, fac)
 			     )
-			     ORDER BY fac, GROUPING(pic), beforeTtl DESC
+			     ORDER BY plant, fac, GROUPING(pic), beforeTtl DESC
+			     OPTION (RECOMPILE)
 			""", nativeQuery = true)
 	List<PatrolSummaryRowView> summaryByFacAndPic(
 			@Param("fromD") LocalDate fromD,

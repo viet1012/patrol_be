@@ -9,6 +9,7 @@ import java.util.List;
 @Data
 @Builder
 public class PatrolFacSummaryDTO {
+	private String plant;
 	private String fac;
 
 	// ✅ rows phải là list của từng PIC row

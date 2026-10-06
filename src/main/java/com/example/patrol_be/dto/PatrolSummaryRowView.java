@@ -1,6 +1,7 @@
 package com.example.patrol_be.dto;
 
 public interface PatrolSummaryRowView {
+	String getPlant();
 	String getFac();
 	String getPic();
 

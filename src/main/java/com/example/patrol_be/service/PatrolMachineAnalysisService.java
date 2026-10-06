@@ -1,5 +1,6 @@
 package com.example.patrol_be.service;
 
+import com.example.patrol_be.constants.PatrolConstants;
 import com.example.patrol_be.dto.MachineIssueHistoryDTO;
 import com.example.patrol_be.model.HSEPatrolGroupMaster;
 import com.example.patrol_be.model.PatrolReport;
@@ -322,7 +323,7 @@ public class PatrolMachineAnalysisService {
 			);
 		} else {
 			reports = repo.findAiIssueHistory(
-					blankToNull(fac),
+					PatrolConstants.isAllFac(fac) ? null : blankToNull(fac), // SPC => tất cả nhà máy
 					blankToNull(division),
 					areaKey,
 					null,

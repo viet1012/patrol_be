@@ -18,4 +18,6 @@ public class RiskSummaryDTO {
     private Integer iii;
     private Integer iv;
     private Integer v;
+
+    private String plant;
 }
