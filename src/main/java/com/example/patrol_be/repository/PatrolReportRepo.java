@@ -14,6 +14,7 @@ import java.util.List;
 public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 
 
+	
 	@Query("""
 			SELECT CASE
 			    WHEN COUNT(r) > 0 THEN true
@@ -93,13 +94,27 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			            )
 			            OR (
 			                LTRIM(RTRIM(:pic)) <> ''
+			                AND CHARINDEX(',', :pic) = 0
 			                AND
 			                COALESCE(
 			                    NULLIF(LTRIM(RTRIM(at_assign)), ''),
 			                    NULLIF(LTRIM(RTRIM(pic)), '')
 			                )
 			                COLLATE Vietnamese_CI_AI
-			                LIKE '%' + LTRIM(RTRIM(:pic)) + '%'
+			                = LTRIM(RTRIM(:pic)) COLLATE Vietnamese_CI_AI
+			            )
+			            -- Nhiều PIC dạng A,B -> so sánh bằng từng phần tử (đã trim khoảng trắng quanh dấu phẩy)
+			            OR (
+			                CHARINDEX(',', :pic) > 0
+			                AND CHARINDEX(
+			                    ',' + COALESCE(
+			                        NULLIF(LTRIM(RTRIM(at_assign)), ''),
+			                        NULLIF(LTRIM(RTRIM(pic)), '')
+			                    ) + ',' COLLATE Vietnamese_CI_AI,
+			                    ',' + REPLACE(REPLACE(
+			                        REPLACE(REPLACE(REPLACE(LTRIM(RTRIM(:pic)), ' ', ' ' + CHAR(7)), CHAR(7) + ' ', ''), CHAR(7), ''),
+			                        ', ', ','), ' ,', ',') + ',' COLLATE Vietnamese_CI_AI
+			                ) > 0
 			            )
 			    )
 			      AND (:patrolUser IS NULL OR LTRIM(RTRIM(patrol_user)) LIKE '%' + LTRIM(RTRIM(:patrolUser)) + '%')
@@ -413,7 +428,11 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			                         THEN 'Fac_A & Outside'
 			                     ELSE division
 			                   END,
-			             pic,
+			             pic = COALESCE(
+			                     NULLIF(LTRIM(RTRIM(at_assign)), ''),
+			                     NULLIF(LTRIM(RTRIM(pic)), ''),
+			                     'UNKNOWN'
+			                   ),
 			             lvl = riskTotal,
 			             st  = LTRIM(RTRIM(UPPER(ISNULL(at_status, '')))),
 			             deadlineDate = CAST(ISNULL(due_date_updated_at, dueDate) AS date)
@@ -428,60 +447,55 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			         plant = plant,
 			         fac = fac,
 			         pic = CASE WHEN GROUPING(pic) = 1 THEN 'TOTAL' ELSE pic END,
-			
+
 			         beforeTtl = COUNT(1),
 			         beforeI   = SUM(CASE WHEN lvl IN ('-', 'I') THEN 1 ELSE 0 END),
 			         beforeII  = SUM(CASE WHEN lvl = 'II'  THEN 1 ELSE 0 END),
 			         beforeIII = SUM(CASE WHEN lvl = 'III' THEN 1 ELSE 0 END),
 			         beforeIV  = SUM(CASE WHEN lvl = 'IV'  THEN 1 ELSE 0 END),
 			         beforeV   = SUM(CASE WHEN lvl = 'V'   THEN 1 ELSE 0 END),
-			
-			stillTimeTtl = SUM(CASE
-			    WHEN st IN ('DOING','REDO')
-			     AND deadlineDate > DATEADD(DAY, 3, CAST(GETDATE() AS date))
-			    THEN 1 ELSE 0 END),
-			
-			threeDaysTtl = SUM(CASE
-			    WHEN st IN ('DOING','REDO')
-			     AND deadlineDate >= CAST(GETDATE() AS date)
-			     AND deadlineDate <= DATEADD(DAY, 3, CAST(GETDATE() AS date))
-			    THEN 1 ELSE 0 END),
-			
-			lateTtl = SUM(CASE
-			    WHEN st IN ('DOING','REDO')
-			     AND deadlineDate < CAST(GETDATE() AS date)
-			    THEN 1 ELSE 0 END),
-			
-			         finishedTtl = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') THEN 1 ELSE 0 END),
-			         finishedI   = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
-			         finishedII  = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl = 'II'  THEN 1 ELSE 0 END),
-			         finishedIII = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl = 'III' THEN 1 ELSE 0 END),
-			         finishedIV  = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl = 'IV'  THEN 1 ELSE 0 END),
-			         finishedV   = SUM(CASE WHEN st IN ('PRO_DONE', 'CLOSED') AND lvl = 'V'   THEN 1 ELSE 0 END),
-			
+
+			         stillTimeTtl = SUM(CASE WHEN st IN ('DOING','REDO')
+			                                  AND deadlineDate > DATEADD(DAY, 3, CAST(GETDATE() AS date))
+			                                 THEN 1 ELSE 0 END),
+			         threeDaysTtl = SUM(CASE WHEN st IN ('DOING','REDO')
+			                                  AND deadlineDate >= CAST(GETDATE() AS date)
+			                                  AND deadlineDate <= DATEADD(DAY, 3, CAST(GETDATE() AS date))
+			                                 THEN 1 ELSE 0 END),
+			         lateTtl      = SUM(CASE WHEN st IN ('DOING','REDO')
+			                                  AND deadlineDate < CAST(GETDATE() AS date)
+			                                 THEN 1 ELSE 0 END),
+
+			         finishedTtl = SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') THEN 1 ELSE 0 END),
+			         finishedI   = SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
+			         finishedII  = SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND lvl = 'II'  THEN 1 ELSE 0 END),
+			         finishedIII = SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND lvl = 'III' THEN 1 ELSE 0 END),
+			         finishedIV  = SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND lvl = 'IV'  THEN 1 ELSE 0 END),
+			         finishedV   = SUM(CASE WHEN st IN ('PRO_DONE','CLOSED') AND lvl = 'V'   THEN 1 ELSE 0 END),
+
 			         remainTtl = SUM(CASE WHEN st IN ('DOING','REDO') THEN 1 ELSE 0 END),
 			         remainI   = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
 			         remainII  = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'II'  THEN 1 ELSE 0 END),
 			         remainIII = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'III' THEN 1 ELSE 0 END),
 			         remainIV  = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'IV'  THEN 1 ELSE 0 END),
 			         remainV   = SUM(CASE WHEN st IN ('DOING','REDO') AND lvl = 'V'   THEN 1 ELSE 0 END),
-			
+
 			         recheckAllTtl = SUM(CASE WHEN st IN ('CLOSED','REDO') THEN 1 ELSE 0 END),
-			
+
 			         recheckOkTtl = SUM(CASE WHEN st = 'CLOSED' THEN 1 ELSE 0 END),
 			         recheckOkI   = SUM(CASE WHEN st = 'CLOSED' AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
 			         recheckOkII  = SUM(CASE WHEN st = 'CLOSED' AND lvl = 'II'  THEN 1 ELSE 0 END),
 			         recheckOkIII = SUM(CASE WHEN st = 'CLOSED' AND lvl = 'III' THEN 1 ELSE 0 END),
 			         recheckOkIV  = SUM(CASE WHEN st = 'CLOSED' AND lvl = 'IV'  THEN 1 ELSE 0 END),
 			         recheckOkV   = SUM(CASE WHEN st = 'CLOSED' AND lvl = 'V'   THEN 1 ELSE 0 END),
-			
+
 			         recheckNgTtl = SUM(CASE WHEN st = 'REDO' THEN 1 ELSE 0 END),
 			         recheckNgI   = SUM(CASE WHEN st = 'REDO' AND lvl IN ('-', 'I') THEN 1 ELSE 0 END),
 			         recheckNgII  = SUM(CASE WHEN st = 'REDO' AND lvl = 'II'  THEN 1 ELSE 0 END),
 			         recheckNgIII = SUM(CASE WHEN st = 'REDO' AND lvl = 'III' THEN 1 ELSE 0 END),
 			         recheckNgIV  = SUM(CASE WHEN st = 'REDO' AND lvl = 'IV'  THEN 1 ELSE 0 END),
 			         recheckNgV   = SUM(CASE WHEN st = 'REDO' AND lvl = 'V'   THEN 1 ELSE 0 END)
-			
+
 			     FROM base
 			     WHERE fac IS NOT NULL
 			     GROUP BY GROUPING SETS
@@ -497,6 +511,5 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			@Param("toD") LocalDate toD,
 			@Param("fac") String fac,
 			@Param("type") String type,
-			@Param("lvls") List<String> lvls
-	);
+			@Param("lvls") List<String> lvls);
 }
