@@ -125,4 +125,108 @@ public interface HSEPatrolGroupMasterRepo extends JpaRepository<HSEPatrolGroupMa
         ORDER BY Plant, Grp, Area
         """, nativeQuery = true)
     List<Object[]> findMachineInfoByMacId(@Param("macId") String macId);
+
+    // ============================================================
+    // PIC RESOLVE (dùng bởi PicResolver)
+    // Tham số :plant, :grp, :area, :macId đã được trim + UPPER ở Java.
+    // ============================================================
+
+    /**
+     * m: các dòng master thuộc Plant + Grp, cột đã chuẩn hóa (bỏ NBSP, trim, UPPER).
+     */
+    String PIC_MASTER_CTE = """
+            ;WITH m AS (
+                SELECT
+                    UPPER(LTRIM(RTRIM(REPLACE(Cate,  CHAR(160), ' ')))) AS cate_n,
+                    UPPER(LTRIM(RTRIM(REPLACE(Area,  CHAR(160), ' ')))) AS area_n,
+                    UPPER(LTRIM(RTRIM(REPLACE(MacID, CHAR(160), ' ')))) AS mac_n,
+                    LTRIM(RTRIM(REPLACE(PIC, CHAR(160), ' '))) AS pic_n
+                FROM dbo.HSE_Patrol_Group_Master
+                WHERE UPPER(LTRIM(RTRIM(REPLACE(Plant, CHAR(160), ' ')))) = :plant
+                  AND UPPER(LTRIM(RTRIM(REPLACE(Grp,   CHAR(160), ' ')))) = :grp
+            )
+            """;
+
+    /**
+     * Chọn 1 PIC cố định từ matched(pic_n, is_general):
+     * có dòng chung thì chỉ xét dòng chung, sau đó PIC xuất hiện nhiều nhất, rồi PIC ASC.
+     */
+    String PIC_PICK_ONE = """
+            , candidates AS (
+                SELECT pic_n
+                FROM matched
+                WHERE is_general = 1
+                   OR NOT EXISTS (SELECT 1 FROM matched WHERE is_general = 1)
+            )
+            SELECT TOP (1) pic_n
+            FROM candidates
+            GROUP BY pic_n
+            ORDER BY COUNT(*) DESC, pic_n ASC
+            """;
+
+    // a. MacID
+    @Query(value = PIC_MASTER_CTE + """
+            , matched AS (
+                SELECT pic_n, 0 AS is_general
+                FROM m
+                WHERE mac_n = :macId
+                  AND NULLIF(pic_n, '') IS NOT NULL
+            )
+            """ + PIC_PICK_ONE, nativeQuery = true)
+    String findPicLevelMacId(@Param("plant") String plant,
+                             @Param("grp") String grp,
+                             @Param("macId") String macId);
+
+    // b. Cate (Cate lấy từ dòng master của máy; dòng chung = MacID trống)
+    @Query(value = PIC_MASTER_CTE + """
+            , machine_cate AS (
+                SELECT TOP (1) cate_n
+                FROM m
+                WHERE mac_n = :macId
+                  AND NULLIF(cate_n, '') IS NOT NULL
+                GROUP BY cate_n
+                ORDER BY COUNT(*) DESC, cate_n ASC
+            )
+            , matched AS (
+                SELECT pic_n,
+                       CASE WHEN NULLIF(mac_n, '') IS NULL THEN 1 ELSE 0 END AS is_general
+                FROM m
+                WHERE cate_n = (SELECT cate_n FROM machine_cate)
+                  AND NULLIF(pic_n, '') IS NOT NULL
+            )
+            """ + PIC_PICK_ONE, nativeQuery = true)
+    String findPicLevelCate(@Param("plant") String plant,
+                            @Param("grp") String grp,
+                            @Param("macId") String macId);
+
+    // c. Area (dòng chung = MacID và Cate trống)
+    @Query(value = PIC_MASTER_CTE + """
+            , matched AS (
+                SELECT pic_n,
+                       CASE WHEN NULLIF(mac_n, '') IS NULL
+                             AND NULLIF(cate_n, '') IS NULL
+                            THEN 1 ELSE 0 END AS is_general
+                FROM m
+                WHERE area_n = :area
+                  AND NULLIF(pic_n, '') IS NOT NULL
+            )
+            """ + PIC_PICK_ONE, nativeQuery = true)
+    String findPicLevelArea(@Param("plant") String plant,
+                            @Param("grp") String grp,
+                            @Param("area") String area);
+
+    // d. Grp (dòng chung = MacID, Cate và Area trống)
+    @Query(value = PIC_MASTER_CTE + """
+            , matched AS (
+                SELECT pic_n,
+                       CASE WHEN NULLIF(mac_n, '') IS NULL
+                             AND NULLIF(cate_n, '') IS NULL
+                             AND NULLIF(area_n, '') IS NULL
+                            THEN 1 ELSE 0 END AS is_general
+                FROM m
+                WHERE NULLIF(pic_n, '') IS NOT NULL
+            )
+            """ + PIC_PICK_ONE, nativeQuery = true)
+    String findPicLevelGrp(@Param("plant") String plant,
+                           @Param("grp") String grp);
 }

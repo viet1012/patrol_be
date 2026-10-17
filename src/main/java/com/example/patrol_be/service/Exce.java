@@ -6,7 +6,6 @@ import com.example.patrol_be.dto.InvalidQrException;
 import com.example.patrol_be.dto.QrCheckResponse;
 import com.example.patrol_be.dto.ReportRequest;
 import com.example.patrol_be.model.PatrolReport;
-import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
 import com.example.patrol_be.repository.PatrolReportRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,7 +54,7 @@ public class Exce {
 	private final PatrolReportRepo reportRepo;
 	private final SttService sttService;
 	private final PatrolCommentService patrolCommentService;
-	private final HSEPatrolGroupMasterRepo hsePatrolGroupMasterRepo;
+	private final PicResolver picResolver;
 
 	// ============================================================
 	// QR
@@ -393,39 +392,7 @@ public class Exce {
 			String area,
 			String macId
 	) {
-		String normalizedPlant = normalize(plant);
-		String normalizedGroup = normalize(grp);
-		String normalizedArea = normalize(area);
-		String normalizedMacId = normalize(macId);
-
-		if (isBlank(normalizedPlant) || isBlank(normalizedGroup)) {
-			log.info(
-					"Cannot resolve PIC because plant or group is empty: plant={}, group={}",
-					normalizedPlant,
-					normalizedGroup
-			);
-			return null;
-		}
-
-		String pic = hsePatrolGroupMasterRepo.resolvePic(
-				normalizedPlant,
-				normalizedGroup,
-				normalizedArea,
-				normalizedMacId
-		);
-
-		pic = normalize(pic);
-
-		log.info(
-				"Resolve PIC result: plant={}, group={}, area={}, machine={}, pic={}",
-				normalizedPlant,
-				normalizedGroup,
-				normalizedArea,
-				normalizedMacId,
-				pic
-		);
-
-		return isBlank(pic) ? null : pic;
+		return picResolver.resolve(plant, grp, area, macId);
 	}
 
 

@@ -3,7 +3,6 @@ package com.example.patrol_be.service;
 import com.example.patrol_be.constants.PatrolConstants;
 import com.example.patrol_be.dto.*;
 import com.example.patrol_be.model.PatrolReport;
-import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
 import com.example.patrol_be.repository.PatrolReportRepo;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +28,7 @@ public class PatrolReportService {
 	private final Path imageFolderPath = BASE_DIR.resolve(IMAGE_FOLDER_NAME);
 
 	private final PatrolCommentService patrolCommentService;
-	private final HSEPatrolGroupMasterRepo hsePatrolGroupMasterRepo;
+	private final PicResolver picResolver;
 
 	// ===========================
 	// MAIN FUNCTION
@@ -37,10 +36,6 @@ public class PatrolReportService {
 	private static String norm(String s) {
 		if (s == null) return null;
 		return s.replace('\u00A0', ' ').trim();
-	}
-
-	private static boolean blank(String s) {
-		return s == null || s.trim().isEmpty();
 	}
 
 
@@ -338,67 +333,15 @@ public class PatrolReportService {
 	}
 
 	public String findPicSmart(String plant, String grp, String area, String macId) {
-		plant = norm(plant);
-		grp = norm(grp);
-		area = norm(area);
-		macId = norm(macId);
+		return picResolver.resolve(plant, grp, area, macId);
+	}
 
-		System.out.println("FIND PIC INPUT => plant=[" + plant +
-				"], grp=[" + grp +
-				"], area=[" + area +
-				"], macId=[" + macId + "]");
-
-		String pic;
-
-		// 1. Check d? Plant + Group + Area + MacId
-		if (!blank(plant) && !blank(grp) && !blank(area) && !blank(macId)) {
-			pic = hsePatrolGroupMasterRepo.findPicByPlantGrpAreaMac(
-					plant, grp, area, macId
-			);
-
-			System.out.println("PIC BY AREA + MAC => [" + pic + "]");
-
-			if (!blank(pic)) {
-				return norm(pic);
-			}
-		}
-
-		// 2. Fallback Plant + Group + MacId
-		if (!blank(plant) && !blank(grp) && !blank(macId)) {
-			pic = hsePatrolGroupMasterRepo.findPicByPlantGrpMac(
-					plant, grp, macId
-			);
-
-			System.out.println("PIC BY MAC ONLY => [" + pic + "]");
-
-			if (!blank(pic)) {
-				return norm(pic);
-			}
-		}
-
-		// 3. Fallback Plant + Group + Area
-		if (!blank(plant) && !blank(grp) && !blank(area)) {
-			pic = hsePatrolGroupMasterRepo.findPicByPlantGrpArea(
-					plant, grp, area
-			);
-
-			System.out.println("PIC BY AREA => [" + pic + "]");
-
-			if (!blank(pic)) {
-				return norm(pic);
-			}
-		}
-
-		// 4. Fallback Plant + Group
-		if (!blank(plant) && !blank(grp)) {
-			pic = hsePatrolGroupMasterRepo.findPicByPlantGrp(plant, grp);
-
-			System.out.println("PIC BY GROUP => [" + pic + "]");
-
-			return blank(pic) ? null : norm(pic);
-		}
-
-		return null;
+	// FE gửi field (khác null) và giá trị khác giá trị đang lưu (trim, không phân biệt hoa thường)
+	private static boolean isMetaChanged(String incoming, String current) {
+		if (incoming == null) return false;
+		String a = norm(incoming);
+		String b = current == null ? "" : norm(current);
+		return !a.equalsIgnoreCase(b);
 	}
 
 
@@ -464,6 +407,19 @@ public class PatrolReportService {
 		// =====================================================
 		// 3. UPDATE META FIELDS
 		// =====================================================
+
+		// So sánh trước khi ghi đè meta field, dùng cho bước AUTO FIND PIC
+		String incomingMachine = DTO.getMachine();
+		if (incomingMachine != null && incomingMachine.trim().equalsIgnoreCase("<Null>")) {
+			incomingMachine = "";
+		}
+
+		boolean metaChanged =
+				isMetaChanged(DTO.getPlant(), report.getPlant()) ||
+						isMetaChanged(DTO.getDivision(), report.getDivision()) ||
+						isMetaChanged(DTO.getArea(), report.getArea()) ||
+						isMetaChanged(incomingMachine, report.getMachine());
+
 		if (DTO.getGrp() != null) {
 			report.setGrp(DTO.getGrp().trim());
 		}
@@ -513,36 +469,18 @@ public class PatrolReportService {
 		// =====================================================
 		// 5. AUTO FIND PIC
 		// Chỉ chạy khi UI KHÔNG gửi PIC
-		// và một trong các meta field thay đổi
+		// và giá trị plant/division/area/machine thực sự thay đổi
 		// =====================================================
-		boolean needAutoFindPic =
-				DTO.getPic() == null &&
-						(
-								DTO.getPlant() != null ||
-										DTO.getDivision() != null ||
-										DTO.getArea() != null ||
-										DTO.getMachine() != null
-						);
+		boolean needAutoFindPic = DTO.getPic() == null && metaChanged;
 
 		if (needAutoFindPic) {
 
+			// report đã được cập nhật meta field ở bước 3
 			String foundPic = findPicSmart(
-
-					DTO.getPlant() != null
-							? DTO.getPlant()
-							: report.getPlant(),
-
-					DTO.getDivision() != null
-							? DTO.getDivision()
-							: report.getDivision(),
-
-					DTO.getArea() != null
-							? DTO.getArea()
-							: report.getArea(),
-
-					DTO.getMachine() != null
-							? DTO.getMachine()
-							: report.getMachine()
+					report.getPlant(),
+					report.getDivision(),
+					report.getArea(),
+					report.getMachine()
 			);
 
 			if (foundPic != null && !foundPic.trim().isEmpty()) {
