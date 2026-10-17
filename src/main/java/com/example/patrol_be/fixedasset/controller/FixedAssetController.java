@@ -17,6 +17,7 @@ import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSaveResponse;
 import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSummaryDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMachineDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetQrMismatchDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetScanInfoDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetZoneLockDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetZoneProgressDto;
@@ -102,6 +103,13 @@ public class FixedAssetController {
     @GetMapping("/audited-machine-codes")
     public List<String> getAuditedMachineCodes() {
         return service.getAuditedMachineCodes();
+    }
+
+    @GetMapping("/qr-mismatch")
+    public List<FixedAssetQrMismatchDto> getQrMismatchAudits(
+            @RequestParam(required = false) String fac
+    ) {
+        return service.getQrMismatchAudits(fac);
     }
 
     @PostMapping("/audit-check")

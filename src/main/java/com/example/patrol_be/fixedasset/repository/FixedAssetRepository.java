@@ -1,7 +1,10 @@
 package com.example.patrol_be.fixedasset.repository;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -13,6 +16,7 @@ import com.example.patrol_be.fixedasset.dto.FixedAssetMasterMachineDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetResolvedLocationDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAuditDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAutoAuditDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetQrMismatchDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetZoneProgressDto;
 
 @Repository
@@ -25,6 +29,37 @@ public class FixedAssetRepository {
                 AND fa.PositionA = map.A
                 AND fa.PositionAA = map.AA
             """;
+
+    /**
+     * Latest audit row per machine in the period (UpdatedAt DESC, Id DESC).
+     * Params: periodStart, nextPeriodStart. A machine counts as audited only
+     * when its latest row is not QrMismatch = 1 (see AUDITED_CONDITION).
+     */
+    private static final String LATEST_AUDIT_IN_PERIOD = """
+            (
+                SELECT ranked.MachineCode, ranked.QrMismatch
+                FROM (
+                    SELECT
+                        LTRIM(RTRIM(a.MachineCode)) AS MachineCode,
+                        a.QrMismatch,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY LTRIM(RTRIM(a.MachineCode))
+                            ORDER BY a.UpdatedAt DESC, a.Id DESC
+                        ) AS rn
+                    FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT a
+                    WHERE a.MachineCode IS NOT NULL
+                        AND LTRIM(RTRIM(a.MachineCode)) <> ''
+                        AND a.UpdatedAt >= ?
+                        AND a.UpdatedAt < ?
+                ) ranked
+                WHERE ranked.rn = 1
+            )
+            """;
+
+    private static final String AUDITED_CONDITION =
+            "latest.MachineCode IS NOT NULL AND ISNULL(latest.QrMismatch, 0) = 0";
+    private static final String NEEDS_QR_REPRINT_CONDITION =
+            "latest.MachineCode IS NOT NULL AND ISNULL(latest.QrMismatch, 0) = 1";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -103,17 +138,13 @@ public class FixedAssetRepository {
                 SELECT DISTINCT
                     fa.MachineCode,
                     fa.FAName,
-                    CASE WHEN audited.MachineCode IS NULL THEN 0 ELSE 1 END AS AuditedInPeriod
-                """ + JOIN_CLAUSE + """
-                LEFT JOIN (
-                    SELECT DISTINCT LTRIM(RTRIM(a.MachineCode)) AS MachineCode
-                    FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT a
-                    WHERE a.MachineCode IS NOT NULL
-                        AND LTRIM(RTRIM(a.MachineCode)) <> ''
-                        AND a.UpdatedAt >= ?
-                        AND a.UpdatedAt < ?
-                ) audited
-                    ON audited.MachineCode = LTRIM(RTRIM(fa.MachineCode))
+                """
+                + "    CASE WHEN " + AUDITED_CONDITION + " THEN 1 ELSE 0 END AS AuditedInPeriod,\n"
+                + "    CASE WHEN " + NEEDS_QR_REPRINT_CONDITION + " THEN 1 ELSE 0 END AS NeedsQrReprint\n"
+                + JOIN_CLAUSE
+                + "LEFT JOIN " + LATEST_AUDIT_IN_PERIOD + " latest\n"
+                + """
+                    ON latest.MachineCode = LTRIM(RTRIM(fa.MachineCode))
                 WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
                     AND map.Fac = ?
                     AND fa.[Floor] = ?
@@ -129,7 +160,8 @@ public class FixedAssetRepository {
                 (resultSet, rowNum) -> new FixedAssetMachineDto(
                         resultSet.getString("MachineCode"),
                         resultSet.getString("FAName"),
-                        resultSet.getInt("AuditedInPeriod") == 1
+                        resultSet.getInt("AuditedInPeriod") == 1,
+                        resultSet.getInt("NeedsQrReprint") == 1
                 ),
                 Timestamp.valueOf(periodStart),
                 Timestamp.valueOf(nextPeriodStart),
@@ -276,51 +308,64 @@ public class FixedAssetRepository {
                 SELECT TOP 1
                     UserId,
                     UserName,
-                    UpdatedAt
+                    UpdatedAt,
+                    QrMismatch
                 FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT
                 WHERE MachineCode IS NOT NULL
                     AND LTRIM(RTRIM(MachineCode)) = ?
                     AND UpdatedAt >= ?
                     AND UpdatedAt < ?
-                ORDER BY UpdatedAt DESC, UserId DESC, UserName DESC
+                ORDER BY UpdatedAt DESC, Id DESC
                 """;
 
         return jdbcTemplate.query(
                 sql,
-                (resultSet, rowNum) -> new FixedAssetLatestAuditDto(
-                        resultSet.getString("UserId"),
-                        resultSet.getString("UserName"),
-                        resultSet.getTimestamp("UpdatedAt").toLocalDateTime()
-                ),
+                (resultSet, rowNum) -> mapLatestAudit(resultSet),
                 machineCode,
                 Timestamp.valueOf(periodStart),
                 Timestamp.valueOf(nextPeriodStart)
         ).stream().findFirst().orElse(null);
     }
 
-    public LocalDateTime findLatestAuditInPeriodForUpdate(
+    /**
+     * Same latest row as {@link #findLatestAuditInPeriod}, read under
+     * UPDLOCK/HOLDLOCK so concurrent saves of the same machine serialize.
+     */
+    public FixedAssetLatestAuditDto findLatestAuditInPeriodForUpdate(
             String machineCode,
             LocalDateTime periodStart,
             LocalDateTime nextPeriodStart
     ) {
         String sql = """
-                SELECT MAX(UpdatedAt) AS LastAuditedAt
+                SELECT TOP 1
+                    UserId,
+                    UserName,
+                    UpdatedAt,
+                    QrMismatch
                 FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT WITH (UPDLOCK, HOLDLOCK)
                 WHERE MachineCode IS NOT NULL
                     AND LTRIM(RTRIM(MachineCode)) = ?
                     AND UpdatedAt >= ?
                     AND UpdatedAt < ?
+                ORDER BY UpdatedAt DESC, Id DESC
                 """;
 
-        return jdbcTemplate.queryForObject(
+        return jdbcTemplate.query(
                 sql,
-                (resultSet, rowNum) -> {
-                    Timestamp value = resultSet.getTimestamp("LastAuditedAt");
-                    return value == null ? null : value.toLocalDateTime();
-                },
+                (resultSet, rowNum) -> mapLatestAudit(resultSet),
                 machineCode,
                 Timestamp.valueOf(periodStart),
                 Timestamp.valueOf(nextPeriodStart)
+        ).stream().findFirst().orElse(null);
+    }
+
+    /** needsQrReprint = latest row has QrMismatch = 1 (NULL treated as 0). */
+    private FixedAssetLatestAuditDto mapLatestAudit(ResultSet resultSet) throws SQLException {
+        return new FixedAssetLatestAuditDto(
+                resultSet.getString("UserId"),
+                resultSet.getString("UserName"),
+                resultSet.getTimestamp("UpdatedAt").toLocalDateTime(),
+                resultSet.getBoolean("QrMismatch")
         );
     }
 
@@ -341,18 +386,15 @@ public class FixedAssetRepository {
             LocalDateTime periodStart,
             LocalDateTime nextPeriodStart
     ) {
-        String sql = """
-                SELECT COUNT(DISTINCT LTRIM(RTRIM(a.MachineCode)))
-                FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT a
-                WHERE a.MachineCode IS NOT NULL
-                    AND LTRIM(RTRIM(a.MachineCode)) <> ''
-                    AND a.UpdatedAt >= ?
-                    AND a.UpdatedAt < ?
+        String sql = "SELECT COUNT(DISTINCT latest.MachineCode)\n"
+                + "FROM " + LATEST_AUDIT_IN_PERIOD + " latest\n"
+                + "WHERE " + AUDITED_CONDITION + "\n"
+                + """
                     AND EXISTS (
                         SELECT 1
                         FROM F2Database.dbo.F2_FIXED_ASSET fa
                         WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
-                            AND LTRIM(RTRIM(fa.MachineCode)) = LTRIM(RTRIM(a.MachineCode))
+                            AND LTRIM(RTRIM(fa.MachineCode)) = latest.MachineCode
                     )
                 """;
 
@@ -382,17 +424,13 @@ public class FixedAssetRepository {
                     LTRIM(RTRIM(fa.PositionA)) AS PositionA,
                     LTRIM(RTRIM(fa.PositionAA)) AS PositionAA,
                     COUNT(DISTINCT LTRIM(RTRIM(fa.MachineCode))) AS Total,
-                    COUNT(DISTINCT audited.MachineCode) AS Audited
-                """ + JOIN_CLAUSE + """
-                LEFT JOIN (
-                    SELECT DISTINCT LTRIM(RTRIM(a.MachineCode)) AS MachineCode
-                    FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT a
-                    WHERE a.MachineCode IS NOT NULL
-                        AND LTRIM(RTRIM(a.MachineCode)) <> ''
-                        AND a.UpdatedAt >= ?
-                        AND a.UpdatedAt < ?
-                ) audited
-                    ON audited.MachineCode = LTRIM(RTRIM(fa.MachineCode))
+                """
+                + "    COUNT(DISTINCT CASE WHEN " + AUDITED_CONDITION
+                + " THEN latest.MachineCode END) AS Audited\n"
+                + JOIN_CLAUSE
+                + "LEFT JOIN " + LATEST_AUDIT_IN_PERIOD + " latest\n"
+                + """
+                    ON latest.MachineCode = LTRIM(RTRIM(fa.MachineCode))
                 WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
                     AND map.Fac = ?
                     AND fa.[Floor] = ?
@@ -468,7 +506,11 @@ public class FixedAssetRepository {
             String userName,
             LocalDateTime updatedAt,
             String note,
-            String auditMode
+            String auditMode,
+            String qrFloor,
+            String qrPositionA,
+            String qrPositionAA,
+            boolean qrMismatch
     ) {
         String sql = """
                 INSERT INTO F2Database.dbo.F2_FIXED_ASSET_AUDIT
@@ -480,9 +522,13 @@ public class FixedAssetRepository {
                     UserName,
                     UpdatedAt,
                     Note,
-                    AuditMode
+                    AuditMode,
+                    Floor_Qr,
+                    A_Qr,
+                    AA_Qr,
+                    QrMismatch
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         return jdbcTemplate.update(
@@ -494,7 +540,93 @@ public class FixedAssetRepository {
                 userName,
                 Timestamp.valueOf(updatedAt),
                 note,
-                auditMode
+                auditMode,
+                qrFloor,
+                qrPositionA,
+                qrPositionAA,
+                qrMismatch ? 1 : 0
+        );
+    }
+
+    /**
+     * Machines whose latest audit in the period has QrMismatch = 1 (QR label
+     * needs reprinting).
+     * FAName / Fac come from MASTER (LEFT JOIN MAP, as findMasterMachinesByCode);
+     * the fac filter applies to the MASTER Fac.
+     */
+    public List<FixedAssetQrMismatchDto> findQrMismatchAudits(
+            String fac,
+            LocalDateTime periodStart,
+            LocalDateTime nextPeriodStart
+    ) {
+        boolean filterFac = fac != null && !fac.isBlank();
+        String sql = """
+                SELECT
+                    LTRIM(RTRIM(a.MachineCode)) AS MachineCode,
+                    m.FAName,
+                    a.A_Act,
+                    a.AA_Act,
+                    a.Floor_Qr,
+                    a.A_Qr,
+                    a.AA_Qr,
+                    a.UserName,
+                    a.UpdatedAt
+                FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT a
+                OUTER APPLY (
+                    SELECT TOP 1
+                        fa.FAName,
+                        LTRIM(RTRIM(map.Fac)) AS Fac
+                    FROM F2Database.dbo.F2_FIXED_ASSET fa
+                    LEFT JOIN F2Database.dbo.F2_FIXED_ASSET_MAP map
+                        ON fa.Div = map.Div
+                        AND fa.[Floor] = map.[Floor]
+                        AND fa.PositionA = map.A
+                        AND fa.PositionAA = map.AA
+                    WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
+                        AND LTRIM(RTRIM(fa.MachineCode)) = LTRIM(RTRIM(a.MachineCode))
+                    ORDER BY map.Fac DESC
+                ) m
+                WHERE a.QrMismatch = 1
+                    AND a.MachineCode IS NOT NULL
+                    AND LTRIM(RTRIM(a.MachineCode)) <> ''
+                    AND a.UpdatedAt >= ?
+                    AND a.UpdatedAt < ?
+                    -- only the machine's latest row in the period (rescan with
+                    -- a correct QR clears the reprint flag)
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT b
+                        WHERE LTRIM(RTRIM(b.MachineCode)) = LTRIM(RTRIM(a.MachineCode))
+                            AND b.UpdatedAt < ?
+                            AND (b.UpdatedAt > a.UpdatedAt
+                                OR (b.UpdatedAt = a.UpdatedAt AND b.Id > a.Id))
+                    )
+                """ + (filterFac ? "    AND m.Fac = ?\n" : "") + """
+                ORDER BY a.UpdatedAt DESC, a.Id DESC
+                """;
+
+        List<Object> params = new ArrayList<>();
+        params.add(Timestamp.valueOf(periodStart));
+        params.add(Timestamp.valueOf(nextPeriodStart));
+        params.add(Timestamp.valueOf(nextPeriodStart));
+        if (filterFac) {
+            params.add(fac.trim());
+        }
+
+        return jdbcTemplate.query(
+                sql,
+                (resultSet, rowNum) -> new FixedAssetQrMismatchDto(
+                        resultSet.getString("MachineCode"),
+                        resultSet.getString("FAName"),
+                        resultSet.getString("A_Act"),
+                        resultSet.getString("AA_Act"),
+                        resultSet.getString("Floor_Qr"),
+                        resultSet.getString("A_Qr"),
+                        resultSet.getString("AA_Qr"),
+                        resultSet.getString("UserName"),
+                        resultSet.getTimestamp("UpdatedAt").toLocalDateTime()
+                ),
+                params.toArray()
         );
     }
 
@@ -565,13 +697,25 @@ public class FixedAssetRepository {
     }
 
     public List<String> findAuditedMachineCodes() {
+        // No period filter (unchanged); a machine whose latest row overall is
+        // QrMismatch = 1 is not counted as audited.
         String sql = """
-                SELECT DISTINCT
-                    LTRIM(RTRIM(MachineCode)) AS MachineCode
-                FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT
-                WHERE MachineCode IS NOT NULL
-                    AND LTRIM(RTRIM(MachineCode)) <> ''
-                ORDER BY MachineCode
+                SELECT ranked.MachineCode
+                FROM (
+                    SELECT
+                        LTRIM(RTRIM(MachineCode)) AS MachineCode,
+                        QrMismatch,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY LTRIM(RTRIM(MachineCode))
+                            ORDER BY UpdatedAt DESC, Id DESC
+                        ) AS rn
+                    FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT
+                    WHERE MachineCode IS NOT NULL
+                        AND LTRIM(RTRIM(MachineCode)) <> ''
+                ) ranked
+                WHERE ranked.rn = 1
+                    AND ISNULL(ranked.QrMismatch, 0) = 0
+                ORDER BY ranked.MachineCode
                 """;
 
         return jdbcTemplate.queryForList(sql, String.class);

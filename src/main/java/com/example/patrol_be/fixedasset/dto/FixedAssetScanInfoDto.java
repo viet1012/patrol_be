@@ -22,7 +22,10 @@ public class FixedAssetScanInfoDto {
     private String positionA;
     private String positionAA;
     private String faName;
+    /** false when the latest audit row has QrMismatch = 1. */
     private boolean auditedInCurrentPeriod;
+    /** Latest audit row in the period has QrMismatch = 1. */
+    private boolean needsQrReprint;
     private LocalDateTime lastAuditedAt;
     private String lastAuditedUserId;
     private String lastAuditedUserName;

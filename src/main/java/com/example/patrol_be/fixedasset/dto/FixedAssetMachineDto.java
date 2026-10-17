@@ -9,4 +9,6 @@ public class FixedAssetMachineDto {
     private String machineCode;
     private String faName;
     private boolean auditedInPeriod;
+    /** Latest audit row in the period has QrMismatch = 1. */
+    private boolean needsQrReprint;
 }

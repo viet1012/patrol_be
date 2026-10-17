@@ -10,6 +10,7 @@ import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetMasterMachineDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAuditDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAutoAuditDto;
+import com.example.patrol_be.fixedasset.dto.FixedAssetQrMismatchDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetZoneLockDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetScanInfoDto;
 import com.example.patrol_be.fixedasset.dto.FixedAssetResolvedLocationDto;
@@ -139,7 +140,8 @@ public class FixedAssetService {
                 master == null ? null : master.positionA(),
                 master == null ? null : master.positionAA(),
                 master == null ? null : master.faName(),
-                latestAudit != null,
+                isAudited(latestAudit),
+                latestAudit != null && latestAudit.isNeedsQrReprint(),
                 latestAudit == null ? null : latestAudit.getUpdatedAt(),
                 latestAudit == null ? null : latestAudit.getUserId(),
                 latestAudit == null ? null : latestAudit.getUserName(),
@@ -225,11 +227,13 @@ public class FixedAssetService {
 
         long total = progress == null ? 0 : progress.getTotal();
         long audited = progress == null ? 0 : progress.getAudited();
-        boolean locked = total > 0 && audited < total;
+        boolean incomplete = total > 0 && audited < total;
 
+        // Auto zone lock disabled: Auto audit is allowed in any zone, so
+        // locked is always false. Progress fields are kept for display only.
         return new FixedAssetZoneLockDto(
-                locked,
-                locked ? ZONE_LOCK_INCOMPLETE : ZONE_LOCK_COMPLETED,
+                false,
+                incomplete ? ZONE_LOCK_INCOMPLETE : ZONE_LOCK_COMPLETED,
                 location.getFac(),
                 location.getFloor(),
                 location.getPositionA(),
@@ -271,7 +275,7 @@ public class FixedAssetService {
         boolean locationMatch = existsInMaster
                 && actualLocationResolved
                 && locationsMatch(master, actualLocation);
-        boolean alreadyAudited = latestAudit != null;
+        boolean alreadyAudited = isAudited(latestAudit);
         boolean requiresConfirmation = !alreadyAudited && existsInMaster && !locationMatch;
         String message;
 
@@ -327,20 +331,22 @@ public class FixedAssetService {
         String userName = requireValue(request.getUserName(), "UserName");
         String note = request.getNote() == null ? null : request.getNote().trim();
         String auditMode = normalizeAuditMode(request.getMode());
+        // QR label location (Manual mode); stored as sent, null -> not mismatched.
+        String qrFloor = trimToNull(request.getQrFloor());
+        String qrPositionA = trimToNull(request.getQrPositionA());
+        String qrPositionAA = trimToNull(request.getQrPositionAA());
+        boolean qrMismatch = Boolean.TRUE.equals(request.getQrLocationMismatch());
         AuditPeriod period = currentAuditPeriod();
 
-        LocalDateTime lastAuditedAt = repository.findLatestAuditInPeriodForUpdate(
+        // Locked read of the latest row; a latest row with QrMismatch = 1 does
+        // not count as audited, so the machine can be rescanned and saved.
+        FixedAssetLatestAuditDto latestAudit = repository.findLatestAuditInPeriodForUpdate(
                 machineCode,
                 period.startDateTime(),
                 period.nextStartDateTime()
         );
 
-        if (lastAuditedAt != null) {
-            FixedAssetLatestAuditDto latestAudit = repository.findLatestAuditInPeriod(
-                    machineCode,
-                    period.startDateTime(),
-                    period.nextStartDateTime()
-            );
+        if (isAudited(latestAudit)) {
             return new FixedAssetAuditSaveResponse(
                     true,
                     false,
@@ -350,9 +356,9 @@ public class FixedAssetService {
                     false,
                     machineCode,
                     null,
-                    lastAuditedAt,
-                    latestAudit == null ? null : latestAudit.getUserId(),
-                    latestAudit == null ? null : latestAudit.getUserName(),
+                    latestAudit.getUpdatedAt(),
+                    latestAudit.getUserId(),
+                    latestAudit.getUserName(),
                     null,
                     null,
                     null,
@@ -407,7 +413,11 @@ public class FixedAssetService {
                         userName,
                         updatedAt,
                         note,
-                        auditMode
+                        auditMode,
+                        qrFloor,
+                        qrPositionA,
+                        qrPositionAA,
+                        qrMismatch
                 );
 
                 if (inserted != 1) {
@@ -499,7 +509,11 @@ public class FixedAssetService {
                 userName,
                 updatedAt,
                 note,
-                auditMode
+                auditMode,
+                qrFloor,
+                qrPositionA,
+                qrPositionAA,
+                qrMismatch
         );
 
         if (inserted != 1) {
@@ -534,6 +548,24 @@ public class FixedAssetService {
 
     public List<String> getAuditedMachineCodes() {
         return repository.findAuditedMachineCodes();
+    }
+
+    public List<FixedAssetQrMismatchDto> getQrMismatchAudits(String fac) {
+        AuditPeriod period = currentAuditPeriod();
+        return repository.findQrMismatchAudits(
+                trimToNull(fac),
+                period.startDateTime(),
+                period.nextStartDateTime()
+        );
+    }
+
+    /** Audited = latest row in the period exists and is not QrMismatch = 1. */
+    private boolean isAudited(FixedAssetLatestAuditDto latestAudit) {
+        return latestAudit != null && !latestAudit.isNeedsQrReprint();
+    }
+
+    private String trimToNull(String value) {
+        return hasText(value) ? value.trim() : null;
     }
 
     private String requireValue(String value, String fieldName) {

@@ -15,4 +15,9 @@ public class FixedAssetAuditSaveRequest {
     private String note;
     private Boolean confirmLocationMismatch;
     private String mode;
+    // Optional (Manual mode): location printed on the QR label.
+    private String qrFloor;
+    private String qrPositionA;
+    private String qrPositionAA;
+    private Boolean qrLocationMismatch;
 }
