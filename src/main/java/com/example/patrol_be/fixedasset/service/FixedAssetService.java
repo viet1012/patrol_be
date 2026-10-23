@@ -294,6 +294,7 @@ public class FixedAssetService {
         return new FixedAssetAuditCheckResponse(
                 machineCode,
                 alreadyAudited,
+                latestAudit != null && latestAudit.isNeedsQrReprint(),
                 latestAudit == null ? null : latestAudit.getUpdatedAt(),
                 latestAudit == null ? null : latestAudit.getUserId(),
                 latestAudit == null ? null : latestAudit.getUserName(),
@@ -335,11 +336,12 @@ public class FixedAssetService {
         String qrFloor = trimToNull(request.getQrFloor());
         String qrPositionA = trimToNull(request.getQrPositionA());
         String qrPositionAA = trimToNull(request.getQrPositionAA());
-        boolean qrMismatch = Boolean.TRUE.equals(request.getQrLocationMismatch());
+        boolean qrMismatch = Boolean.TRUE.equals(request.getQrLocationMismatch())
+                || Boolean.TRUE.equals(request.getNeedsQrReprint());
         AuditPeriod period = currentAuditPeriod();
 
-        // Locked read of the latest row; a latest row with QrMismatch = 1 does
-        // not count as audited, so the machine can be rescanned and saved.
+        // Locked read of the latest row; any row in the period (QrMismatch or
+        // not) means audited, so at most one audit row per machine per period.
         FixedAssetLatestAuditDto latestAudit = repository.findLatestAuditInPeriodForUpdate(
                 machineCode,
                 period.startDateTime(),
@@ -347,10 +349,62 @@ public class FixedAssetService {
         );
 
         if (isAudited(latestAudit)) {
+            // Rescan of a flagged machine with a matching QR: clear the flag on
+            // the existing row (still under the UPDLOCK above), no new row.
+            if (!qrMismatch && latestAudit.isNeedsQrReprint()) {
+                int updated = repository.clearAuditQrReprint(
+                        latestAudit.getId(),
+                        positionA,
+                        positionAA
+                );
+                if (updated != 1) {
+                    throw new IllegalStateException("Fixed Asset QR reprint flag was not cleared");
+                }
+
+                return new FixedAssetAuditSaveResponse(
+                        true,
+                        false,
+                        true,
+                        false,
+                        false,
+                        false,
+                        false,
+                        machineCode,
+                        null,
+                        latestAudit.getUpdatedAt(),
+                        latestAudit.getUserId(),
+                        latestAudit.getUserName(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        fac,
+                        floor,
+                        positionA,
+                        positionAA,
+                        "QR khớp vị trí, đã gỡ đánh dấu in lại QR."
+                );
+            }
+
+            // QR mismatch on an already audited machine: flag the existing row
+            // for reprint instead of inserting a duplicate.
+            if (qrMismatch) {
+                int updated = repository.markAuditQrReprint(
+                        latestAudit.getId(),
+                        qrFloor,
+                        qrPositionA,
+                        qrPositionAA
+                );
+                if (updated != 1) {
+                    throw new IllegalStateException("Fixed Asset QR reprint flag was not saved");
+                }
+            }
+
             return new FixedAssetAuditSaveResponse(
                     true,
                     false,
                     true,
+                    qrMismatch,
                     false,
                     false,
                     false,
@@ -367,7 +421,9 @@ public class FixedAssetService {
                     floor,
                     positionA,
                     positionAA,
-                    "Machine already audited in current period."
+                    qrMismatch
+                            ? "Machine already audited in current period. Marked for QR reprint."
+                            : "Machine already audited in current period."
             );
         }
 
@@ -380,6 +436,7 @@ public class FixedAssetService {
             if (resolvedActual == null) {
                 if (!Boolean.TRUE.equals(request.getConfirmLocationMismatch())) {
                     return new FixedAssetAuditSaveResponse(
+                            false,
                             false,
                             false,
                             false,
@@ -428,6 +485,7 @@ public class FixedAssetService {
                         true,
                         true,
                         false,
+                        qrMismatch,
                         false,
                         true,
                         false,
@@ -466,6 +524,7 @@ public class FixedAssetService {
         if (locationMismatch && !Boolean.TRUE.equals(request.getConfirmLocationMismatch())) {
             return new FixedAssetAuditSaveResponse(
                     true,
+                    false,
                     false,
                     false,
                     false,
@@ -524,6 +583,7 @@ public class FixedAssetService {
                 true,
                 true,
                 false,
+                qrMismatch,
                 unknownMachine,
                 locationMismatch,
                 false,
@@ -559,9 +619,9 @@ public class FixedAssetService {
         );
     }
 
-    /** Audited = latest row in the period exists and is not QrMismatch = 1. */
+    /** Audited = any row in the period; QrMismatch = 1 is only a QR label status. */
     private boolean isAudited(FixedAssetLatestAuditDto latestAudit) {
-        return latestAudit != null && !latestAudit.isNeedsQrReprint();
+        return latestAudit != null;
     }
 
     private String trimToNull(String value) {

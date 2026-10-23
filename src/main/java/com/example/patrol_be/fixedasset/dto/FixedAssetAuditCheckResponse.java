@@ -10,6 +10,8 @@ import java.time.LocalDateTime;
 public class FixedAssetAuditCheckResponse {
     private String machineCode;
     private boolean alreadyAudited;
+    /** Latest audit row in the period has QrMismatch = 1. */
+    private boolean needsQrReprint;
     private LocalDateTime lastAuditedAt;
     private String lastAuditedUserId;
     private String lastAuditedUserName;

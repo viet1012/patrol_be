@@ -32,8 +32,8 @@ public class FixedAssetRepository {
 
     /**
      * Latest audit row per machine in the period (UpdatedAt DESC, Id DESC).
-     * Params: periodStart, nextPeriodStart. A machine counts as audited only
-     * when its latest row is not QrMismatch = 1 (see AUDITED_CONDITION).
+     * Params: periodStart, nextPeriodStart. Any row in the period counts as
+     * audited; QrMismatch only drives needsQrReprint (label status).
      */
     private static final String LATEST_AUDIT_IN_PERIOD = """
             (
@@ -57,7 +57,7 @@ public class FixedAssetRepository {
             """;
 
     private static final String AUDITED_CONDITION =
-            "latest.MachineCode IS NOT NULL AND ISNULL(latest.QrMismatch, 0) = 0";
+            "latest.MachineCode IS NOT NULL";
     private static final String NEEDS_QR_REPRINT_CONDITION =
             "latest.MachineCode IS NOT NULL AND ISNULL(latest.QrMismatch, 0) = 1";
 
@@ -306,6 +306,7 @@ public class FixedAssetRepository {
     ) {
         String sql = """
                 SELECT TOP 1
+                    Id,
                     UserId,
                     UserName,
                     UpdatedAt,
@@ -338,6 +339,7 @@ public class FixedAssetRepository {
     ) {
         String sql = """
                 SELECT TOP 1
+                    Id,
                     UserId,
                     UserName,
                     UpdatedAt,
@@ -362,6 +364,7 @@ public class FixedAssetRepository {
     /** needsQrReprint = latest row has QrMismatch = 1 (NULL treated as 0). */
     private FixedAssetLatestAuditDto mapLatestAudit(ResultSet resultSet) throws SQLException {
         return new FixedAssetLatestAuditDto(
+                resultSet.getLong("Id"),
                 resultSet.getString("UserId"),
                 resultSet.getString("UserName"),
                 resultSet.getTimestamp("UpdatedAt").toLocalDateTime(),
@@ -549,6 +552,52 @@ public class FixedAssetRepository {
     }
 
     /**
+     * Flags an existing audit row for QR reprint (no new row). QR location is
+     * overwritten only when sent; audit user / time are kept as audited.
+     */
+    public int markAuditQrReprint(
+            long id,
+            String qrFloor,
+            String qrPositionA,
+            String qrPositionAA
+    ) {
+        String sql = """
+                UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
+                SET QrMismatch = 1,
+                    Floor_Qr = COALESCE(?, Floor_Qr),
+                    A_Qr = COALESCE(?, A_Qr),
+                    AA_Qr = COALESCE(?, AA_Qr)
+                WHERE Id = ?
+                """;
+
+        return jdbcTemplate.update(sql, qrFloor, qrPositionA, qrPositionAA, id);
+    }
+
+    /**
+     * Clears the QR reprint flag of an existing audit row (QR now matches) and
+     * moves its ACTUAL location to the selected one. The table has no actual
+     * Floor / Fac column, only A_Act / AA_Act. Audit user / time are kept.
+     */
+    public int clearAuditQrReprint(
+            long id,
+            String positionA,
+            String positionAA
+    ) {
+        String sql = """
+                UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
+                SET QrMismatch = 0,
+                    Floor_Qr = NULL,
+                    A_Qr = NULL,
+                    AA_Qr = NULL,
+                    A_Act = ?,
+                    AA_Act = ?
+                WHERE Id = ?
+                """;
+
+        return jdbcTemplate.update(sql, positionA, positionAA, id);
+    }
+
+    /**
      * Machines whose latest audit in the period has QrMismatch = 1 (QR label
      * needs reprinting).
      * FAName / Fac come from MASTER (LEFT JOIN MAP, as findMasterMachinesByCode);
@@ -591,8 +640,8 @@ public class FixedAssetRepository {
                     AND LTRIM(RTRIM(a.MachineCode)) <> ''
                     AND a.UpdatedAt >= ?
                     AND a.UpdatedAt < ?
-                    -- only the machine's latest row in the period (rescan with
-                    -- a correct QR clears the reprint flag)
+                    -- only the machine's latest row in the period (legacy data
+                    -- may hold several rows per machine)
                     AND NOT EXISTS (
                         SELECT 1
                         FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT b
@@ -697,25 +746,15 @@ public class FixedAssetRepository {
     }
 
     public List<String> findAuditedMachineCodes() {
-        // No period filter (unchanged); a machine whose latest row overall is
-        // QrMismatch = 1 is not counted as audited.
+        // No period filter (unchanged since the first version); QrMismatch rows
+        // count as audited.
         String sql = """
-                SELECT ranked.MachineCode
-                FROM (
-                    SELECT
-                        LTRIM(RTRIM(MachineCode)) AS MachineCode,
-                        QrMismatch,
-                        ROW_NUMBER() OVER (
-                            PARTITION BY LTRIM(RTRIM(MachineCode))
-                            ORDER BY UpdatedAt DESC, Id DESC
-                        ) AS rn
-                    FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT
-                    WHERE MachineCode IS NOT NULL
-                        AND LTRIM(RTRIM(MachineCode)) <> ''
-                ) ranked
-                WHERE ranked.rn = 1
-                    AND ISNULL(ranked.QrMismatch, 0) = 0
-                ORDER BY ranked.MachineCode
+                SELECT DISTINCT
+                    LTRIM(RTRIM(MachineCode)) AS MachineCode
+                FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT
+                WHERE MachineCode IS NOT NULL
+                    AND LTRIM(RTRIM(MachineCode)) <> ''
+                ORDER BY MachineCode
                 """;
 
         return jdbcTemplate.queryForList(sql, String.class);

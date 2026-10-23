@@ -11,6 +11,8 @@ public class FixedAssetAuditSaveResponse {
     private boolean success;
     private boolean saved;
     private boolean alreadyAudited;
+    /** Saved / existing row has QrMismatch = 1 (QR label must be reprinted). */
+    private boolean needsQrReprint;
     private boolean unknownMachine;
     private boolean locationMismatch;
     private boolean requiresConfirmation;

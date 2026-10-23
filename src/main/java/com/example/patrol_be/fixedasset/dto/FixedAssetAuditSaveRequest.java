@@ -20,4 +20,6 @@ public class FixedAssetAuditSaveRequest {
     private String qrPositionA;
     private String qrPositionAA;
     private Boolean qrLocationMismatch;
+    // Alias of qrLocationMismatch ("Vẫn lưu (đánh dấu in lại QR)").
+    private Boolean needsQrReprint;
 }
