@@ -56,10 +56,8 @@ public class FixedAssetRepository {
             )
             """;
 
-    private static final String AUDITED_CONDITION =
-            "latest.MachineCode IS NOT NULL";
-    private static final String NEEDS_QR_REPRINT_CONDITION =
-            "latest.MachineCode IS NOT NULL AND ISNULL(latest.QrMismatch, 0) = 1";
+    private static final String AUDITED_CONDITION = "latest.MachineCode IS NOT NULL";
+    private static final String NEEDS_QR_REPRINT_CONDITION = "latest.MachineCode IS NOT NULL AND ISNULL(latest.QrMismatch, 0) = 1";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -131,8 +129,7 @@ public class FixedAssetRepository {
             String positionA,
             String positionAA,
             LocalDateTime periodStart,
-            LocalDateTime nextPeriodStart
-    ) {
+            LocalDateTime nextPeriodStart) {
         // Audit filter matches countAuditedMasterMachinesInPeriod / findZoneProgress.
         String sql = """
                 SELECT DISTINCT
@@ -144,16 +141,16 @@ public class FixedAssetRepository {
                 + JOIN_CLAUSE
                 + "LEFT JOIN " + LATEST_AUDIT_IN_PERIOD + " latest\n"
                 + """
-                    ON latest.MachineCode = LTRIM(RTRIM(fa.MachineCode))
-                WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
-                    AND map.Fac = ?
-                    AND fa.[Floor] = ?
-                    AND fa.PositionA = ?
-                    AND fa.PositionAA = ?
-                    AND fa.MachineCode IS NOT NULL
-                    AND LTRIM(RTRIM(fa.MachineCode)) <> ''
-                ORDER BY fa.MachineCode, fa.FAName
-                """;
+                            ON latest.MachineCode = LTRIM(RTRIM(fa.MachineCode))
+                        WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
+                            AND map.Fac = ?
+                            AND fa.[Floor] = ?
+                            AND fa.PositionA = ?
+                            AND fa.PositionAA = ?
+                            AND fa.MachineCode IS NOT NULL
+                            AND LTRIM(RTRIM(fa.MachineCode)) <> ''
+                        ORDER BY fa.MachineCode, fa.FAName
+                        """;
 
         return jdbcTemplate.query(
                 sql,
@@ -161,15 +158,13 @@ public class FixedAssetRepository {
                         resultSet.getString("MachineCode"),
                         resultSet.getString("FAName"),
                         resultSet.getInt("AuditedInPeriod") == 1,
-                        resultSet.getInt("NeedsQrReprint") == 1
-                ),
+                        resultSet.getInt("NeedsQrReprint") == 1),
                 Timestamp.valueOf(periodStart),
                 Timestamp.valueOf(nextPeriodStart),
                 fac,
                 floor,
                 positionA,
-                positionAA
-        );
+                positionAA);
     }
 
     /**
@@ -215,10 +210,8 @@ public class FixedAssetRepository {
                         resultSet.getString("Floor"),
                         resultSet.getString("PositionA"),
                         resultSet.getString("PositionAA"),
-                        resultSet.getString("FAName")
-                ),
-                machineCode
-        );
+                        resultSet.getString("FAName")),
+                machineCode);
     }
 
     /**
@@ -228,8 +221,7 @@ public class FixedAssetRepository {
      */
     public List<FixedAssetMachineLocationDto> findMachineLocationsByCode(
             String div,
-            String machineCode
-    ) {
+            String machineCode) {
         String sql = """
                 SELECT
                     map.Fac AS Fac,
@@ -262,17 +254,14 @@ public class FixedAssetRepository {
                         resultSet.getString("PositionA"),
                         resultSet.getString("PositionAA"),
                         resultSet.getString("MachineCode"),
-                        resultSet.getString("FAName")
-                ),
+                        resultSet.getString("FAName")),
                 div,
-                machineCode
-        );
+                machineCode);
     }
 
     public List<FixedAssetResolvedLocationDto> findLocationsByFloorAndPositionAA(
             String floor,
-            String positionAA
-    ) {
+            String positionAA) {
         String sql = """
                 SELECT DISTINCT
                     LTRIM(RTRIM(map.Fac)) AS Fac,
@@ -292,18 +281,15 @@ public class FixedAssetRepository {
                         resultSet.getString("Fac"),
                         resultSet.getString("Floor"),
                         resultSet.getString("PositionA"),
-                        resultSet.getString("PositionAA")
-                ),
+                        resultSet.getString("PositionAA")),
                 floor,
-                positionAA
-        );
+                positionAA);
     }
 
     public FixedAssetLatestAuditDto findLatestAuditInPeriod(
             String machineCode,
             LocalDateTime periodStart,
-            LocalDateTime nextPeriodStart
-    ) {
+            LocalDateTime nextPeriodStart) {
         String sql = """
                 SELECT TOP 1
                     Id,
@@ -324,8 +310,7 @@ public class FixedAssetRepository {
                 (resultSet, rowNum) -> mapLatestAudit(resultSet),
                 machineCode,
                 Timestamp.valueOf(periodStart),
-                Timestamp.valueOf(nextPeriodStart)
-        ).stream().findFirst().orElse(null);
+                Timestamp.valueOf(nextPeriodStart)).stream().findFirst().orElse(null);
     }
 
     /**
@@ -335,8 +320,7 @@ public class FixedAssetRepository {
     public FixedAssetLatestAuditDto findLatestAuditInPeriodForUpdate(
             String machineCode,
             LocalDateTime periodStart,
-            LocalDateTime nextPeriodStart
-    ) {
+            LocalDateTime nextPeriodStart) {
         String sql = """
                 SELECT TOP 1
                     Id,
@@ -357,8 +341,7 @@ public class FixedAssetRepository {
                 (resultSet, rowNum) -> mapLatestAudit(resultSet),
                 machineCode,
                 Timestamp.valueOf(periodStart),
-                Timestamp.valueOf(nextPeriodStart)
-        ).stream().findFirst().orElse(null);
+                Timestamp.valueOf(nextPeriodStart)).stream().findFirst().orElse(null);
     }
 
     /** needsQrReprint = latest row has QrMismatch = 1 (NULL treated as 0). */
@@ -368,8 +351,7 @@ public class FixedAssetRepository {
                 resultSet.getString("UserId"),
                 resultSet.getString("UserName"),
                 resultSet.getTimestamp("UpdatedAt").toLocalDateTime(),
-                resultSet.getBoolean("QrMismatch")
-        );
+                resultSet.getBoolean("QrMismatch"));
     }
 
     public long countMasterMachines() {
@@ -387,26 +369,24 @@ public class FixedAssetRepository {
 
     public long countAuditedMasterMachinesInPeriod(
             LocalDateTime periodStart,
-            LocalDateTime nextPeriodStart
-    ) {
+            LocalDateTime nextPeriodStart) {
         String sql = "SELECT COUNT(DISTINCT latest.MachineCode)\n"
                 + "FROM " + LATEST_AUDIT_IN_PERIOD + " latest\n"
                 + "WHERE " + AUDITED_CONDITION + "\n"
                 + """
-                    AND EXISTS (
-                        SELECT 1
-                        FROM F2Database.dbo.F2_FIXED_ASSET fa
-                        WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
-                            AND LTRIM(RTRIM(fa.MachineCode)) = latest.MachineCode
-                    )
-                """;
+                            AND EXISTS (
+                                SELECT 1
+                                FROM F2Database.dbo.F2_FIXED_ASSET fa
+                                WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
+                                    AND LTRIM(RTRIM(fa.MachineCode)) = latest.MachineCode
+                            )
+                        """;
 
         Long count = jdbcTemplate.queryForObject(
                 sql,
                 Long.class,
                 Timestamp.valueOf(periodStart),
-                Timestamp.valueOf(nextPeriodStart)
-        );
+                Timestamp.valueOf(nextPeriodStart));
         return count == null ? 0 : count;
     }
 
@@ -420,8 +400,7 @@ public class FixedAssetRepository {
             String fac,
             String floor,
             LocalDateTime periodStart,
-            LocalDateTime nextPeriodStart
-    ) {
+            LocalDateTime nextPeriodStart) {
         String sql = """
                 SELECT
                     LTRIM(RTRIM(fa.PositionA)) AS PositionA,
@@ -433,21 +412,21 @@ public class FixedAssetRepository {
                 + JOIN_CLAUSE
                 + "LEFT JOIN " + LATEST_AUDIT_IN_PERIOD + " latest\n"
                 + """
-                    ON latest.MachineCode = LTRIM(RTRIM(fa.MachineCode))
-                WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
-                    AND map.Fac = ?
-                    AND fa.[Floor] = ?
-                    AND fa.MachineCode IS NOT NULL
-                    AND LTRIM(RTRIM(fa.MachineCode)) <> ''
-                    AND fa.PositionA IS NOT NULL
-                    AND LTRIM(RTRIM(fa.PositionA)) <> ''
-                    AND fa.PositionAA IS NOT NULL
-                    AND LTRIM(RTRIM(fa.PositionAA)) <> ''
-                GROUP BY
-                    LTRIM(RTRIM(fa.PositionA)),
-                    LTRIM(RTRIM(fa.PositionAA))
-                ORDER BY PositionA, PositionAA
-                """;
+                            ON latest.MachineCode = LTRIM(RTRIM(fa.MachineCode))
+                        WHERE LTRIM(RTRIM(fa.Div)) = 'KVH'
+                            AND map.Fac = ?
+                            AND fa.[Floor] = ?
+                            AND fa.MachineCode IS NOT NULL
+                            AND LTRIM(RTRIM(fa.MachineCode)) <> ''
+                            AND fa.PositionA IS NOT NULL
+                            AND LTRIM(RTRIM(fa.PositionA)) <> ''
+                            AND fa.PositionAA IS NOT NULL
+                            AND LTRIM(RTRIM(fa.PositionAA)) <> ''
+                        GROUP BY
+                            LTRIM(RTRIM(fa.PositionA)),
+                            LTRIM(RTRIM(fa.PositionAA))
+                        ORDER BY PositionA, PositionAA
+                        """;
 
         return jdbcTemplate.query(
                 sql,
@@ -455,21 +434,18 @@ public class FixedAssetRepository {
                         resultSet.getString("PositionA"),
                         resultSet.getString("PositionAA"),
                         resultSet.getLong("Total"),
-                        resultSet.getLong("Audited")
-                ),
+                        resultSet.getLong("Audited")),
                 Timestamp.valueOf(periodStart),
                 Timestamp.valueOf(nextPeriodStart),
                 fac,
-                floor
-        );
+                floor);
     }
 
     public boolean existsLocation(
             String fac,
             String floor,
             String positionA,
-            String positionAA
-    ) {
+            String positionAA) {
         String sql = """
                 SELECT CASE WHEN EXISTS (
                     SELECT 1
@@ -513,8 +489,7 @@ public class FixedAssetRepository {
             String qrFloor,
             String qrPositionA,
             String qrPositionAA,
-            boolean qrMismatch
-    ) {
+            boolean qrMismatch) {
         String sql = """
                 INSERT INTO F2Database.dbo.F2_FIXED_ASSET_AUDIT
                 (
@@ -547,8 +522,7 @@ public class FixedAssetRepository {
                 qrFloor,
                 qrPositionA,
                 qrPositionAA,
-                qrMismatch ? 1 : 0
-        );
+                qrMismatch ? 1 : 0);
     }
 
     /**
@@ -559,8 +533,7 @@ public class FixedAssetRepository {
             long id,
             String qrFloor,
             String qrPositionA,
-            String qrPositionAA
-    ) {
+            String qrPositionAA) {
         String sql = """
                 UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
                 SET QrMismatch = 1,
@@ -581,8 +554,7 @@ public class FixedAssetRepository {
     public int clearAuditQrReprint(
             long id,
             String positionA,
-            String positionAA
-    ) {
+            String positionAA) {
         String sql = """
                 UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
                 SET QrMismatch = 0,
@@ -606,13 +578,13 @@ public class FixedAssetRepository {
     public List<FixedAssetQrMismatchDto> findQrMismatchAudits(
             String fac,
             LocalDateTime periodStart,
-            LocalDateTime nextPeriodStart
-    ) {
+            LocalDateTime nextPeriodStart) {
         boolean filterFac = fac != null && !fac.isBlank();
         String sql = """
                 SELECT
                     LTRIM(RTRIM(a.MachineCode)) AS MachineCode,
                     m.FAName,
+                    m.AssetDate,
                     a.A_Act,
                     a.AA_Act,
                     a.Floor_Qr,
@@ -624,6 +596,7 @@ public class FixedAssetRepository {
                 OUTER APPLY (
                     SELECT TOP 1
                         fa.FAName,
+                        TRY_CONVERT(date, fa.DateStart) AS AssetDate,
                         LTRIM(RTRIM(map.Fac)) AS Fac
                     FROM F2Database.dbo.F2_FIXED_ASSET fa
                     LEFT JOIN F2Database.dbo.F2_FIXED_ASSET_MAP map
@@ -666,6 +639,7 @@ public class FixedAssetRepository {
                 sql,
                 (resultSet, rowNum) -> new FixedAssetQrMismatchDto(
                         resultSet.getString("MachineCode"),
+                        resultSet.getDate("AssetDate") != null ? resultSet.getDate("AssetDate").toLocalDate() : null,
                         resultSet.getString("FAName"),
                         resultSet.getString("A_Act"),
                         resultSet.getString("AA_Act"),
@@ -673,17 +647,14 @@ public class FixedAssetRepository {
                         resultSet.getString("A_Qr"),
                         resultSet.getString("AA_Qr"),
                         resultSet.getString("UserName"),
-                        resultSet.getTimestamp("UpdatedAt").toLocalDateTime()
-                ),
-                params.toArray()
-        );
+                        resultSet.getTimestamp("UpdatedAt").toLocalDateTime()),
+                params.toArray());
     }
 
     public FixedAssetLatestAutoAuditDto findLatestAutoAuditInPeriod(
             String userId,
             LocalDateTime periodStart,
-            LocalDateTime nextPeriodStart
-    ) {
+            LocalDateTime nextPeriodStart) {
         String sql = """
                 SELECT TOP 1
                     LTRIM(RTRIM(A_Act)) AS PositionA,
@@ -707,18 +678,15 @@ public class FixedAssetRepository {
                 (resultSet, rowNum) -> new FixedAssetLatestAutoAuditDto(
                         resultSet.getString("PositionA"),
                         resultSet.getString("PositionAA"),
-                        resultSet.getTimestamp("UpdatedAt").toLocalDateTime()
-                ),
+                        resultSet.getTimestamp("UpdatedAt").toLocalDateTime()),
                 userId,
                 Timestamp.valueOf(periodStart),
-                Timestamp.valueOf(nextPeriodStart)
-        ).stream().findFirst().orElse(null);
+                Timestamp.valueOf(nextPeriodStart)).stream().findFirst().orElse(null);
     }
 
     public List<FixedAssetResolvedLocationDto> findLocationsByPositionAAndAA(
             String positionA,
-            String positionAA
-    ) {
+            String positionAA) {
         String sql = """
                 SELECT DISTINCT
                     LTRIM(RTRIM(map.Fac)) AS Fac,
@@ -738,11 +706,9 @@ public class FixedAssetRepository {
                         resultSet.getString("Fac"),
                         resultSet.getString("Floor"),
                         resultSet.getString("PositionA"),
-                        resultSet.getString("PositionAA")
-                ),
+                        resultSet.getString("PositionAA")),
                 positionA,
-                positionAA
-        );
+                positionAA);
     }
 
     public List<String> findAuditedMachineCodes() {
