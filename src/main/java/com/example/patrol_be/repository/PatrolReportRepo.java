@@ -177,6 +177,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			    at_user        = :pic,
 			    at_status     = :status
 			WHERE id = :id
+			  AND UPPER(LTRIM(RTRIM(ISNULL(at_status,'')))) <> 'CLOSED'
 			""", nativeQuery = true)
 	int updateAtInfo(@Param("id") Long id, @Param("imageNames") String imageNames, @Param("comment") String comment, @Param("atDate") LocalDateTime atDate, @Param("pic") String pic, @Param("status") String status);
 
@@ -192,6 +193,7 @@ public interface PatrolReportRepo extends JpaRepository<PatrolReport, Long> {
 			    hse_judge      = :judge,
 			    at_status     = :status
 			WHERE id = :id
+			  AND UPPER(LTRIM(RTRIM(ISNULL(at_status,'')))) = 'PRO_DONE'
 			""", nativeQuery = true)
 	int updateHseInfo(@Param("id") Long id, @Param("imageNames") String imageNames, @Param("comment") String comment, @Param("hseDate") LocalDateTime hseDate,   // ✅ LocalDate
 	                  @Param("user") String user, @Param("judge") String judge, @Param("status") String status

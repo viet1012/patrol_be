@@ -43,8 +43,8 @@ public class PatrolReportDTO {
 
     private String hse_judge;
     private List<String> hse_imageNames;  // đổi thành List<String>
-    private String hseCommentJp;
     private String hse_comment;
+    private String hseCommentJp;
     private LocalDateTime hse_date;        // đổi thành LocalDateTime
 
     private String load_status;           // thêm trường này

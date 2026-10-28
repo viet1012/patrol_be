@@ -39,3 +39,6 @@ server:
     max-http-form-post-size: 150MB
     max-swallow-size: -1
     connection-timeout: 300000
+
+speech:
+  stt-url: http://192.168.122.16:7011

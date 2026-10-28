@@ -35,6 +35,30 @@ public class GlobalExceptionHandler {
 
 
 	// ============================================================
+	// WORKFLOW CONFLICT (sai thứ tự Before → After → HSE)
+	// ============================================================
+	@ExceptionHandler(WorkflowConflictException.class)
+	public ResponseEntity<ApiErrorResponse> handleWorkflowConflict(
+			WorkflowConflictException exception
+	) {
+		log.warn(
+				"Workflow conflict: {}",
+				exception.getMessage()
+		);
+
+		return ResponseEntity
+				.status(HttpStatus.CONFLICT)
+				.body(
+						new ApiErrorResponse(
+								409,
+								exception.getMessage(),
+								"WORKFLOW_CONFLICT"
+						)
+				);
+	}
+
+
+	// ============================================================
 	// INVALID QR
 	// ============================================================
 	@ExceptionHandler(InvalidQrException.class)
@@ -53,6 +77,32 @@ public class GlobalExceptionHandler {
 								400,
 								exception.getMessage(),
 								"INVALID_QR"
+						)
+				);
+	}
+
+
+	// ============================================================
+	// STT SERVICE UNAVAILABLE (lỗi / timeout)
+	// ============================================================
+	@ExceptionHandler(SpeechServiceUnavailableException.class)
+	public ResponseEntity<ApiErrorResponse> handleSpeechUnavailable(
+			SpeechServiceUnavailableException exception
+	) {
+		log.warn(
+				"Speech service unavailable: {}",
+				exception.getCause() != null
+						? exception.getCause().toString()
+						: exception.getMessage()
+		);
+
+		return ResponseEntity
+				.status(HttpStatus.SERVICE_UNAVAILABLE)
+				.body(
+						new ApiErrorResponse(
+								503,
+								exception.getMessage(),
+								"SPEECH_UNAVAILABLE"
 						)
 				);
 	}

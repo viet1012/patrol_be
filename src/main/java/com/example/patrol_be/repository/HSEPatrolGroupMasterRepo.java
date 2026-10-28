@@ -127,6 +127,38 @@ public interface HSEPatrolGroupMasterRepo extends JpaRepository<HSEPatrolGroupMa
     List<Object[]> findMachineInfoByMacId(@Param("macId") String macId);
 
     // ============================================================
+    // GLOSSARY cho STT: division (Grp) + Area + MacID, distinct
+    // :plant = NULL → lấy toàn bộ plant
+    // ============================================================
+    @Query(value = """
+            ;WITH m AS (
+                SELECT
+                    LTRIM(RTRIM(REPLACE(Grp,   CHAR(160), ' '))) AS grp_n,
+                    LTRIM(RTRIM(REPLACE(Area,  CHAR(160), ' '))) AS area_n,
+                    LTRIM(RTRIM(REPLACE(MacID, CHAR(160), ' '))) AS mac_n
+                FROM dbo.HSE_Patrol_Group_Master
+                WHERE :plant IS NULL
+                   OR UPPER(LTRIM(RTRIM(REPLACE(Plant, CHAR(160), ' ')))) = UPPER(LTRIM(RTRIM(:plant)))
+            )
+            , terms AS (
+                SELECT grp_n AS term, 1 AS prio FROM m WHERE NULLIF(grp_n, '') IS NOT NULL
+                UNION
+                SELECT area_n, 2 FROM m WHERE NULLIF(area_n, '') IS NOT NULL
+                UNION
+                SELECT mac_n, 3 FROM m WHERE NULLIF(mac_n, '') IS NOT NULL
+            )
+            SELECT TOP (:limit) term
+            FROM (
+                SELECT term, MIN(prio) AS prio
+                FROM terms
+                GROUP BY term
+            ) t
+            ORDER BY prio, term
+            """, nativeQuery = true)
+    List<String> findGlossaryTerms(@Param("plant") String plant,
+                                   @Param("limit") int limit);
+
+    // ============================================================
     // PIC RESOLVE (dùng bởi PicResolver)
     // Tham số :plant, :grp, :area, :macId đã được trim + UPPER ở Java.
     // ============================================================

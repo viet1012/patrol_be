@@ -1,19 +1,24 @@
 package com.example.patrol_be.service;
 
 import com.example.patrol_be.dto.AuthMeResponse;
+import com.example.patrol_be.permission.PatrolAction;
+import com.example.patrol_be.permission.PatrolGroup;
+import com.example.patrol_be.permission.PermissionService;
 import com.example.patrol_be.repository.HrDataRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class HrDataService {
     private final HrDataRepository hrDataRepository;
+    private final PermissionService permissionService;
 
-    public HrDataService(HrDataRepository hrDataRepository) {
+    public HrDataService(HrDataRepository hrDataRepository, PermissionService permissionService) {
         this.hrDataRepository = hrDataRepository;
+        this.permissionService = permissionService;
     }
 
     public String getNameByCode(String code) {
@@ -25,97 +30,37 @@ public class HrDataService {
         var emp = hrDataRepository.findByCode(code)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
-        List<String> roles = normalizeRoles(emp.getRole());
+        PermissionService.Resolved resolved = permissionService.resolveWithRoles(emp.getRole());
 
         return new AuthMeResponse(
                 emp.getEmpId(),
                 emp.getEmpName(),
                 emp.getPlant(),
-                String.join(",", roles),
-                buildPermissions(roles)
+                String.join(",", resolved.roles()),
+                toPermissionMap(resolved.permissions())
         );
-    }
-
-    private List<String> normalizeRoles(String role) {
-        if (role == null || role.isBlank()) return List.of("User");
-
-        return List.of(role.split(","))
-                .stream()
-                .map(String::trim)
-                .map(String::toUpperCase)
-                .map(r -> switch (r) {
-                    case "ADMIN" -> "Admin";
-                    case "HSE" -> "HSE";
-                    case "QA" -> "QA";
-                    default -> "User";
-                })
-                .distinct()
-                .toList();
     }
 
     /**
-     * RULE QUYỀN – CHỈ 1 CHỖ DUY NHẤT
+     * Giữ format JSON cũ: { "<Group>": { "before": bool, "after": bool, "recheck": bool, "summary": bool } },
+     * đủ mọi group và mọi action.
      */
-    private Map<String, Map<String, Boolean>> buildPermissions(List<String> roles) {
+    private Map<String, Map<String, Boolean>> toPermissionMap(Map<PatrolGroup, Set<PatrolAction>> perms) {
 
-        Map<String, Map<String, Boolean>> p = new HashMap<>();
+        Map<String, Map<String, Boolean>> p = new LinkedHashMap<>();
 
-        for (String g : List.of("Patrol", "Audit", "QualityPatrol", "AssetUpdate")) {
-            p.put(g, action(false, false, false, false));
-        }
+        for (PatrolGroup g : PatrolGroup.values()) {
+            Set<PatrolAction> granted = perms.getOrDefault(g, Set.of());
 
-        for (String role : roles) {
-            switch (role) {
-
-                case "Admin" -> {
-                    for (String g : p.keySet()) {
-                        p.put(g, merge(p.get(g), action(true, true, false, true)));
-                    }
-                }
-
-                case "HSE" -> {
-                    p.put("Patrol", merge(p.get("Patrol"), action(true, true, true, true)));
-                    p.put("Audit", merge(p.get("Audit"), action(true, true, true, true)));
-                    p.put("QualityPatrol", merge(p.get("QualityPatrol"), action(false, false, false, true)));
-                }
-
-                case "QA" -> {
-                    p.put("QualityPatrol", merge(p.get("QualityPatrol"), action(true, true, true, true)));
-                    p.put("Patrol", merge(p.get("Patrol"), action(true, true, false, true)));
-                    p.put("Audit", merge(p.get("Audit"), action(false, false, false, true)));
-                }
-
-                default -> {
-                    p.put("Patrol", merge(p.get("Patrol"), action(true, true, false, true)));
-                }
+            Map<String, Boolean> actions = new LinkedHashMap<>();
+            for (PatrolAction a : PatrolAction.values()) {
+                actions.put(a.key(), granted.contains(a));
             }
+
+            p.put(g.name(), actions);
         }
 
         return p;
-    }
-    private Map<String, Boolean> merge(
-            Map<String, Boolean> oldPerm,
-            Map<String, Boolean> newPerm
-    ) {
-        return Map.of(
-                "before", oldPerm.getOrDefault("before", false) || newPerm.getOrDefault("before", false),
-                "after", oldPerm.getOrDefault("after", false) || newPerm.getOrDefault("after", false),
-                "recheck", oldPerm.getOrDefault("recheck", false) || newPerm.getOrDefault("recheck", false),
-                "summary", oldPerm.getOrDefault("summary", false) || newPerm.getOrDefault("summary", false)
-        );
-    }
-    private Map<String, Boolean> action(
-            boolean before,
-            boolean after,
-            boolean recheck,
-            boolean summary
-    ) {
-        return Map.of(
-                "before", before,
-                "after", after,
-                "recheck", recheck,
-                "summary", summary
-        );
     }
 
 }

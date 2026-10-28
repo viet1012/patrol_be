@@ -272,6 +272,11 @@ public class PatrolReportService {
 		PatrolReport report = repo.findById(reportId)
 				.orElseThrow(() -> new RuntimeException("Report not found"));
 
+		// HSE đã đóng -> không cho sửa After (DOING, REDO, null vẫn cho)
+		if (STATUS_CLOSED.equals(normStatus(report.getAt_status()))) {
+			throw new WorkflowConflictException("Report đã được HSE đóng");
+		}
+
 		// ===== SAVE IMAGE FILES =====
 		List<String> newImages = new ArrayList<>();
 
@@ -328,12 +333,25 @@ public class PatrolReportService {
 		);
 
 		if (updated == 0) {
-			throw new RuntimeException("Update AT failed, id=" + reportId);
+			// WHERE chặn CLOSED: status đổi giữa lúc check sớm và UPDATE (race)
+			newImages.forEach(this::deleteImageFile);
+			if (!repo.existsById(reportId)) {
+				throw new RuntimeException("Report not found");
+			}
+			throw new WorkflowConflictException("Report đã được HSE đóng");
 		}
 	}
 
 	public String findPicSmart(String plant, String grp, String area, String macId) {
 		return picResolver.resolve(plant, grp, area, macId);
+	}
+
+	private static final String STATUS_PRO_DONE = "PRO_DONE";
+	private static final String STATUS_CLOSED = "CLOSED";
+
+	// at_status chuẩn hóa: trim + UPPER, null -> ""
+	private static String normStatus(String status) {
+		return status == null ? "" : status.trim().toUpperCase(Locale.ROOT);
 	}
 
 	// FE gửi field (khác null) và giá trị khác giá trị đang lưu (trim, không phân biệt hoa thường)
@@ -872,9 +890,13 @@ public class PatrolReportService {
 			List<MultipartFile> images
 	) throws IOException {
 
-		// (optional) nếu bạn chỉ muốn check tồn tại
-		repo.findById(reportId)
+		PatrolReport report = repo.findById(reportId)
 				.orElseThrow(() -> new RuntimeException("Report not found"));
+
+		// Chỉ HSE recheck khi After đã hoàn thành
+		if (!STATUS_PRO_DONE.equals(normStatus(report.getAt_status()))) {
+			throw new WorkflowConflictException("Report chưa hoàn thành After");
+		}
 
 		// ===== SAVE IMAGE FILES =====
 		List<String> newImages = new ArrayList<>();
@@ -930,7 +952,12 @@ public class PatrolReportService {
 		);
 
 		if (updated == 0) {
-			throw new RuntimeException("Update HSE failed, id=" + reportId);
+			// WHERE chỉ nhận PRO_DONE: status đổi giữa lúc check sớm và UPDATE (race)
+			newImages.forEach(this::deleteImageFile);
+			if (!repo.existsById(reportId)) {
+				throw new RuntimeException("Report not found");
+			}
+			throw new WorkflowConflictException("Report chưa hoàn thành After");
 		}
 	}
 

@@ -240,7 +240,7 @@ public class PatrolReportController {
 		HseUpdateDTO atUpdateDTO = new ObjectMapper().readValue(dto, HseUpdateDTO.class);
 
 		service.updateHseInfo(id, atUpdateDTO, images);
-		return ResponseEntity.ok("AT updated successfully");
+		return ResponseEntity.ok("HSE recheck updated successfully");
 	}
 
 	@GetMapping("/risk_summary")
