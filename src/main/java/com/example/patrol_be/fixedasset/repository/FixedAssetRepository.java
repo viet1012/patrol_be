@@ -296,7 +296,15 @@ public class FixedAssetRepository {
                     UserId,
                     UserName,
                     UpdatedAt,
-                    QrMismatch
+                    QrMismatch,
+                    Fac_Act,
+                    Floor_Act,
+                    A_Act,
+                    AA_Act,
+                    Fac_Qr,
+                    Floor_Qr,
+                    A_Qr,
+                    AA_Qr
                 FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT
                 WHERE MachineCode IS NOT NULL
                     AND LTRIM(RTRIM(MachineCode)) = ?
@@ -327,7 +335,15 @@ public class FixedAssetRepository {
                     UserId,
                     UserName,
                     UpdatedAt,
-                    QrMismatch
+                    QrMismatch,
+                    Fac_Act,
+                    Floor_Act,
+                    A_Act,
+                    AA_Act,
+                    Fac_Qr,
+                    Floor_Qr,
+                    A_Qr,
+                    AA_Qr
                 FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT WITH (UPDLOCK, HOLDLOCK)
                 WHERE MachineCode IS NOT NULL
                     AND LTRIM(RTRIM(MachineCode)) = ?
@@ -351,7 +367,19 @@ public class FixedAssetRepository {
                 resultSet.getString("UserId"),
                 resultSet.getString("UserName"),
                 resultSet.getTimestamp("UpdatedAt").toLocalDateTime(),
-                resultSet.getBoolean("QrMismatch"));
+                resultSet.getBoolean("QrMismatch"),
+                trimmed(resultSet.getString("Fac_Act")),
+                trimmed(resultSet.getString("Floor_Act")),
+                trimmed(resultSet.getString("A_Act")),
+                trimmed(resultSet.getString("AA_Act")),
+                trimmed(resultSet.getString("Fac_Qr")),
+                trimmed(resultSet.getString("Floor_Qr")),
+                trimmed(resultSet.getString("A_Qr")),
+                trimmed(resultSet.getString("AA_Qr")));
+    }
+
+    private static String trimmed(String value) {
+        return value == null ? null : value.trim();
     }
 
     public long countMasterMachines() {
@@ -560,30 +588,68 @@ public class FixedAssetRepository {
     }
 
     /**
-     * Clears the QR reprint flag of an existing audit row (QR now matches) and
-     * moves its ACTUAL location to the selected one. Audit user / time are kept.
+     * Clears the QR reprint flag of an existing audit row (new label matches
+     * its ACTUAL location) and stores the scanned label as *_Qr. *_Act,
+     * AuditMode, Note and audit user / time are kept.
      */
     public int clearAuditQrReprint(
+            long id,
+            String qrFac,
+            String qrFloor,
+            String qrPositionA,
+            String qrPositionAA) {
+        String sql = """
+                UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
+                SET QrMismatch = 0,
+                    Fac_Qr = ?,
+                    Floor_Qr = ?,
+                    A_Qr = ?,
+                    AA_Qr = ?
+                WHERE Id = ?
+                """;
+
+        return jdbcTemplate.update(sql, qrFac, qrFloor, qrPositionA, qrPositionAA, id);
+    }
+
+    /**
+     * Confirmed move of a flagged machine: overwrites ACTUAL and QR label
+     * location, QrMismatch stays 1. Audit user / time are kept.
+     */
+    public int relocateAuditQrReprint(
             long id,
             String fac,
             String floor,
             String positionA,
-            String positionAA) {
+            String positionAA,
+            String qrFac,
+            String qrFloor,
+            String qrPositionA,
+            String qrPositionAA) {
         String sql = """
                 UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
-                SET QrMismatch = 0,
-                    Fac_Qr = NULL,
-                    Floor_Qr = NULL,
-                    A_Qr = NULL,
-                    AA_Qr = NULL,
+                SET QrMismatch = 1,
                     Fac_Act = ?,
                     Floor_Act = ?,
                     A_Act = ?,
-                    AA_Act = ?
+                    AA_Act = ?,
+                    Fac_Qr = ?,
+                    Floor_Qr = ?,
+                    A_Qr = ?,
+                    AA_Qr = ?
                 WHERE Id = ?
                 """;
 
-        return jdbcTemplate.update(sql, fac, floor, positionA, positionAA, id);
+        return jdbcTemplate.update(
+                sql,
+                fac,
+                floor,
+                positionA,
+                positionAA,
+                qrFac,
+                qrFloor,
+                qrPositionA,
+                qrPositionAA,
+                id);
     }
 
     /**

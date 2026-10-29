@@ -34,4 +34,14 @@ public class FixedAssetAuditCheckResponse {
     private String actualPositionA;
     private String actualPositionAA;
     private String message;
+    /** Row needing QR reprint (null when needsQrReprint = false): ACTUAL location. */
+    private String reprintActFac;
+    private String reprintActFloor;
+    private String reprintActPositionA;
+    private String reprintActPositionAA;
+    /** Row needing QR reprint: location on its current QR label (null for NO_QR). */
+    private String reprintQrFac;
+    private String reprintQrFloor;
+    private String reprintQrPositionA;
+    private String reprintQrPositionAA;
 }

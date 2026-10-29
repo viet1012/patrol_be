@@ -30,4 +30,11 @@ public class FixedAssetAuditSaveResponse {
     private String actualPositionA;
     private String actualPositionAA;
     private String message;
+    /** Flagged machine rescanned with its old (not reprinted) QR label. */
+    private boolean qrLabelNotReplaced;
+    /** QR label location of the audit row after this save; null when it no longer needs reprint. */
+    private String reprintQrFac;
+    private String reprintQrFloor;
+    private String reprintQrPositionA;
+    private String reprintQrPositionAA;
 }

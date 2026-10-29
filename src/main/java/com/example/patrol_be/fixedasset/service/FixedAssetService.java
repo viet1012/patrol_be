@@ -130,6 +130,7 @@ public class FixedAssetService {
                 period.startDateTime(),
                 period.nextStartDateTime()
         );
+        FixedAssetLatestAuditDto reprint = qrReprintRow(latestAudit);
 
         return new FixedAssetScanInfoDto(
                 normalizedMachineCode,
@@ -148,7 +149,15 @@ public class FixedAssetService {
                 latestAudit == null ? null : latestAudit.getUserId(),
                 latestAudit == null ? null : latestAudit.getUserName(),
                 period.start(),
-                period.end()
+                period.end(),
+                reprint == null ? null : reprint.getFacAct(),
+                reprint == null ? null : reprint.getFloorAct(),
+                reprint == null ? null : reprint.getPositionAAct(),
+                reprint == null ? null : reprint.getPositionAAAct(),
+                reprint == null ? null : reprint.getQrFac(),
+                reprint == null ? null : reprint.getQrFloor(),
+                reprint == null ? null : reprint.getQrPositionA(),
+                reprint == null ? null : reprint.getQrPositionAA()
         );
     }
 
@@ -278,6 +287,7 @@ public class FixedAssetService {
                 && actualLocationResolved
                 && locationsMatch(master, actualLocation);
         boolean alreadyAudited = isAudited(latestAudit);
+        FixedAssetLatestAuditDto reprint = qrReprintRow(latestAudit);
         boolean requiresConfirmation = !alreadyAudited && existsInMaster && !locationMatch;
         String message;
 
@@ -315,7 +325,15 @@ public class FixedAssetService {
                 actualLocation == null ? floor : actualLocation.getFloor(),
                 actualLocation == null ? null : actualLocation.getPositionA(),
                 actualLocation == null ? positionAA : actualLocation.getPositionAA(),
-                message
+                message,
+                reprint == null ? null : reprint.getFacAct(),
+                reprint == null ? null : reprint.getFloorAct(),
+                reprint == null ? null : reprint.getPositionAAct(),
+                reprint == null ? null : reprint.getPositionAAAct(),
+                reprint == null ? null : reprint.getQrFac(),
+                reprint == null ? null : reprint.getQrFloor(),
+                reprint == null ? null : reprint.getQrPositionA(),
+                reprint == null ? null : reprint.getQrPositionAA()
         );
     }
 
@@ -342,7 +360,7 @@ public class FixedAssetService {
         String qrPositionAA = trimToNull(request.getQrPositionAA());
         // Fac_Qr (and A_Qr when FE omits it) from MAP; left null when not unique.
         FixedAssetResolvedLocationDto qrLocation =
-                resolveQrLocation(qrFloor, qrPositionA, qrPositionAA);
+                resolveUniqueLocation(qrFloor, qrPositionA, qrPositionAA);
         String qrFac = qrLocation == null ? null : qrLocation.getFac();
         if (qrPositionA == null && qrLocation != null) {
             qrPositionA = qrLocation.getPositionA();
@@ -360,42 +378,22 @@ public class FixedAssetService {
         );
 
         if (isAudited(latestAudit)) {
-            // Rescan of a flagged machine with a matching QR: clear the flag on
-            // the existing row (still under the UPDLOCK above), no new row.
-            if (!qrMismatch && latestAudit.isNeedsQrReprint()) {
-                int updated = repository.clearAuditQrReprint(
-                        latestAudit.getId(),
-                        fac,
-                        floor,
-                        positionA,
-                        positionAA
-                );
-                if (updated != 1) {
-                    throw new IllegalStateException("Fixed Asset QR reprint flag was not cleared");
-                }
-
-                return new FixedAssetAuditSaveResponse(
-                        true,
-                        false,
-                        true,
-                        false,
-                        false,
-                        false,
-                        false,
+            // Rescan of a flagged machine: decided by the scanned QR label
+            // (still under the UPDLOCK above), no new row. NO_QR keeps the
+            // mark branch below.
+            if (latestAudit.isNeedsQrReprint() && !noQr) {
+                return rescanQrReprint(
+                        latestAudit,
                         machineCode,
-                        null,
-                        latestAudit.getUpdatedAt(),
-                        latestAudit.getUserId(),
-                        latestAudit.getUserName(),
-                        null,
-                        null,
-                        null,
-                        null,
                         fac,
                         floor,
                         positionA,
                         positionAA,
-                        "QR khớp vị trí, đã gỡ đánh dấu in lại QR."
+                        qrFac,
+                        qrFloor,
+                        qrPositionA,
+                        qrPositionAA,
+                        Boolean.TRUE.equals(request.getConfirmLocationMismatch())
                 );
             }
 
@@ -416,6 +414,9 @@ public class FixedAssetService {
                 }
             }
 
+            // Row state after the save: mark keeps old *_Qr where nothing was
+            // sent (COALESCE), otherwise the row is unchanged.
+            boolean rowFlagged = qrMismatch || latestAudit.isNeedsQrReprint();
             return new FixedAssetAuditSaveResponse(
                     true,
                     false,
@@ -439,7 +440,14 @@ public class FixedAssetService {
                     positionAA,
                     qrMismatch
                             ? "Machine already audited in current period. Marked for QR reprint."
-                            : "Machine already audited in current period."
+                            : "Machine already audited in current period.",
+                    false,
+                    !rowFlagged ? null : qrMismatch && qrFac != null ? qrFac : latestAudit.getQrFac(),
+                    !rowFlagged ? null : qrMismatch && qrFloor != null ? qrFloor : latestAudit.getQrFloor(),
+                    !rowFlagged ? null : qrMismatch && qrPositionA != null
+                            ? qrPositionA : latestAudit.getQrPositionA(),
+                    !rowFlagged ? null : qrMismatch && qrPositionAA != null
+                            ? qrPositionAA : latestAudit.getQrPositionAA()
             );
         }
 
@@ -476,7 +484,12 @@ public class FixedAssetService {
                             floor,
                             null,
                             positionAA,
-                            "Actual location not found in MAP. Confirmation required."
+                            "Actual location not found in MAP. Confirmation required.",
+                            false,
+                            null,
+                            null,
+                            null,
+                            null
                     );
                 }
 
@@ -528,7 +541,12 @@ public class FixedAssetService {
                         floor,
                         null,
                         positionAA,
-                        "Audit saved with unmapped actual location."
+                        "Audit saved with unmapped actual location.",
+                        false,
+                        qrMismatch ? qrFac : null,
+                        qrMismatch ? qrFloor : null,
+                        qrMismatch ? qrPositionA : null,
+                        qrMismatch ? qrPositionAA : null
                 );
             }
         }
@@ -569,7 +587,12 @@ public class FixedAssetService {
                     floor,
                     positionA,
                     positionAA,
-                    "Machine location does not match master."
+                    "Machine location does not match master.",
+                    false,
+                    null,
+                    null,
+                    null,
+                    null
             );
         }
 
@@ -634,7 +657,12 @@ public class FixedAssetService {
                 positionAA,
                 unknownMachine
                         ? "Unknown machine audit saved."
-                        : "Fixed Asset audit saved successfully."
+                        : "Fixed Asset audit saved successfully.",
+                false,
+                qrMismatch ? qrFac : null,
+                qrMismatch ? qrFloor : null,
+                qrMismatch ? qrPositionA : null,
+                qrMismatch ? qrPositionAA : null
         );
     }
 
@@ -654,6 +682,11 @@ public class FixedAssetService {
     /** Audited = any row in the period; QrMismatch = 1 is only a QR label status. */
     private boolean isAudited(FixedAssetLatestAuditDto latestAudit) {
         return latestAudit != null;
+    }
+
+    /** Latest row when it still needs QR reprint, else null (reprint* fields stay null). */
+    private FixedAssetLatestAuditDto qrReprintRow(FixedAssetLatestAuditDto latestAudit) {
+        return latestAudit != null && latestAudit.isNeedsQrReprint() ? latestAudit : null;
     }
 
     private String trimToNull(String value) {
@@ -682,22 +715,253 @@ public class FixedAssetService {
         return locations.get(0);
     }
 
-    /** Unique MAP row for the QR label location, else null (no throw, no guess). */
-    private FixedAssetResolvedLocationDto resolveQrLocation(
-            String qrFloor,
-            String qrPositionA,
-            String qrPositionAA) {
-        if (qrFloor == null || qrPositionAA == null) {
+    /**
+     * Unique MAP row for Floor + PositionAA (+ PositionA when given), else null
+     * (no throw, no guess). Used for the QR label and the selected location.
+     */
+    private FixedAssetResolvedLocationDto resolveUniqueLocation(
+            String floor,
+            String positionA,
+            String positionAA) {
+        if (!hasText(floor) || !hasText(positionAA)) {
             return null;
         }
 
         List<FixedAssetResolvedLocationDto> locations =
-                repository.findLocationsByFloorAndPositionAA(qrFloor, qrPositionAA).stream()
-                        .filter(location -> qrPositionA == null
-                                || qrPositionA.equals(location.getPositionA()))
+                repository.findLocationsByFloorAndPositionAA(floor, positionAA).stream()
+                        .filter(location -> !hasText(positionA)
+                                || positionA.equals(location.getPositionA()))
                         .toList();
 
         return locations.size() == 1 ? locations.get(0) : null;
+    }
+
+    /**
+     * Rescan of a machine whose latest row has QrMismatch = 1, decided by the
+     * scanned QR label location (qr*):
+     * - label = old *_Qr -> label not reprinted yet, nothing changes;
+     * - label = *_Act and selected = *_Act (NO_QR row: label = *_Act) -> clear,
+     *   scanned label stored as *_Qr;
+     * - otherwise the machine may have moved -> confirmation, then *_Act and
+     *   *_Qr are overwritten and QrMismatch stays 1.
+     */
+    private FixedAssetAuditSaveResponse rescanQrReprint(
+            FixedAssetLatestAuditDto latest,
+            String machineCode,
+            String fac,
+            String floor,
+            String positionA,
+            String positionAA,
+            String qrFac,
+            String qrFloor,
+            String qrPositionA,
+            String qrPositionAA,
+            boolean confirmed) {
+        if (qrFloor == null || qrPositionAA == null) {
+            throw new IllegalArgumentException(
+                    "QrFloor and QrPositionAA are required: machine " + machineCode
+                            + " is waiting for QR reprint.");
+        }
+
+        // Selected location: Fac / PositionA filled from MAP when not sent.
+        FixedAssetResolvedLocationDto selected =
+                resolveUniqueLocation(floor, positionA, positionAA);
+        if (selected != null) {
+            fac = hasText(fac) ? fac : selected.getFac();
+            positionA = hasText(positionA) ? positionA : selected.getPositionA();
+        }
+
+        boolean noQrRow = !hasText(latest.getQrFloor()) && !hasText(latest.getQrPositionAA());
+        // Row *_Qr columns that are NULL (legacy rows without A_Qr / Fac_Qr)
+        // are skipped; Floor_Qr + AA_Qr must always match.
+        boolean labelIsOld = !noQrRow
+                && sameZoneValue(qrFloor, latest.getQrFloor())
+                && sameZoneValue(qrPositionAA, latest.getQrPositionAA())
+                && (!hasText(latest.getQrPositionA())
+                        || sameZoneValue(qrPositionA, latest.getQrPositionA()))
+                && (!hasText(latest.getQrFac()) || !hasText(qrFac)
+                        || sameZoneValue(qrFac, latest.getQrFac()));
+        boolean labelIsActual = sameAuditLocation(
+                qrFac, qrFloor, qrPositionA, qrPositionAA,
+                latest.getFacAct(), latest.getFloorAct(),
+                latest.getPositionAAct(), latest.getPositionAAAct());
+        boolean selectedIsActual = sameAuditLocation(
+                fac, floor, positionA, positionAA,
+                latest.getFacAct(), latest.getFloorAct(),
+                latest.getPositionAAct(), latest.getPositionAAAct());
+
+        if (labelIsOld) {
+            return new FixedAssetAuditSaveResponse(
+                    true,
+                    false,
+                    true,
+                    true,
+                    false,
+                    false,
+                    false,
+                    machineCode,
+                    null,
+                    latest.getUpdatedAt(),
+                    latest.getUserId(),
+                    latest.getUserName(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    latest.getFacAct(),
+                    latest.getFloorAct(),
+                    latest.getPositionAAct(),
+                    latest.getPositionAAAct(),
+                    "Tem chưa được in lại",
+                    true,
+                    latest.getQrFac(),
+                    latest.getQrFloor(),
+                    latest.getQrPositionA(),
+                    latest.getQrPositionAA()
+            );
+        }
+
+        if (labelIsActual && (noQrRow || selectedIsActual)) {
+            // qrFac / qrPositionA already filled from MAP when the label lacks them.
+            int updated = repository.clearAuditQrReprint(
+                    latest.getId(),
+                    qrFac,
+                    qrFloor,
+                    qrPositionA,
+                    qrPositionAA
+            );
+            if (updated != 1) {
+                throw new IllegalStateException("Fixed Asset QR reprint flag was not cleared");
+            }
+
+            return new FixedAssetAuditSaveResponse(
+                    true,
+                    false,
+                    true,
+                    false,
+                    false,
+                    false,
+                    false,
+                    machineCode,
+                    null,
+                    latest.getUpdatedAt(),
+                    latest.getUserId(),
+                    latest.getUserName(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    latest.getFacAct(),
+                    latest.getFloorAct(),
+                    latest.getPositionAAct(),
+                    latest.getPositionAAAct(),
+                    "QR khớp vị trí, đã gỡ đánh dấu in lại QR.",
+                    false,
+                    qrFac,
+                    qrFloor,
+                    qrPositionA,
+                    qrPositionAA
+            );
+        }
+
+        if (!confirmed) {
+            return new FixedAssetAuditSaveResponse(
+                    true,
+                    false,
+                    true,
+                    true,
+                    false,
+                    true,
+                    true,
+                    machineCode,
+                    null,
+                    latest.getUpdatedAt(),
+                    latest.getUserId(),
+                    latest.getUserName(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    fac,
+                    floor,
+                    positionA,
+                    positionAA,
+                    "Vị trí tem / vị trí chọn khác vị trí thực tế đã ghi nhận "
+                            + "(máy có thể đã dời). Cần xác nhận.",
+                    false,
+                    latest.getQrFac(),
+                    latest.getQrFloor(),
+                    latest.getQrPositionA(),
+                    latest.getQrPositionAA()
+            );
+        }
+
+        fac = requireValue(fac, "Fac");
+        positionA = requireValue(positionA, "PositionA");
+        if (!repository.existsLocation(fac, floor, positionA, positionAA)) {
+            throw new IllegalArgumentException(
+                    "Invalid location: " + fac + " / " + floor + " / " + positionA + " / " + positionAA);
+        }
+
+        int updated = repository.relocateAuditQrReprint(
+                latest.getId(),
+                fac,
+                floor,
+                positionA,
+                positionAA,
+                qrFac,
+                qrFloor,
+                qrPositionA,
+                qrPositionAA
+        );
+        if (updated != 1) {
+            throw new IllegalStateException("Fixed Asset audit location was not updated");
+        }
+
+        return new FixedAssetAuditSaveResponse(
+                true,
+                false,
+                true,
+                true,
+                false,
+                true,
+                false,
+                machineCode,
+                null,
+                latest.getUpdatedAt(),
+                latest.getUserId(),
+                latest.getUserName(),
+                null,
+                null,
+                null,
+                null,
+                fac,
+                floor,
+                positionA,
+                positionAA,
+                "Đã cập nhật vị trí thực tế và vị trí tem, vẫn cần in lại QR.",
+                false,
+                qrFac,
+                qrFloor,
+                qrPositionA,
+                qrPositionAA
+        );
+    }
+
+    /** Trimmed, case-insensitive; Fac compared only when both sides have a value. */
+    private boolean sameAuditLocation(
+            String fac1,
+            String floor1,
+            String positionA1,
+            String positionAA1,
+            String fac2,
+            String floor2,
+            String positionA2,
+            String positionAA2) {
+        return (!hasText(fac1) || !hasText(fac2) || sameZoneValue(fac1, fac2))
+                && sameZoneValue(floor1, floor2)
+                && sameZoneValue(positionA1, positionA2)
+                && sameZoneValue(positionAA1, positionAA2);
     }
 
     /**
