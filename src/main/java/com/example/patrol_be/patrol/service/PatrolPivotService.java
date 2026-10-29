@@ -1,8 +1,8 @@
-package com.example.patrol_be.service;
+package com.example.patrol_be.patrol.service;
 
-import com.example.patrol_be.dto.PatrolRiskPivotResponseDTO;
-import com.example.patrol_be.dto.PatrolRiskPivotRowDTO;
-import com.example.patrol_be.repository.PatrolReportRepo;
+import com.example.patrol_be.patrol.dto.PatrolRiskPivotResponseDTO;
+import com.example.patrol_be.patrol.dto.PatrolRiskPivotRowDTO;
+import com.example.patrol_be.patrol.repository.PatrolReportRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

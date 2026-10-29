@@ -1,4 +1,4 @@
-//package com.example.patrol_be.controller;
+//package com.example.patrol_be.media.controller;
 //
 //import org.springframework.core.io.Resource;
 //import org.springframework.core.io.UrlResource;

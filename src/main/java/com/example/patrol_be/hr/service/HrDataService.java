@@ -1,10 +1,10 @@
-package com.example.patrol_be.service;
+package com.example.patrol_be.hr.service;
 
-import com.example.patrol_be.dto.AuthMeResponse;
+import com.example.patrol_be.auth.dto.AuthMeResponse;
 import com.example.patrol_be.permission.PatrolAction;
 import com.example.patrol_be.permission.PatrolGroup;
 import com.example.patrol_be.permission.PermissionService;
-import com.example.patrol_be.repository.HrDataRepository;
+import com.example.patrol_be.hr.repository.HrDataRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;

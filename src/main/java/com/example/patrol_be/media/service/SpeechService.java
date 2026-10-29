@@ -1,7 +1,7 @@
-package com.example.patrol_be.service;
+package com.example.patrol_be.media.service;
 
-import com.example.patrol_be.dto.SpeechServiceUnavailableException;
-import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
+import com.example.patrol_be.common.exception.SpeechServiceUnavailableException;
+import com.example.patrol_be.patrol.repository.HSEPatrolGroupMasterRepo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.NestedExceptionUtils;

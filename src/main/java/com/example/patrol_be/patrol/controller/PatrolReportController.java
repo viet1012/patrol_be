@@ -1,10 +1,18 @@
-package com.example.patrol_be.controller;
+package com.example.patrol_be.patrol.controller;
 
-import com.example.patrol_be.dto.*;
-import com.example.patrol_be.service.PatrolCommentService;
-import com.example.patrol_be.service.PatrolMachineAnalysisService;
-import com.example.patrol_be.service.PatrolPivotService;
-import com.example.patrol_be.service.PatrolReportService;
+import com.example.patrol_be.patrol.dto.AtUpdateDTO;
+import com.example.patrol_be.patrol.dto.DivisionSummaryDTO;
+import com.example.patrol_be.patrol.dto.HseUpdateDTO;
+import com.example.patrol_be.patrol.dto.MachineIssueHistoryDTO;
+import com.example.patrol_be.patrol.dto.PatrolEditDTO;
+import com.example.patrol_be.patrol.dto.PatrolRiskPivotResponseDTO;
+import com.example.patrol_be.patrol.dto.PatrolSummaryResponseDTO;
+import com.example.patrol_be.patrol.dto.RiskSummaryDTO;
+import com.example.patrol_be.patrol.dto.TranslateAiSummaryRequest;
+import com.example.patrol_be.patrol.service.PatrolCommentService;
+import com.example.patrol_be.patrol.service.PatrolMachineAnalysisService;
+import com.example.patrol_be.patrol.service.PatrolPivotService;
+import com.example.patrol_be.patrol.service.PatrolReportService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

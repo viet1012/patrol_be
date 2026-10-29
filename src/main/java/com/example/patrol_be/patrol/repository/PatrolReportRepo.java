@@ -1,7 +1,7 @@
-package com.example.patrol_be.repository;
+package com.example.patrol_be.patrol.repository;
 
-import com.example.patrol_be.dto.PatrolSummaryRowView;
-import com.example.patrol_be.model.PatrolReport;
+import com.example.patrol_be.patrol.dto.PatrolSummaryRowView;
+import com.example.patrol_be.patrol.entity.PatrolReport;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

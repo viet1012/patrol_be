@@ -1,5 +1,5 @@
-package com.example.patrol_be.controller;
-import com.example.patrol_be.service.SttService;
+package com.example.patrol_be.media.controller;
+import com.example.patrol_be.media.service.SttService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 

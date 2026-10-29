@@ -1,4 +1,4 @@
-package com.example.patrol_be.service;
+package com.example.patrol_be.patrol.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

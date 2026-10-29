@@ -1,7 +1,7 @@
-package com.example.patrol_be.controller;
+package com.example.patrol_be.patrol.controller;
 
-import com.example.patrol_be.model.HsePatrolTeam;
-import com.example.patrol_be.service.HsePatrolTeamService;
+import com.example.patrol_be.patrol.entity.HsePatrolTeam;
+import com.example.patrol_be.patrol.service.HsePatrolTeamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 

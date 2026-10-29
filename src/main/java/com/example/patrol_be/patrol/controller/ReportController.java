@@ -1,4 +1,4 @@
-package com.example.patrol_be.controller;
+package com.example.patrol_be.patrol.controller;
 
 import java.util.Map;
 
@@ -12,9 +12,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.patrol_be.dto.QrCheckResponse;
-import com.example.patrol_be.dto.ReportRequest;
-import com.example.patrol_be.service.Exce;
+import com.example.patrol_be.patrol.dto.QrCheckResponse;
+import com.example.patrol_be.patrol.dto.ReportRequest;
+import com.example.patrol_be.patrol.service.Exce;
 
 import lombok.RequiredArgsConstructor;
 import tools.jackson.databind.ObjectMapper;

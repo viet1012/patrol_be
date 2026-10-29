@@ -1,6 +1,6 @@
-package com.example.patrol_be.repository;
+package com.example.patrol_be.permission.repository;
 
-import com.example.patrol_be.model.PatrolRolePermission;
+import com.example.patrol_be.permission.entity.PatrolRolePermission;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Collection;

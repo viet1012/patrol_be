@@ -1,7 +1,7 @@
-package com.example.patrol_be.service;
+package com.example.patrol_be.media.service;
 
-import com.example.patrol_be.model.PatrolGroupStt;
-import com.example.patrol_be.repository.PatrolGroupSttRepo;
+import com.example.patrol_be.media.entity.PatrolGroupStt;
+import com.example.patrol_be.media.repository.PatrolGroupSttRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;

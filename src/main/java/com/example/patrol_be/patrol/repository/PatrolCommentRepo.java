@@ -1,6 +1,6 @@
-package com.example.patrol_be.repository;
+package com.example.patrol_be.patrol.repository;
 
-import com.example.patrol_be.model.AutoCmp;
+import com.example.patrol_be.debug.entity.AutoCmp;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

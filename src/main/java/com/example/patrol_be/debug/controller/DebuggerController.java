@@ -1,4 +1,4 @@
-package com.example.patrol_be.controller;
+package com.example.patrol_be.debug.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;

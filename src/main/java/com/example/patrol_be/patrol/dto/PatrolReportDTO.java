@@ -1,4 +1,4 @@
-package com.example.patrol_be.dto;
+package com.example.patrol_be.patrol.dto;
 import lombok.*;
 
 import java.time.LocalDate;

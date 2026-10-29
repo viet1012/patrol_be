@@ -1,4 +1,4 @@
-package com.example.patrol_be.config;
+package com.example.patrol_be.common.config;
 
 
 import org.springframework.context.annotation.Configuration;

@@ -1,6 +1,6 @@
-package com.example.patrol_be.repository;
+package com.example.patrol_be.patrol.repository;
 
-import com.example.patrol_be.model.HSEPatrolGroupMaster;
+import com.example.patrol_be.patrol.entity.HSEPatrolGroupMaster;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;

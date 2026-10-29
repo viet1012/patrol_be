@@ -1,4 +1,4 @@
-package com.example.patrol_be.constants;
+package com.example.patrol_be.common.constants;
 
 public class PatrolConstants {
 

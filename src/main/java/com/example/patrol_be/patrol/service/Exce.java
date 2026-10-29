@@ -1,12 +1,13 @@
 
-package com.example.patrol_be.service;
+package com.example.patrol_be.patrol.service;
 
-import com.example.patrol_be.dto.DuplicateQrException;
-import com.example.patrol_be.dto.InvalidQrException;
-import com.example.patrol_be.dto.QrCheckResponse;
-import com.example.patrol_be.dto.ReportRequest;
-import com.example.patrol_be.model.PatrolReport;
-import com.example.patrol_be.repository.PatrolReportRepo;
+import com.example.patrol_be.media.service.SttService;
+import com.example.patrol_be.common.exception.DuplicateQrException;
+import com.example.patrol_be.common.exception.InvalidQrException;
+import com.example.patrol_be.patrol.dto.QrCheckResponse;
+import com.example.patrol_be.patrol.dto.ReportRequest;
+import com.example.patrol_be.patrol.entity.PatrolReport;
+import com.example.patrol_be.patrol.repository.PatrolReportRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;

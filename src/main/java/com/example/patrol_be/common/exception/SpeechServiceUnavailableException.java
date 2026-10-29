@@ -1,4 +1,4 @@
-package com.example.patrol_be.dto;
+package com.example.patrol_be.common.exception;
 
 public class SpeechServiceUnavailableException extends RuntimeException {
 

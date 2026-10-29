@@ -1,11 +1,11 @@
-package com.example.patrol_be.service;
+package com.example.patrol_be.patrol.service;
 
-import com.example.patrol_be.constants.PatrolConstants;
-import com.example.patrol_be.dto.MachineIssueHistoryDTO;
-import com.example.patrol_be.model.HSEPatrolGroupMaster;
-import com.example.patrol_be.model.PatrolReport;
-import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
-import com.example.patrol_be.repository.PatrolReportRepo;
+import com.example.patrol_be.common.constants.PatrolConstants;
+import com.example.patrol_be.patrol.dto.MachineIssueHistoryDTO;
+import com.example.patrol_be.patrol.entity.HSEPatrolGroupMaster;
+import com.example.patrol_be.patrol.entity.PatrolReport;
+import com.example.patrol_be.patrol.repository.HSEPatrolGroupMasterRepo;
+import com.example.patrol_be.patrol.repository.PatrolReportRepo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;

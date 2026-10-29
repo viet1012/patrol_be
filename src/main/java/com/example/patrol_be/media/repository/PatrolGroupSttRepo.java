@@ -1,6 +1,6 @@
-package com.example.patrol_be.repository;
+package com.example.patrol_be.media.repository;
 
-import com.example.patrol_be.model.PatrolGroupStt;
+import com.example.patrol_be.media.entity.PatrolGroupStt;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;

@@ -1,8 +1,8 @@
-package com.example.patrol_be.service;
+package com.example.patrol_be.patrol.service;
 
 
-import com.example.patrol_be.model.HsePatrolTeam;
-import com.example.patrol_be.repository.HsePatrolTeamRepository;
+import com.example.patrol_be.patrol.entity.HsePatrolTeam;
+import com.example.patrol_be.patrol.repository.HsePatrolTeamRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

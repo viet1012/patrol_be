@@ -1,6 +1,6 @@
-package com.example.patrol_be.service;
+package com.example.patrol_be.patrol.service;
 
-import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
+import com.example.patrol_be.patrol.repository.HSEPatrolGroupMasterRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

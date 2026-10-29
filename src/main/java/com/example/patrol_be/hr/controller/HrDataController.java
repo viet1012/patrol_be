@@ -1,7 +1,7 @@
-package com.example.patrol_be.controller;
+package com.example.patrol_be.hr.controller;
 
-import com.example.patrol_be.dto.AuthMeResponse;
-import com.example.patrol_be.service.HrDataService;
+import com.example.patrol_be.auth.dto.AuthMeResponse;
+import com.example.patrol_be.hr.service.HrDataService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

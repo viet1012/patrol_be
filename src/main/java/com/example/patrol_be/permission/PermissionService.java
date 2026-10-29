@@ -1,9 +1,9 @@
 package com.example.patrol_be.permission;
 
-import com.example.patrol_be.model.PatrolRole;
-import com.example.patrol_be.model.PatrolRolePermission;
-import com.example.patrol_be.repository.PatrolRolePermissionRepo;
-import com.example.patrol_be.repository.PatrolRoleRepo;
+import com.example.patrol_be.permission.entity.PatrolRole;
+import com.example.patrol_be.permission.entity.PatrolRolePermission;
+import com.example.patrol_be.permission.repository.PatrolRolePermissionRepo;
+import com.example.patrol_be.permission.repository.PatrolRoleRepo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 

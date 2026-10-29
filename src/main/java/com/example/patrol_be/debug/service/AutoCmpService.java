@@ -1,7 +1,7 @@
-package com.example.patrol_be.service;
+package com.example.patrol_be.debug.service;
 
-import com.example.patrol_be.repository.AutoCmpRepo;
-import com.example.patrol_be.model.AutoCmp;
+import com.example.patrol_be.debug.repository.AutoCmpRepo;
+import com.example.patrol_be.debug.entity.AutoCmp;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;

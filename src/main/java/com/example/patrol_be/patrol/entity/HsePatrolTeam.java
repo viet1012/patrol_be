@@ -1,4 +1,4 @@
-package com.example.patrol_be.model;
+package com.example.patrol_be.patrol.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

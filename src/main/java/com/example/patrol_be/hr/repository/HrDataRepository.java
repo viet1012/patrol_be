@@ -1,4 +1,4 @@
-package com.example.patrol_be.repository;
+package com.example.patrol_be.hr.repository;
 
 import java.util.Optional;
 
@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.example.patrol_be.model.HseEmp;
+import com.example.patrol_be.hr.entity.HseEmp;
 
 @Repository
 public interface HrDataRepository extends JpaRepository<HseEmp, String> {

@@ -1,8 +1,8 @@
-package com.example.patrol_be.controller;
+package com.example.patrol_be.patrol.controller;
 
-import com.example.patrol_be.dto.HSEPatrolGroupMasterDTO;
-import com.example.patrol_be.dto.MachineInfoDTO;
-import com.example.patrol_be.service.HSEPatrolGroupMasterService;
+import com.example.patrol_be.patrol.dto.HSEPatrolGroupMasterDTO;
+import com.example.patrol_be.patrol.dto.MachineInfoDTO;
+import com.example.patrol_be.patrol.service.HSEPatrolGroupMasterService;
 import lombok.*;
 
 import org.springframework.web.bind.annotation.*;

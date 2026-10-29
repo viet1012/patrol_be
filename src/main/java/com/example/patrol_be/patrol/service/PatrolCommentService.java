@@ -1,5 +1,5 @@
 
-package com.example.patrol_be.service;
+package com.example.patrol_be.patrol.service;
 
 import java.io.IOException;
 import java.net.URI;
@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.example.patrol_be.repository.PatrolCommentRepo;
+import com.example.patrol_be.patrol.repository.PatrolCommentRepo;
 
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.JsonNode;

@@ -1,6 +1,6 @@
-package com.example.patrol_be.repository;
+package com.example.patrol_be.auth.repository;
 
-import com.example.patrol_be.model.PatrolAccount;
+import com.example.patrol_be.auth.entity.PatrolAccount;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

@@ -1,7 +1,7 @@
-package com.example.patrol_be.controller;
+package com.example.patrol_be.debug.controller;
 
-import com.example.patrol_be.model.AutoCmp;
-import com.example.patrol_be.service.AutoCmpService;
+import com.example.patrol_be.debug.entity.AutoCmp;
+import com.example.patrol_be.debug.service.AutoCmpService;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.web.bind.annotation.*;

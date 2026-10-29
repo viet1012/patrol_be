@@ -1,7 +1,7 @@
-package com.example.patrol_be.repository;
+package com.example.patrol_be.debug.repository;
 
-import com.example.patrol_be.model.PatrolGroupStt;
-import com.example.patrol_be.model.AutoCmp;
+import com.example.patrol_be.media.entity.PatrolGroupStt;
+import com.example.patrol_be.debug.entity.AutoCmp;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 

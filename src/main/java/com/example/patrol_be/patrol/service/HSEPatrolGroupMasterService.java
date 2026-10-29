@@ -1,8 +1,8 @@
-package com.example.patrol_be.service;
+package com.example.patrol_be.patrol.service;
 
-import com.example.patrol_be.dto.HSEPatrolGroupMasterDTO;
-import com.example.patrol_be.dto.MachineInfoDTO;
-import com.example.patrol_be.repository.HSEPatrolGroupMasterRepo;
+import com.example.patrol_be.patrol.dto.HSEPatrolGroupMasterDTO;
+import com.example.patrol_be.patrol.dto.MachineInfoDTO;
+import com.example.patrol_be.patrol.repository.HSEPatrolGroupMasterRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

@@ -1,10 +1,10 @@
-package com.example.patrol_be.controller;
+package com.example.patrol_be.auth.controller;
 
-import com.example.patrol_be.constants.ErrorCode;
-import com.example.patrol_be.dto.AuthRequest;
-import com.example.patrol_be.dto.AuthResponse;
-import com.example.patrol_be.dto.ChangePasswordRequest;
-import com.example.patrol_be.service.AuthService;
+import com.example.patrol_be.common.constants.ErrorCode;
+import com.example.patrol_be.auth.dto.AuthRequest;
+import com.example.patrol_be.auth.dto.AuthResponse;
+import com.example.patrol_be.auth.dto.ChangePasswordRequest;
+import com.example.patrol_be.auth.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
