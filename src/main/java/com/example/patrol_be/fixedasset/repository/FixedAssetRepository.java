@@ -479,6 +479,8 @@ public class FixedAssetRepository {
 
     public int insertAudit(
             String machineCode,
+            String facAct,
+            String floorAct,
             String positionA,
             String positionAA,
             String userId,
@@ -486,6 +488,7 @@ public class FixedAssetRepository {
             LocalDateTime updatedAt,
             String note,
             String auditMode,
+            String qrFac,
             String qrFloor,
             String qrPositionA,
             String qrPositionAA,
@@ -494,6 +497,8 @@ public class FixedAssetRepository {
                 INSERT INTO F2Database.dbo.F2_FIXED_ASSET_AUDIT
                 (
                     MachineCode,
+                    Fac_Act,
+                    Floor_Act,
                     A_Act,
                     AA_Act,
                     UserId,
@@ -501,17 +506,20 @@ public class FixedAssetRepository {
                     UpdatedAt,
                     Note,
                     AuditMode,
+                    Fac_Qr,
                     Floor_Qr,
                     A_Qr,
                     AA_Qr,
                     QrMismatch
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         return jdbcTemplate.update(
                 sql,
                 machineCode,
+                facAct,
+                floorAct,
                 positionA,
                 positionAA,
                 userId,
@@ -519,6 +527,7 @@ public class FixedAssetRepository {
                 Timestamp.valueOf(updatedAt),
                 note,
                 auditMode,
+                qrFac,
                 qrFloor,
                 qrPositionA,
                 qrPositionAA,
@@ -531,42 +540,50 @@ public class FixedAssetRepository {
      */
     public int markAuditQrReprint(
             long id,
+            String auditMode,
+            String qrFac,
             String qrFloor,
             String qrPositionA,
             String qrPositionAA) {
         String sql = """
                 UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
                 SET QrMismatch = 1,
+                    AuditMode = COALESCE(?, AuditMode),
+                    Fac_Qr = COALESCE(?, Fac_Qr),
                     Floor_Qr = COALESCE(?, Floor_Qr),
                     A_Qr = COALESCE(?, A_Qr),
                     AA_Qr = COALESCE(?, AA_Qr)
                 WHERE Id = ?
                 """;
 
-        return jdbcTemplate.update(sql, qrFloor, qrPositionA, qrPositionAA, id);
+        return jdbcTemplate.update(sql, auditMode, qrFac, qrFloor, qrPositionA, qrPositionAA, id);
     }
 
     /**
      * Clears the QR reprint flag of an existing audit row (QR now matches) and
-     * moves its ACTUAL location to the selected one. The table has no actual
-     * Floor / Fac column, only A_Act / AA_Act. Audit user / time are kept.
+     * moves its ACTUAL location to the selected one. Audit user / time are kept.
      */
     public int clearAuditQrReprint(
             long id,
+            String fac,
+            String floor,
             String positionA,
             String positionAA) {
         String sql = """
                 UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
                 SET QrMismatch = 0,
+                    Fac_Qr = NULL,
                     Floor_Qr = NULL,
                     A_Qr = NULL,
                     AA_Qr = NULL,
+                    Fac_Act = ?,
+                    Floor_Act = ?,
                     A_Act = ?,
                     AA_Act = ?
                 WHERE Id = ?
                 """;
 
-        return jdbcTemplate.update(sql, positionA, positionAA, id);
+        return jdbcTemplate.update(sql, fac, floor, positionA, positionAA, id);
     }
 
     /**
@@ -585,13 +602,17 @@ public class FixedAssetRepository {
                     LTRIM(RTRIM(a.MachineCode)) AS MachineCode,
                     m.FAName,
                     m.AssetDate,
+                    a.Fac_Act,
+                    a.Floor_Act,
                     a.A_Act,
                     a.AA_Act,
+                    a.Fac_Qr,
                     a.Floor_Qr,
                     a.A_Qr,
                     a.AA_Qr,
                     a.UserName,
-                    a.UpdatedAt
+                    a.UpdatedAt,
+                    a.AuditMode
                 FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT a
                 OUTER APPLY (
                     SELECT TOP 1
@@ -641,13 +662,17 @@ public class FixedAssetRepository {
                         resultSet.getString("MachineCode"),
                         resultSet.getDate("AssetDate") != null ? resultSet.getDate("AssetDate").toLocalDate() : null,
                         resultSet.getString("FAName"),
+                        resultSet.getString("Fac_Act"),
+                        resultSet.getString("Floor_Act"),
                         resultSet.getString("A_Act"),
                         resultSet.getString("AA_Act"),
+                        resultSet.getString("Fac_Qr"),
                         resultSet.getString("Floor_Qr"),
                         resultSet.getString("A_Qr"),
                         resultSet.getString("AA_Qr"),
                         resultSet.getString("UserName"),
-                        resultSet.getTimestamp("UpdatedAt").toLocalDateTime()),
+                        resultSet.getTimestamp("UpdatedAt").toLocalDateTime(),
+                        resultSet.getString("AuditMode")),
                 params.toArray());
     }
 

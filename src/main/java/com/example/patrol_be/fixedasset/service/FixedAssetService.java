@@ -32,7 +32,9 @@ public class FixedAssetService {
     private static final String LOCATION_MISMATCH_NOTE_PREFIX = "LOCATION_MISMATCH";
     private static final String ACTUAL_LOCATION_NOT_MAPPED_NOTE_PREFIX =
             "ACTUAL_LOCATION_NOT_MAPPED";
-    private static final Set<String> AUDIT_MODES = Set.of("AUTO", "MANUAL");
+    private static final String NO_QR_MODE = "NO_QR";
+    private static final String NO_QR_NOTE_PREFIX = "NO_QR";
+    private static final Set<String> AUDIT_MODES = Set.of("AUTO", "MANUAL", NO_QR_MODE);
     private static final String ZONE_LOCK_INCOMPLETE = "INCOMPLETE";
     private static final String ZONE_LOCK_COMPLETED = "COMPLETED";
     private static final String ZONE_LOCK_NO_AUTO_AUDIT = "NO_AUTO_AUDIT";
@@ -332,10 +334,19 @@ public class FixedAssetService {
         String userName = requireValue(request.getUserName(), "UserName");
         String note = request.getNote() == null ? null : request.getNote().trim();
         String auditMode = normalizeAuditMode(request.getMode());
+        // NO_QR: machine has no QR label (form "Ghi nhận máy thiếu QR").
+        boolean noQr = NO_QR_MODE.equals(auditMode);
         // QR label location (Manual mode); stored as sent, null -> not mismatched.
         String qrFloor = trimToNull(request.getQrFloor());
         String qrPositionA = trimToNull(request.getQrPositionA());
         String qrPositionAA = trimToNull(request.getQrPositionAA());
+        // Fac_Qr (and A_Qr when FE omits it) from MAP; left null when not unique.
+        FixedAssetResolvedLocationDto qrLocation =
+                resolveQrLocation(qrFloor, qrPositionA, qrPositionAA);
+        String qrFac = qrLocation == null ? null : qrLocation.getFac();
+        if (qrPositionA == null && qrLocation != null) {
+            qrPositionA = qrLocation.getPositionA();
+        }
         boolean qrMismatch = Boolean.TRUE.equals(request.getQrLocationMismatch())
                 || Boolean.TRUE.equals(request.getNeedsQrReprint());
         AuditPeriod period = currentAuditPeriod();
@@ -354,6 +365,8 @@ public class FixedAssetService {
             if (!qrMismatch && latestAudit.isNeedsQrReprint()) {
                 int updated = repository.clearAuditQrReprint(
                         latestAudit.getId(),
+                        fac,
+                        floor,
                         positionA,
                         positionAA
                 );
@@ -391,6 +404,9 @@ public class FixedAssetService {
             if (qrMismatch) {
                 int updated = repository.markAuditQrReprint(
                         latestAudit.getId(),
+                        // only NO_QR overwrites the audited row's mode
+                        noQr ? auditMode : null,
+                        qrFac,
                         qrFloor,
                         qrPositionA,
                         qrPositionAA
@@ -428,8 +444,12 @@ public class FixedAssetService {
         }
 
         MasterMachine master = findMaster(machineCode);
+        // NO_QR picks all 4 levels from the MAP cascade (validated by
+        // existsLocation below): no Floor + PositionAA resolve, so Fac_Act /
+        // A_Act are never dropped as "not in MAP".
+        boolean fullLocationGiven = noQr && hasText(fac) && hasText(positionA);
 
-        if (master != null) {
+        if (master != null && !fullLocationGiven) {
             FixedAssetResolvedLocationDto resolvedActual =
                     resolveActualLocation(floor, positionAA);
 
@@ -461,9 +481,14 @@ public class FixedAssetService {
                 }
 
                 note = unmappedActualNote(master, floor, positionAA, note);
+                if (noQr) {
+                    note = noQrNote(note);
+                }
                 LocalDateTime updatedAt = LocalDateTime.now();
                 int inserted = repository.insertAudit(
                         machineCode,
+                        null,
+                        floor,
                         null,
                         positionAA,
                         userId,
@@ -471,6 +496,7 @@ public class FixedAssetService {
                         updatedAt,
                         note,
                         auditMode,
+                        qrFac,
                         qrFloor,
                         qrPositionA,
                         qrPositionAA,
@@ -556,12 +582,17 @@ public class FixedAssetService {
         } else if (locationMismatch) {
             note = mismatchNote(master, fac, floor, positionA, positionAA, note);
         }
+        if (noQr) {
+            note = noQrNote(note);
+        }
 
         LocalDateTime updatedAt = LocalDateTime.now();
 
-        // A_Act / AA_Act = ACTUAL location of this audit. MASTER is never modified.
+        // *_Act = ACTUAL location of this audit. MASTER is never modified.
         int inserted = repository.insertAudit(
                 machineCode,
+                fac,
+                floor,
                 positionA,
                 positionAA,
                 userId,
@@ -569,6 +600,7 @@ public class FixedAssetService {
                 updatedAt,
                 note,
                 auditMode,
+                qrFac,
                 qrFloor,
                 qrPositionA,
                 qrPositionAA,
@@ -648,6 +680,38 @@ public class FixedAssetService {
                     "Actual location is ambiguous: " + floor + " / " + positionAA);
         }
         return locations.get(0);
+    }
+
+    /** Unique MAP row for the QR label location, else null (no throw, no guess). */
+    private FixedAssetResolvedLocationDto resolveQrLocation(
+            String qrFloor,
+            String qrPositionA,
+            String qrPositionAA) {
+        if (qrFloor == null || qrPositionAA == null) {
+            return null;
+        }
+
+        List<FixedAssetResolvedLocationDto> locations =
+                repository.findLocationsByFloorAndPositionAA(qrFloor, qrPositionAA).stream()
+                        .filter(location -> qrPositionA == null
+                                || qrPositionA.equals(location.getPositionA()))
+                        .toList();
+
+        return locations.size() == 1 ? locations.get(0) : null;
+    }
+
+    /**
+     * NO_QR marker always first, before LOCATION_MISMATCH /
+     * NOT_FOUND_IN_MASTER / ACTUAL_LOCATION_NOT_MAPPED; never added twice.
+     */
+    private String noQrNote(String note) {
+        if (note == null || note.isBlank()) {
+            return NO_QR_NOTE_PREFIX;
+        }
+        if (note.startsWith(NO_QR_NOTE_PREFIX)) {
+            return note;
+        }
+        return NO_QR_NOTE_PREFIX + " | " + note;
     }
 
     private String unmappedActualNote(
@@ -738,7 +802,7 @@ public class FixedAssetService {
                 && sameLocationValue(master.positionAA(), actual.getPositionAA());
     }
 
-    /** "AUTO" / "MANUAL" (case-insensitive, trimmed); anything else -> null, never rejected. */
+    /** "AUTO" / "MANUAL" / "NO_QR" (case-insensitive, trimmed); anything else -> null, never rejected. */
     private String normalizeAuditMode(String mode) {
         if (mode == null) {
             return null;
