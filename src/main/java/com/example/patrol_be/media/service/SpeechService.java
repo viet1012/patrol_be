@@ -110,7 +110,8 @@ public class SpeechService {
 		}
 
 		if (res == null || !(res.get("text") instanceof String text)) {
-			log.error("STT invalid response: {}", res);
+			// Không log nội dung response (có thể chứa văn bản nhận dạng)
+			log.error("STT invalid response | keys={}", res == null ? null : res.keySet());
 			throw new SpeechServiceUnavailableException();
 		}
 
