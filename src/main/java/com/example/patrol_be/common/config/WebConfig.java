@@ -12,7 +12,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
 
         registry.addResourceHandler("/images/**")
-                .addResourceLocations("file:/D:/1.pc/Patrol App/uploaded_images/")
+                .addResourceLocations("file:/D:/Patrol App/API/uploaded_images/")
 //                .addResourceLocations("file:/app/uploaded_images/")
 
                 .setCachePeriod(0)
