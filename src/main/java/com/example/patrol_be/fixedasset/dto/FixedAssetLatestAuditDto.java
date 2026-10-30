@@ -12,8 +12,11 @@ public class FixedAssetLatestAuditDto {
     private String userId;
     private String userName;
     private LocalDateTime updatedAt;
-    /** Latest row has QrMismatch = 1: still audited, QR label must be reprinted. */
+    /** QrMismatch = 1 AND ReprintSts = 0: still audited, QR label waiting for replacement. */
     private boolean needsQrReprint;
+    /** ReprintSts = 1: QR label replaced ("3) Thay QR"). */
+    private boolean reprintSts;
+    private LocalDateTime reprintAt;
     /** ACTUAL location of the row (*_Act). */
     private String facAct;
     private String floorAct;

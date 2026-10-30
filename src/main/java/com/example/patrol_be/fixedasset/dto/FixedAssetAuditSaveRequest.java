@@ -22,4 +22,6 @@ public class FixedAssetAuditSaveRequest {
     private Boolean qrLocationMismatch;
     // Alias of qrLocationMismatch ("Vẫn lưu (đánh dấu in lại QR)").
     private Boolean needsQrReprint;
+    // true only from "3) Thay QR": allows rescan / clear / relocate of a flagged machine.
+    private Boolean qrReplace;
 }

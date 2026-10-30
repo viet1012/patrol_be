@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 public class FixedAssetAuditCheckResponse {
     private String machineCode;
     private boolean alreadyAudited;
-    /** Latest audit row in the period has QrMismatch = 1. */
+    /** Latest audit row in the period has QrMismatch = 1 AND ReprintSts = 0. */
     private boolean needsQrReprint;
     private LocalDateTime lastAuditedAt;
     private String lastAuditedUserId;
@@ -44,4 +44,7 @@ public class FixedAssetAuditCheckResponse {
     private String reprintQrFloor;
     private String reprintQrPositionA;
     private String reprintQrPositionAA;
+    /** Latest audit row: ReprintSts = 1 (QR replaced) and when; false / null without audit. */
+    private boolean reprintSts;
+    private LocalDateTime reprintAt;
 }

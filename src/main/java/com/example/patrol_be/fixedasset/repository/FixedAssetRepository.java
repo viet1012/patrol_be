@@ -33,15 +33,16 @@ public class FixedAssetRepository {
     /**
      * Latest audit row per machine in the period (UpdatedAt DESC, Id DESC).
      * Params: periodStart, nextPeriodStart. Any row in the period counts as
-     * audited; QrMismatch only drives needsQrReprint (label status).
+     * audited; QrMismatch + ReprintSts only drive needsQrReprint (label status).
      */
     private static final String LATEST_AUDIT_IN_PERIOD = """
             (
-                SELECT ranked.MachineCode, ranked.QrMismatch
+                SELECT ranked.MachineCode, ranked.QrMismatch, ranked.ReprintSts
                 FROM (
                     SELECT
                         LTRIM(RTRIM(a.MachineCode)) AS MachineCode,
                         a.QrMismatch,
+                        a.ReprintSts,
                         ROW_NUMBER() OVER (
                             PARTITION BY LTRIM(RTRIM(a.MachineCode))
                             ORDER BY a.UpdatedAt DESC, a.Id DESC
@@ -57,7 +58,9 @@ public class FixedAssetRepository {
             """;
 
     private static final String AUDITED_CONDITION = "latest.MachineCode IS NOT NULL";
-    private static final String NEEDS_QR_REPRINT_CONDITION = "latest.MachineCode IS NOT NULL AND ISNULL(latest.QrMismatch, 0) = 1";
+    /** Waiting for QR replacement: QrMismatch = 1 AND ReprintSts = 0 (NULL treated as 0). */
+    private static final String NEEDS_QR_REPRINT_CONDITION = "latest.MachineCode IS NOT NULL"
+            + " AND ISNULL(latest.QrMismatch, 0) = 1 AND ISNULL(latest.ReprintSts, 0) = 0";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -297,6 +300,8 @@ public class FixedAssetRepository {
                     UserName,
                     UpdatedAt,
                     QrMismatch,
+                    ReprintSts,
+                    ReprintAt,
                     Fac_Act,
                     Floor_Act,
                     A_Act,
@@ -336,6 +341,8 @@ public class FixedAssetRepository {
                     UserName,
                     UpdatedAt,
                     QrMismatch,
+                    ReprintSts,
+                    ReprintAt,
                     Fac_Act,
                     Floor_Act,
                     A_Act,
@@ -360,14 +367,17 @@ public class FixedAssetRepository {
                 Timestamp.valueOf(nextPeriodStart)).stream().findFirst().orElse(null);
     }
 
-    /** needsQrReprint = latest row has QrMismatch = 1 (NULL treated as 0). */
+    /** needsQrReprint = QrMismatch = 1 AND ReprintSts = 0 (NULL treated as 0). */
     private FixedAssetLatestAuditDto mapLatestAudit(ResultSet resultSet) throws SQLException {
+        boolean reprintSts = resultSet.getBoolean("ReprintSts");
         return new FixedAssetLatestAuditDto(
                 resultSet.getLong("Id"),
                 resultSet.getString("UserId"),
                 resultSet.getString("UserName"),
                 resultSet.getTimestamp("UpdatedAt").toLocalDateTime(),
-                resultSet.getBoolean("QrMismatch"),
+                resultSet.getBoolean("QrMismatch") && !reprintSts,
+                reprintSts,
+                toLocalDateTime(resultSet.getTimestamp("ReprintAt")),
                 trimmed(resultSet.getString("Fac_Act")),
                 trimmed(resultSet.getString("Floor_Act")),
                 trimmed(resultSet.getString("A_Act")),
@@ -380,6 +390,10 @@ public class FixedAssetRepository {
 
     private static String trimmed(String value) {
         return value == null ? null : value.trim();
+    }
+
+    private static LocalDateTime toLocalDateTime(Timestamp value) {
+        return value == null ? null : value.toLocalDateTime();
     }
 
     public long countMasterMachines() {
@@ -563,8 +577,9 @@ public class FixedAssetRepository {
     }
 
     /**
-     * Flags an existing audit row for QR reprint (no new row). QR location is
-     * overwritten only when sent; audit user / time are kept as audited.
+     * Flags an existing audit row for QR reprint (no new row) and resets the
+     * replacement status. QR location is overwritten only when sent; audit
+     * user / time are kept as audited.
      */
     public int markAuditQrReprint(
             long id,
@@ -576,6 +591,9 @@ public class FixedAssetRepository {
         String sql = """
                 UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
                 SET QrMismatch = 1,
+                    ReprintSts = 0,
+                    ReprintAt = NULL,
+                    ReprintUserId = NULL,
                     AuditMode = COALESCE(?, AuditMode),
                     Fac_Qr = COALESCE(?, Fac_Qr),
                     Floor_Qr = COALESCE(?, Floor_Qr),
@@ -588,32 +606,30 @@ public class FixedAssetRepository {
     }
 
     /**
-     * Clears the QR reprint flag of an existing audit row (new label matches
-     * its ACTUAL location) and stores the scanned label as *_Qr. *_Act,
-     * AuditMode, Note and audit user / time are kept.
+     * Marks the QR label of a flagged audit row as replaced (new label matches
+     * its ACTUAL location). Only ReprintSts / ReprintAt / ReprintUserId change:
+     * QrMismatch, *_Qr (audit-time label, kept as history), *_Act, Note,
+     * AuditMode and audit user / time are kept.
      */
     public int clearAuditQrReprint(
             long id,
-            String qrFac,
-            String qrFloor,
-            String qrPositionA,
-            String qrPositionAA) {
+            LocalDateTime reprintAt,
+            String reprintUserId) {
         String sql = """
                 UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
-                SET QrMismatch = 0,
-                    Fac_Qr = ?,
-                    Floor_Qr = ?,
-                    A_Qr = ?,
-                    AA_Qr = ?
+                SET ReprintSts = 1,
+                    ReprintAt = ?,
+                    ReprintUserId = ?
                 WHERE Id = ?
                 """;
 
-        return jdbcTemplate.update(sql, qrFac, qrFloor, qrPositionA, qrPositionAA, id);
+        return jdbcTemplate.update(sql, Timestamp.valueOf(reprintAt), reprintUserId, id);
     }
 
     /**
      * Confirmed move of a flagged machine: overwrites ACTUAL and QR label
-     * location, QrMismatch stays 1. Audit user / time are kept.
+     * location, QrMismatch stays 1 and ReprintSts stays 0. Audit user / time
+     * are kept.
      */
     public int relocateAuditQrReprint(
             long id,
@@ -628,6 +644,7 @@ public class FixedAssetRepository {
         String sql = """
                 UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
                 SET QrMismatch = 1,
+                    ReprintSts = 0,
                     Fac_Act = ?,
                     Floor_Act = ?,
                     A_Act = ?,
@@ -653,8 +670,8 @@ public class FixedAssetRepository {
     }
 
     /**
-     * Machines whose latest audit in the period has QrMismatch = 1 (QR label
-     * needs reprinting).
+     * Machines whose latest audit in the period has QrMismatch = 1 and
+     * ReprintSts = 0 (QR label still waiting for replacement).
      * FAName / Fac come from MASTER (LEFT JOIN MAP, as findMasterMachinesByCode);
      * the fac filter applies to the MASTER Fac.
      */
@@ -678,7 +695,9 @@ public class FixedAssetRepository {
                     a.AA_Qr,
                     a.UserName,
                     a.UpdatedAt,
-                    a.AuditMode
+                    a.AuditMode,
+                    a.ReprintSts,
+                    a.ReprintAt
                 FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT a
                 OUTER APPLY (
                     SELECT TOP 1
@@ -696,6 +715,7 @@ public class FixedAssetRepository {
                     ORDER BY map.Fac DESC
                 ) m
                 WHERE a.QrMismatch = 1
+                    AND ISNULL(a.ReprintSts, 0) = 0
                     AND a.MachineCode IS NOT NULL
                     AND LTRIM(RTRIM(a.MachineCode)) <> ''
                     AND a.UpdatedAt >= ?
@@ -738,7 +758,9 @@ public class FixedAssetRepository {
                         resultSet.getString("AA_Qr"),
                         resultSet.getString("UserName"),
                         resultSet.getTimestamp("UpdatedAt").toLocalDateTime(),
-                        resultSet.getString("AuditMode")),
+                        resultSet.getString("AuditMode"),
+                        resultSet.getBoolean("ReprintSts"),
+                        toLocalDateTime(resultSet.getTimestamp("ReprintAt"))),
                 params.toArray());
     }
 

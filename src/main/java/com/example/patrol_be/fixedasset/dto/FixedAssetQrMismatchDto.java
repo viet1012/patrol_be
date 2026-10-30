@@ -23,4 +23,6 @@ public class FixedAssetQrMismatchDto {
     private String userName;
     private LocalDateTime updatedAt;
     private String auditMode;
+    private boolean reprintSts;
+    private LocalDateTime reprintAt;
 }

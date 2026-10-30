@@ -24,7 +24,7 @@ public class FixedAssetScanInfoDto {
     private String faName;
     /** Any audit row in the period (QrMismatch = 1 included). */
     private boolean auditedInCurrentPeriod;
-    /** Latest audit row in the period has QrMismatch = 1. */
+    /** Latest audit row in the period has QrMismatch = 1 AND ReprintSts = 0. */
     private boolean needsQrReprint;
     private LocalDateTime lastAuditedAt;
     private String lastAuditedUserId;
@@ -41,4 +41,7 @@ public class FixedAssetScanInfoDto {
     private String reprintQrFloor;
     private String reprintQrPositionA;
     private String reprintQrPositionAA;
+    /** Latest audit row: ReprintSts = 1 (QR replaced) and when; false / null without audit. */
+    private boolean reprintSts;
+    private LocalDateTime reprintAt;
 }

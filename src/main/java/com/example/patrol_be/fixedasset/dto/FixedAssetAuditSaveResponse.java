@@ -11,7 +11,7 @@ public class FixedAssetAuditSaveResponse {
     private boolean success;
     private boolean saved;
     private boolean alreadyAudited;
-    /** Saved / existing row has QrMismatch = 1 (QR label must be reprinted). */
+    /** Saved / existing row has QrMismatch = 1 AND ReprintSts = 0 (QR label must be replaced). */
     private boolean needsQrReprint;
     private boolean unknownMachine;
     private boolean locationMismatch;
@@ -37,4 +37,9 @@ public class FixedAssetAuditSaveResponse {
     private String reprintQrFloor;
     private String reprintQrPositionA;
     private String reprintQrPositionAA;
+    /** Flagged machine scanned outside "3) Thay QR" (qrReplace != true): nothing saved. */
+    private boolean pendingQrReplace;
+    /** Row state after this save: ReprintSts = 1 (QR replaced) and when. */
+    private boolean reprintSts;
+    private LocalDateTime reprintAt;
 }

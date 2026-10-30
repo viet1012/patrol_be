@@ -157,7 +157,9 @@ public class FixedAssetService {
                 reprint == null ? null : reprint.getQrFac(),
                 reprint == null ? null : reprint.getQrFloor(),
                 reprint == null ? null : reprint.getQrPositionA(),
-                reprint == null ? null : reprint.getQrPositionAA()
+                reprint == null ? null : reprint.getQrPositionAA(),
+                latestAudit != null && latestAudit.isReprintSts(),
+                latestAudit == null ? null : latestAudit.getReprintAt()
         );
     }
 
@@ -333,7 +335,9 @@ public class FixedAssetService {
                 reprint == null ? null : reprint.getQrFac(),
                 reprint == null ? null : reprint.getQrFloor(),
                 reprint == null ? null : reprint.getQrPositionA(),
-                reprint == null ? null : reprint.getQrPositionAA()
+                reprint == null ? null : reprint.getQrPositionAA(),
+                latestAudit != null && latestAudit.isReprintSts(),
+                latestAudit == null ? null : latestAudit.getReprintAt()
         );
     }
 
@@ -378,6 +382,12 @@ public class FixedAssetService {
         );
 
         if (isAudited(latestAudit)) {
+            // Flagged machine outside "3) Thay QR" (incl. NO_QR rows / NO_QR
+            // mode): nothing is written, FE is pointed to the replace flow.
+            if (latestAudit.isNeedsQrReprint() && !Boolean.TRUE.equals(request.getQrReplace())) {
+                return pendingQrReplace(latestAudit, machineCode);
+            }
+
             // Rescan of a flagged machine: decided by the scanned QR label
             // (still under the UPDLOCK above), no new row. NO_QR keeps the
             // mark branch below.
@@ -385,6 +395,7 @@ public class FixedAssetService {
                 return rescanQrReprint(
                         latestAudit,
                         machineCode,
+                        userId,
                         fac,
                         floor,
                         positionA,
@@ -447,7 +458,11 @@ public class FixedAssetService {
                     !rowFlagged ? null : qrMismatch && qrPositionA != null
                             ? qrPositionA : latestAudit.getQrPositionA(),
                     !rowFlagged ? null : qrMismatch && qrPositionAA != null
-                            ? qrPositionAA : latestAudit.getQrPositionAA()
+                            ? qrPositionAA : latestAudit.getQrPositionAA(),
+                    false,
+                    // mark resets the replacement status
+                    !qrMismatch && latestAudit.isReprintSts(),
+                    qrMismatch ? null : latestAudit.getReprintAt()
             );
         }
 
@@ -489,6 +504,9 @@ public class FixedAssetService {
                             null,
                             null,
                             null,
+                            null,
+                            false,
+                            false,
                             null
                     );
                 }
@@ -546,7 +564,10 @@ public class FixedAssetService {
                         qrMismatch ? qrFac : null,
                         qrMismatch ? qrFloor : null,
                         qrMismatch ? qrPositionA : null,
-                        qrMismatch ? qrPositionAA : null
+                        qrMismatch ? qrPositionAA : null,
+                        false,
+                        false,
+                        null
                 );
             }
         }
@@ -592,6 +613,9 @@ public class FixedAssetService {
                     null,
                     null,
                     null,
+                    null,
+                    false,
+                    false,
                     null
             );
         }
@@ -662,7 +686,10 @@ public class FixedAssetService {
                 qrMismatch ? qrFac : null,
                 qrMismatch ? qrFloor : null,
                 qrMismatch ? qrPositionA : null,
-                qrMismatch ? qrPositionAA : null
+                qrMismatch ? qrPositionAA : null,
+                false,
+                false,
+                null
         );
     }
 
@@ -740,14 +767,15 @@ public class FixedAssetService {
      * Rescan of a machine whose latest row has QrMismatch = 1, decided by the
      * scanned QR label location (qr*):
      * - label = old *_Qr -> label not reprinted yet, nothing changes;
-     * - label = *_Act and selected = *_Act (NO_QR row: label = *_Act) -> clear,
-     *   scanned label stored as *_Qr;
+     * - label = *_Act and selected = *_Act (NO_QR row: label = *_Act) ->
+     *   ReprintSts = 1; QrMismatch / *_Qr (audit-time label) are kept;
      * - otherwise the machine may have moved -> confirmation, then *_Act and
-     *   *_Qr are overwritten and QrMismatch stays 1.
+     *   *_Qr are overwritten, QrMismatch stays 1 and ReprintSts stays 0.
      */
     private FixedAssetAuditSaveResponse rescanQrReprint(
             FixedAssetLatestAuditDto latest,
             String machineCode,
+            String userId,
             String fac,
             String floor,
             String positionA,
@@ -817,18 +845,19 @@ public class FixedAssetService {
                     latest.getQrFac(),
                     latest.getQrFloor(),
                     latest.getQrPositionA(),
-                    latest.getQrPositionAA()
+                    latest.getQrPositionAA(),
+                    false,
+                    false,
+                    null
             );
         }
 
         if (labelIsActual && (noQrRow || selectedIsActual)) {
-            // qrFac / qrPositionA already filled from MAP when the label lacks them.
+            LocalDateTime reprintAt = LocalDateTime.now();
             int updated = repository.clearAuditQrReprint(
                     latest.getId(),
-                    qrFac,
-                    qrFloor,
-                    qrPositionA,
-                    qrPositionAA
+                    reprintAt,
+                    userId
             );
             if (updated != 1) {
                 throw new IllegalStateException("Fixed Asset QR reprint flag was not cleared");
@@ -857,10 +886,14 @@ public class FixedAssetService {
                     latest.getPositionAAAct(),
                     "QR khớp vị trí, đã gỡ đánh dấu in lại QR.",
                     false,
-                    qrFac,
-                    qrFloor,
-                    qrPositionA,
-                    qrPositionAA
+                    // *_Qr unchanged (audit-time label kept as history)
+                    latest.getQrFac(),
+                    latest.getQrFloor(),
+                    latest.getQrPositionA(),
+                    latest.getQrPositionAA(),
+                    false,
+                    true,
+                    reprintAt
             );
         }
 
@@ -892,7 +925,10 @@ public class FixedAssetService {
                     latest.getQrFac(),
                     latest.getQrFloor(),
                     latest.getQrPositionA(),
-                    latest.getQrPositionAA()
+                    latest.getQrPositionAA(),
+                    false,
+                    false,
+                    null
             );
         }
 
@@ -944,7 +980,47 @@ public class FixedAssetService {
                 qrFac,
                 qrFloor,
                 qrPositionA,
-                qrPositionAA
+                qrPositionAA,
+                false,
+                false,
+                null
+        );
+    }
+
+    /** Flagged machine scanned without qrReplace: row unchanged, reprint info returned. */
+    private FixedAssetAuditSaveResponse pendingQrReplace(
+            FixedAssetLatestAuditDto latest,
+            String machineCode) {
+        return new FixedAssetAuditSaveResponse(
+                true,
+                false,
+                true,
+                true,
+                false,
+                false,
+                false,
+                machineCode,
+                null,
+                latest.getUpdatedAt(),
+                latest.getUserId(),
+                latest.getUserName(),
+                null,
+                null,
+                null,
+                null,
+                latest.getFacAct(),
+                latest.getFloorAct(),
+                latest.getPositionAAct(),
+                latest.getPositionAAAct(),
+                "Máy đang chờ thay QR – thực hiện ở mục 3) Thay QR",
+                false,
+                latest.getQrFac(),
+                latest.getQrFloor(),
+                latest.getQrPositionA(),
+                latest.getQrPositionAA(),
+                true,
+                false,
+                null
         );
     }
 
