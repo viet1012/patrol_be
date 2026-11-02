@@ -1,30 +1,56 @@
 package com.example.patrol_be.fixedasset.service;
 
-import com.example.patrol_be.fixedasset.dto.FixedAssetAuditCheckRequest;
-import com.example.patrol_be.fixedasset.dto.FixedAssetAuditCheckResponse;
-import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSaveRequest;
-import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSaveResponse;
-import com.example.patrol_be.fixedasset.dto.FixedAssetAuditSummaryDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetMachineDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetMachineLocationDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetMasterMachineDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAuditDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetLatestAutoAuditDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetQrMismatchDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetZoneLockDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetScanInfoDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetResolvedLocationDto;
-import com.example.patrol_be.fixedasset.dto.FixedAssetZoneProgressDto;
-import com.example.patrol_be.fixedasset.repository.FixedAssetRepository;
+import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditCheckRequest;
+import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditCheckResponse;
+import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditSaveRequest;
+import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditSaveResponse;
+import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditSummaryDto;
+import com.example.patrol_be.fixedasset.dto.machine.FixedAssetMachineDto;
+import com.example.patrol_be.fixedasset.dto.machine.FixedAssetMachineLocationDto;
+import com.example.patrol_be.fixedasset.dto.machine.FixedAssetMasterMachineDto;
+import com.example.patrol_be.fixedasset.dto.pic.FixedAssetPicDetailDto;
+import com.example.patrol_be.fixedasset.dto.pic.FixedAssetPicDto;
+import com.example.patrol_be.fixedasset.dto.pic.FixedAssetPicMachineDto;
+import com.example.patrol_be.fixedasset.dto.pic.FixedAssetPicSummaryDto;
+import com.example.patrol_be.fixedasset.dto.pic.FixedAssetPicZoneDto;
+import com.example.patrol_be.fixedasset.dto.summary.FixedAssetSummaryDto;
+import com.example.patrol_be.fixedasset.dto.summary.FixedAssetSummaryMachineRowDto;
+import com.example.patrol_be.fixedasset.dto.summary.FixedAssetSummaryMonthDto;
+import com.example.patrol_be.fixedasset.dto.summary.FixedAssetSummaryPicRowDto;
+import com.example.patrol_be.fixedasset.dto.audit.FixedAssetUnauditedMachineDto;
+import com.example.patrol_be.fixedasset.dto.audit.FixedAssetLatestAuditDto;
+import com.example.patrol_be.fixedasset.dto.audit.FixedAssetLatestAutoAuditDto;
+import com.example.patrol_be.fixedasset.dto.scan.FixedAssetQrMismatchDto;
+import com.example.patrol_be.fixedasset.dto.zone.FixedAssetZoneLockDto;
+import com.example.patrol_be.fixedasset.dto.scan.FixedAssetScanInfoDto;
+import com.example.patrol_be.fixedasset.dto.machine.FixedAssetResolvedLocationDto;
+import com.example.patrol_be.fixedasset.dto.zone.FixedAssetZoneProgressDto;
+import com.example.patrol_be.fixedasset.repository.FixedAssetAuditRepository;
+import com.example.patrol_be.fixedasset.repository.FixedAssetLocationRepository;
+import com.example.patrol_be.fixedasset.repository.FixedAssetSummaryRepository;
+import com.example.patrol_be.common.exception.PermissionDeniedException;
+import com.example.patrol_be.hr.repository.HrDataRepository;
+import com.example.patrol_be.permission.PatrolAction;
+import com.example.patrol_be.permission.PatrolGroup;
+import com.example.patrol_be.permission.PermissionService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class FixedAssetService {
@@ -34,38 +60,75 @@ public class FixedAssetService {
             "ACTUAL_LOCATION_NOT_MAPPED";
     private static final String NO_QR_MODE = "NO_QR";
     private static final String NO_QR_NOTE_PREFIX = "NO_QR";
+    private static final String PIC_MISMATCH_NOTE_PREFIX = "PIC_MISMATCH";
     private static final Set<String> AUDIT_MODES = Set.of("AUTO", "MANUAL", NO_QR_MODE);
     private static final String ZONE_LOCK_INCOMPLETE = "INCOMPLETE";
     private static final String ZONE_LOCK_COMPLETED = "COMPLETED";
     private static final String ZONE_LOCK_NO_AUTO_AUDIT = "NO_AUTO_AUDIT";
     private static final String ZONE_LOCK_UNRESOLVED = "UNRESOLVED";
+    private static final Pattern PERIOD_PATTERN =
+            Pattern.compile("^(\\d{4})-Q([1-4])$", Pattern.CASE_INSENSITIVE);
+    private static final String STATUS_NOT_STARTED = "NOT_STARTED";
+    private static final String STATUS_ON_TRACK = "ON_TRACK";
+    private static final String STATUS_BEHIND = "BEHIND";
+    private static final int MONTHS_PER_PERIOD = 3;
+    private static final String NO_PIC_NAME = "Chưa có PIC";
+    private static final int SPEED_WINDOW_DAYS = 28;
 
-    private final FixedAssetRepository repository;
+    private final FixedAssetLocationRepository locationRepository;
+    private final FixedAssetAuditRepository auditRepository;
+    private final FixedAssetSummaryRepository summaryRepository;
+    private final HrDataRepository hrDataRepository;
+    private final PermissionService permissionService;
 
-    public FixedAssetService(FixedAssetRepository repository) {
-        this.repository = repository;
+    public FixedAssetService(
+            FixedAssetLocationRepository locationRepository,
+            FixedAssetAuditRepository auditRepository,
+            FixedAssetSummaryRepository summaryRepository,
+            HrDataRepository hrDataRepository,
+            PermissionService permissionService) {
+        this.locationRepository = locationRepository;
+        this.auditRepository = auditRepository;
+        this.summaryRepository = summaryRepository;
+        this.hrDataRepository = hrDataRepository;
+        this.permissionService = permissionService;
     }
 
-    public List<String> getFacs() {
-        return repository.findFacs();
+    public List<String> getFacs(String pic) {
+        AuditPeriod period = currentAuditPeriod();
+        return locationRepository.findFacs(normalizePic(pic), period.startDateTime(), period.nextStartDateTime());
     }
 
-    public List<String> getFloors(String fac) {
-        return repository.findFloors(requireValue(fac, "Fac"));
-    }
-
-    public List<String> getPositionA(String fac, String floor) {
-        return repository.findPositionA(
+    public List<String> getFloors(String fac, String pic) {
+        AuditPeriod period = currentAuditPeriod();
+        return locationRepository.findFloors(
                 requireValue(fac, "Fac"),
-                requireValue(floor, "Floor")
+                normalizePic(pic),
+                period.startDateTime(),
+                period.nextStartDateTime()
         );
     }
 
-    public List<String> getPositionAA(String fac, String floor, String positionA) {
-        return repository.findPositionAA(
+    public List<String> getPositionA(String fac, String floor, String pic) {
+        AuditPeriod period = currentAuditPeriod();
+        return locationRepository.findPositionA(
                 requireValue(fac, "Fac"),
                 requireValue(floor, "Floor"),
-                requireValue(positionA, "PositionA")
+                normalizePic(pic),
+                period.startDateTime(),
+                period.nextStartDateTime()
+        );
+    }
+
+    public List<String> getPositionAA(String fac, String floor, String positionA, String pic) {
+        AuditPeriod period = currentAuditPeriod();
+        return locationRepository.findPositionAA(
+                requireValue(fac, "Fac"),
+                requireValue(floor, "Floor"),
+                requireValue(positionA, "PositionA"),
+                normalizePic(pic),
+                period.startDateTime(),
+                period.nextStartDateTime()
         );
     }
 
@@ -73,7 +136,8 @@ public class FixedAssetService {
             String fac,
             String floor,
             String positionA,
-            String positionAA
+            String positionAA,
+            String pic
     ) {
         String normalizedFac = requireValue(fac, "Fac");
         String normalizedFloor = requireValue(floor, "Floor");
@@ -81,14 +145,369 @@ public class FixedAssetService {
         String normalizedPositionAA = requireValue(positionAA, "PositionAA");
         AuditPeriod period = currentAuditPeriod();
 
-        return repository.findMachines(
+        return locationRepository.findMachines(
                 normalizedFac,
                 normalizedFloor,
                 normalizedPositionA,
                 normalizedPositionAA,
+                normalizePic(pic),
                 period.startDateTime(),
                 period.nextStartDateTime()
         );
+    }
+
+    /** PICs of the factory; name = part of the email before '@' (HSE_EmpID has no email). */
+    public List<FixedAssetPicDto> getPics() {
+        AuditPeriod period = currentAuditPeriod();
+        List<FixedAssetPicDto> pics = summaryRepository.findPics(period.startDateTime(), period.nextStartDateTime());
+        for (FixedAssetPicDto pic : pics) {
+            String email = pic.getEmail();
+            int at = email.indexOf('@');
+            pic.setName(at > 0 ? email.substring(0, at) : email);
+        }
+        return pics;
+    }
+
+    public List<FixedAssetPicZoneDto> getPicZones(String pic) {
+        String normalizedPic = normalizePic(requireValue(pic, "Pic"));
+        AuditPeriod period = currentAuditPeriod();
+        return summaryRepository.findPicZones(
+                normalizedPic,
+                period.startDateTime(),
+                period.nextStartDateTime()
+        );
+    }
+
+    // ===============================
+    // SUMMARY per period / PIC (one query, aggregated here)
+    // ===============================
+
+    public FixedAssetSummaryDto getSummary(String period) {
+        AuditPeriod auditPeriod = auditPeriod(period);
+        LocalDate today = LocalDate.now();
+        double planPct = planPctAt(auditPeriod, today);
+        List<MachineStat> machines = summaryMachines(auditPeriod);
+
+        long total = machines.size();
+        long audited = machines.stream().filter(MachineStat::audited).count();
+        long remaining = total - audited;
+        long pendingQr = machines.stream().filter(MachineStat::needsQrReprint).count();
+
+        // "Chưa có PIC" (pic = null) is not counted as a PIC.
+        List<FixedAssetPicSummaryDto> pics = picSummaries(machines, auditPeriod, today, planPct)
+                .stream()
+                .filter(pic -> pic.getPic() != null)
+                .toList();
+
+        return new FixedAssetSummaryDto(
+                auditPeriod.start(),
+                auditPeriod.end(),
+                today,
+                planPct,
+                total,
+                audited,
+                percent(audited, total),
+                remaining,
+                pendingQr,
+                pics.stream().filter(pic -> pic.getPendingQr() > 0).count(),
+                pics.size(),
+                pics.stream()
+                        .filter(pic -> STATUS_ON_TRACK.equals(pic.getStatus()))
+                        .count(),
+                summaryPicRows(auditPeriod)
+        );
+    }
+
+    /** Sorted by pct ascending; machines without PIC grouped as pic = null. */
+    public List<FixedAssetPicSummaryDto> getSummaryPics(String period) {
+        AuditPeriod auditPeriod = auditPeriod(period);
+        LocalDate today = LocalDate.now();
+        return picSummaries(
+                summaryMachines(auditPeriod), auditPeriod, today, planPctAt(auditPeriod, today));
+    }
+
+    /** pic blank -> machines without PIC ("Chưa có PIC"). */
+    public FixedAssetPicDetailDto getSummaryPicDetail(String pic, String period) {
+        String normalizedPic = normalizePic(pic);
+        AuditPeriod auditPeriod = auditPeriod(period);
+        LocalDate today = LocalDate.now();
+        List<MachineStat> machines = summaryMachines(auditPeriod).stream()
+                .filter(machine -> Objects.equals(machine.pic(), normalizedPic))
+                .toList();
+        if (machines.isEmpty()) {
+            throw new IllegalArgumentException("No machine for PIC: "
+                    + (normalizedPic == null ? NO_PIC_NAME : normalizedPic));
+        }
+
+        FixedAssetPicSummaryDto summary = picSummary(
+                normalizedPic, machines, auditPeriod, today, planPctAt(auditPeriod, today));
+
+        // Zone -> distinct machines (total / audited), mapped locations only.
+        Map<String, FixedAssetPicZoneDto> zones = new LinkedHashMap<>();
+        Map<String, Set<String>> zoneMachines = new LinkedHashMap<>();
+        Map<String, Set<String>> zoneAudited = new LinkedHashMap<>();
+        Map<String, Set<String>> zoneMoved = new LinkedHashMap<>();
+        List<FixedAssetUnauditedMachineDto> unaudited = new ArrayList<>();
+        for (MachineStat machine : machines) {
+            for (FixedAssetSummaryMachineRowDto row : machine.rows()) {
+                if (!machine.audited()) {
+                    unaudited.add(new FixedAssetUnauditedMachineDto(
+                            row.getMachineCode(),
+                            row.getFaName(),
+                            row.getFac(),
+                            row.getFloor(),
+                            row.getPositionA(),
+                            row.getPositionAA()));
+                }
+                String key = zoneKey(row);
+                if (key == null) {
+                    continue;
+                }
+                zones.computeIfAbsent(key, k -> new FixedAssetPicZoneDto(
+                        row.getFac(), row.getFloor(), row.getPositionA(), row.getPositionAA(), 0, 0, 0));
+                zoneMachines.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(machine.machineCode());
+                if (machine.audited()) {
+                    zoneAudited.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(machine.machineCode());
+                }
+                if (row.isMoved()) {
+                    zoneMoved.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(machine.machineCode());
+                }
+            }
+        }
+        zones.forEach((key, zone) -> {
+            zone.setTotal(zoneMachines.get(key).size());
+            zone.setAudited(zoneAudited.getOrDefault(key, Set.of()).size());
+            zone.setMovedCount(zoneMoved.getOrDefault(key, Set.of()).size());
+        });
+        List<FixedAssetPicZoneDto> zoneList = zones.values().stream()
+                .sorted(Comparator.comparing(FixedAssetPicZoneDto::getFac)
+                        .thenComparing(FixedAssetPicZoneDto::getFloor)
+                        .thenComparing(FixedAssetPicZoneDto::getPositionA)
+                        .thenComparing(FixedAssetPicZoneDto::getPositionAA))
+                .toList();
+
+        return new FixedAssetPicDetailDto(
+                summary.getPic(),
+                summary.getName(),
+                summary.getTotal(),
+                summary.getAudited(),
+                summary.getPct(),
+                summary.getRemaining(),
+                summary.getZoneCount(),
+                summary.getPendingQr(),
+                summary.getSpeedPerWeek(),
+                summary.getEtaDate(),
+                summary.getStatus(),
+                zoneList,
+                unaudited
+        );
+    }
+
+    /**
+     * Machines of a PIC for the summary detail (pic blank -> machines without
+     * PIC); fac / floor / positionA / positionAA blank -> no filter on that level.
+     */
+    public List<FixedAssetPicMachineDto> getSummaryPicMachines(
+            String pic,
+            String period,
+            String fac,
+            String floor,
+            String positionA,
+            String positionAA) {
+        AuditPeriod auditPeriod = auditPeriod(period);
+        return summaryRepository.findPicMachines(
+                normalizePic(pic),
+                trimToNull(fac),
+                trimToNull(floor),
+                trimToNull(positionA),
+                trimToNull(positionAA),
+                auditPeriod.startDateTime(),
+                auditPeriod.nextStartDateTime()
+        );
+    }
+
+    /** Rows of the summary query grouped per machine (a machine may have several locations). */
+    private List<MachineStat> summaryMachines(AuditPeriod auditPeriod) {
+        Map<String, List<FixedAssetSummaryMachineRowDto>> byMachine = new LinkedHashMap<>();
+        for (FixedAssetSummaryMachineRowDto row : summaryRepository.findSummaryMachines(
+                auditPeriod.startDateTime(), auditPeriod.nextStartDateTime())) {
+            byMachine.computeIfAbsent(row.getMachineCode(), k -> new ArrayList<>()).add(row);
+        }
+
+        List<MachineStat> machines = new ArrayList<>(byMachine.size());
+        byMachine.forEach((machineCode, rows) -> {
+            FixedAssetSummaryMachineRowDto first = rows.get(0);
+            machines.add(new MachineStat(
+                    machineCode,
+                    first.getPic(),
+                    first.getFirstAuditAt(),
+                    first.isAuditedInPeriod(),
+                    first.isNeedsQrReprint(),
+                    rows));
+        });
+        return machines;
+    }
+
+    private List<FixedAssetPicSummaryDto> picSummaries(
+            List<MachineStat> machines,
+            AuditPeriod auditPeriod,
+            LocalDate today,
+            double planPct) {
+        // LinkedHashMap accepts the null key (machines without PIC).
+        Map<String, List<MachineStat>> byPic = new LinkedHashMap<>();
+        for (MachineStat machine : machines) {
+            byPic.computeIfAbsent(machine.pic(), k -> new ArrayList<>()).add(machine);
+        }
+
+        List<FixedAssetPicSummaryDto> result = new ArrayList<>(byPic.size());
+        byPic.forEach((pic, picMachines) ->
+                result.add(picSummary(pic, picMachines, auditPeriod, today, planPct)));
+        result.sort(Comparator.comparingDouble(FixedAssetPicSummaryDto::getPct)
+                .thenComparing(FixedAssetPicSummaryDto::getPic,
+                        Comparator.nullsLast(Comparator.naturalOrder())));
+        return result;
+    }
+
+    private FixedAssetPicSummaryDto picSummary(
+            String pic,
+            List<MachineStat> machines,
+            AuditPeriod auditPeriod,
+            LocalDate today,
+            double planPct) {
+        long total = machines.size();
+        long audited = machines.stream().filter(MachineStat::audited).count();
+        long remaining = total - audited;
+        double pct = percent(audited, total);
+        long zoneCount = machines.stream()
+                .flatMap(machine -> machine.rows().stream())
+                .map(this::zoneKey)
+                .filter(Objects::nonNull)
+                .distinct()
+                .count();
+        long pendingQr = machines.stream().filter(MachineStat::needsQrReprint).count();
+        String status = summaryStatus(audited, pct, planPct);
+
+        // Speed: audits over the last 4 weeks of the period up to now; at least 1 week.
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime windowEnd = now.isBefore(auditPeriod.nextStartDateTime())
+                ? now : auditPeriod.nextStartDateTime();
+        LocalDateTime windowStart = windowEnd.minusDays(SPEED_WINDOW_DAYS);
+        if (windowStart.isBefore(auditPeriod.startDateTime())) {
+            windowStart = auditPeriod.startDateTime();
+        }
+        double speedPerWeek = 0.0;
+        if (windowEnd.isAfter(windowStart)) {
+            LocalDateTime from = windowStart;
+            long recent = machines.stream()
+                    .map(MachineStat::firstAuditAt)
+                    .filter(at -> at != null && !at.isBefore(from) && at.isBefore(windowEnd))
+                    .count();
+            double weeks = Math.max(Duration.between(windowStart, windowEnd).toMinutes() / (7 * 24 * 60.0), 1.0);
+            speedPerWeek = round2(recent / weeks);
+        }
+
+        LocalDate etaDate = remaining <= 0 || speedPerWeek <= 0
+                ? null
+                : today.plusDays((long) Math.ceil(remaining / speedPerWeek * 7));
+
+        return new FixedAssetPicSummaryDto(
+                pic,
+                picName(pic),
+                total,
+                audited,
+                pct,
+                remaining,
+                zoneCount,
+                pendingQr,
+                speedPerWeek,
+                etaDate,
+                status
+        );
+    }
+
+    /**
+     * Quarter progress per PIC: total row first (pic = null, isTotal, every
+     * machine incl. those without PIC), then one row per PIC, then machines
+     * without PIC (pic = null, isTotal = false) when there are any.
+     */
+    private List<FixedAssetSummaryPicRowDto> summaryPicRows(AuditPeriod auditPeriod) {
+        List<FixedAssetSummaryPicRowDto> rows = summaryRepository.findPicMonthlyProgress(
+                auditPeriod.startDateTime(), auditPeriod.nextStartDateTime());
+
+        long total = 0;
+        long audited = 0;
+        long[] monthAudited = new long[MONTHS_PER_PERIOD];
+        for (FixedAssetSummaryPicRowDto row : rows) {
+            total += row.getTotal();
+            audited += row.getAudited();
+            for (int i = 0; i < MONTHS_PER_PERIOD; i++) {
+                monthAudited[i] += row.getMonths().get(i).getAudited();
+            }
+        }
+        List<FixedAssetSummaryMonthDto> totalMonths = new ArrayList<>(MONTHS_PER_PERIOD);
+        for (int i = 0; i < MONTHS_PER_PERIOD; i++) {
+            totalMonths.add(new FixedAssetSummaryMonthDto(
+                    auditPeriod.start().plusMonths(i).getMonthValue(), monthAudited[i]));
+        }
+
+        List<FixedAssetSummaryPicRowDto> picRows = new ArrayList<>(rows.size() + 1);
+        picRows.add(new FixedAssetSummaryPicRowDto(null, true, total, audited, totalMonths));
+        rows.stream().filter(row -> row.getPic() != null).forEach(picRows::add);
+        // Machines without PIC: own row (pic = null, isTotal = false) last.
+        rows.stream()
+                .filter(row -> row.getPic() == null && row.getTotal() > 0)
+                .forEach(picRows::add);
+        return picRows;
+    }
+
+    /**
+     * Monthly target: end of month k = k / 3 × 100; within month k = target of
+     * month k - 1 + days passed (through date, inclusive) / days of the month
+     * × 1/3 × 100. Before the period = 0, ended period = 100.
+     */
+    private double planPctAt(AuditPeriod auditPeriod, LocalDate date) {
+        if (date.isBefore(auditPeriod.start())) {
+            return 0.0;
+        }
+        if (!date.isBefore(auditPeriod.end())) {
+            return 100.0;
+        }
+        long monthIndex = ChronoUnit.MONTHS.between(
+                auditPeriod.start().withDayOfMonth(1), date.withDayOfMonth(1));
+        double monthShare = 100.0 / MONTHS_PER_PERIOD;
+        return round2(monthIndex * monthShare
+                + date.getDayOfMonth() / (double) date.lengthOfMonth() * monthShare);
+    }
+
+    private String summaryStatus(long audited, double pct, double planPct) {
+        if (audited == 0) {
+            return STATUS_NOT_STARTED;
+        }
+        return pct < planPct ? STATUS_BEHIND : STATUS_ON_TRACK;
+    }
+
+    /** Same naming as getPics: part of the email before '@'. */
+    private String picName(String pic) {
+        if (pic == null) {
+            return NO_PIC_NAME;
+        }
+        int at = pic.indexOf('@');
+        return at > 0 ? pic.substring(0, at) : pic;
+    }
+
+    /** Fac|Floor|A|AA of a mapped row; null when the location has no MAP row. */
+    private String zoneKey(FixedAssetSummaryMachineRowDto row) {
+        return row.getFac() == null
+                ? null
+                : String.join("|", row.getFac(), row.getFloor(), row.getPositionA(), row.getPositionAA());
+    }
+
+    private double percent(long part, long total) {
+        return total == 0 ? 0.0 : round2(part * 100.0 / total);
+    }
+
+    private double round2(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 
     public FixedAssetMachineLocationDto getMachineLocation(String machineCode) {
@@ -125,7 +544,7 @@ public class FixedAssetService {
         AuditPeriod period = currentAuditPeriod();
         MasterMachine master = findMaster(normalizedMachineCode);
 
-        FixedAssetLatestAuditDto latestAudit = repository.findLatestAuditInPeriod(
+        FixedAssetLatestAuditDto latestAudit = auditRepository.findLatestAuditInPeriod(
                 normalizedMachineCode,
                 period.startDateTime(),
                 period.nextStartDateTime()
@@ -159,16 +578,19 @@ public class FixedAssetService {
                 reprint == null ? null : reprint.getQrPositionA(),
                 reprint == null ? null : reprint.getQrPositionAA(),
                 latestAudit != null && latestAudit.isReprintSts(),
-                latestAudit == null ? null : latestAudit.getReprintAt()
+                latestAudit == null ? null : latestAudit.getReprintAt(),
+                master == null ? null : master.pic()
         );
     }
 
-    public FixedAssetAuditSummaryDto getAuditSummary() {
+    public FixedAssetAuditSummaryDto getAuditSummary(String pic) {
+        String normalizedPic = normalizePic(pic);
         AuditPeriod period = currentAuditPeriod();
-        long totalMachines = repository.countMasterMachines();
-        long auditedMachines = repository.countAuditedMasterMachinesInPeriod(
+        long totalMachines = summaryRepository.countMasterMachines(normalizedPic);
+        long auditedMachines = summaryRepository.countAuditedMasterMachinesInPeriod(
                 period.startDateTime(),
-                period.nextStartDateTime()
+                period.nextStartDateTime(),
+                normalizedPic
         );
         long remainingMachines = Math.max(totalMachines - auditedMachines, 0);
         double completionPercent = totalMachines == 0
@@ -185,11 +607,12 @@ public class FixedAssetService {
         );
     }
 
-    public List<FixedAssetZoneProgressDto> getZoneProgress(String fac, String floor) {
+    public List<FixedAssetZoneProgressDto> getZoneProgress(String fac, String floor, String pic) {
         AuditPeriod period = currentAuditPeriod();
-        return repository.findZoneProgress(
+        return locationRepository.findZoneProgress(
                 requireValue(fac, "Fac"),
                 requireValue(floor, "Floor"),
+                normalizePic(pic),
                 period.startDateTime(),
                 period.nextStartDateTime()
         );
@@ -204,7 +627,7 @@ public class FixedAssetService {
         String normalizedUserId = requireValue(userId, "UserId");
         AuditPeriod period = currentAuditPeriod();
 
-        FixedAssetLatestAutoAuditDto latestAuto = repository.findLatestAutoAuditInPeriod(
+        FixedAssetLatestAutoAuditDto latestAuto = locationRepository.findLatestAutoAuditInPeriod(
                 normalizedUserId,
                 period.startDateTime(),
                 period.nextStartDateTime()
@@ -214,7 +637,7 @@ public class FixedAssetService {
                     false, ZONE_LOCK_NO_AUTO_AUDIT, null, null, null, null, null, null, null);
         }
 
-        List<FixedAssetResolvedLocationDto> locations = repository.findLocationsByPositionAAndAA(
+        List<FixedAssetResolvedLocationDto> locations = locationRepository.findLocationsByPositionAAndAA(
                 latestAuto.getPositionA(),
                 latestAuto.getPositionAA()
         );
@@ -227,9 +650,10 @@ public class FixedAssetService {
         }
 
         FixedAssetResolvedLocationDto location = locations.get(0);
-        FixedAssetZoneProgressDto progress = repository.findZoneProgress(
+        FixedAssetZoneProgressDto progress = locationRepository.findZoneProgress(
                         location.getFac(),
                         location.getFloor(),
+                        null,
                         period.startDateTime(),
                         period.nextStartDateTime()
                 ).stream()
@@ -268,7 +692,7 @@ public class FixedAssetService {
         String positionAA = requireValue(request.getPositionAA(), "PositionAA");
         AuditPeriod period = currentAuditPeriod();
 
-        FixedAssetLatestAuditDto latestAudit = repository.findLatestAuditInPeriod(
+        FixedAssetLatestAuditDto latestAudit = auditRepository.findLatestAuditInPeriod(
                 machineCode,
                 period.startDateTime(),
                 period.nextStartDateTime()
@@ -337,7 +761,8 @@ public class FixedAssetService {
                 reprint == null ? null : reprint.getQrPositionA(),
                 reprint == null ? null : reprint.getQrPositionAA(),
                 latestAudit != null && latestAudit.isReprintSts(),
-                latestAudit == null ? null : latestAudit.getReprintAt()
+                latestAudit == null ? null : latestAudit.getReprintAt(),
+                existsInMaster ? master.pic() : null
         );
     }
 
@@ -354,10 +779,15 @@ public class FixedAssetService {
         String machineCode = requireValue(request.getMachineCode(), "MachineCode");
         String userId = requireValue(request.getUserId(), "UserId");
         String userName = requireValue(request.getUserName(), "UserName");
+        if (Boolean.TRUE.equals(request.getQrReplace())) {
+            requireQrReplacePermission(userId);
+        }
         String note = request.getNote() == null ? null : request.getNote().trim();
         String auditMode = normalizeAuditMode(request.getMode());
         // NO_QR: machine has no QR label (form "Ghi nhận máy thiếu QR").
         boolean noQr = NO_QR_MODE.equals(auditMode);
+        // Same normalization as EmailChecked; null when not sent.
+        String requestPic = normalizePic(request.getPic());
         // QR label location (Manual mode); stored as sent, null -> not mismatched.
         String qrFloor = trimToNull(request.getQrFloor());
         String qrPositionA = trimToNull(request.getQrPositionA());
@@ -375,7 +805,7 @@ public class FixedAssetService {
 
         // Locked read of the latest row; any row in the period (QrMismatch or
         // not) means audited, so at most one audit row per machine per period.
-        FixedAssetLatestAuditDto latestAudit = repository.findLatestAuditInPeriodForUpdate(
+        FixedAssetLatestAuditDto latestAudit = auditRepository.findLatestAuditInPeriodForUpdate(
                 machineCode,
                 period.startDateTime(),
                 period.nextStartDateTime()
@@ -411,7 +841,7 @@ public class FixedAssetService {
             // QR mismatch on an already audited machine: flag the existing row
             // for reprint instead of inserting a duplicate.
             if (qrMismatch) {
-                int updated = repository.markAuditQrReprint(
+                int updated = auditRepository.markAuditQrReprint(
                         latestAudit.getId(),
                         // only NO_QR overwrites the audited row's mode
                         noQr ? auditMode : null,
@@ -512,11 +942,12 @@ public class FixedAssetService {
                 }
 
                 note = unmappedActualNote(master, floor, positionAA, note);
+                note = picMismatchNote(master, requestPic, note);
                 if (noQr) {
                     note = noQrNote(note);
                 }
                 LocalDateTime updatedAt = LocalDateTime.now();
-                int inserted = repository.insertAudit(
+                int inserted = auditRepository.insertAudit(
                         machineCode,
                         null,
                         floor,
@@ -531,7 +962,8 @@ public class FixedAssetService {
                         qrFloor,
                         qrPositionA,
                         qrPositionAA,
-                        qrMismatch
+                        qrMismatch,
+                        master.pic()
                 );
 
                 if (inserted != 1) {
@@ -574,7 +1006,7 @@ public class FixedAssetService {
 
         fac = requireValue(fac, "Fac");
         positionA = requireValue(positionA, "PositionA");
-        if (!repository.existsLocation(fac, floor, positionA, positionAA)) {
+        if (!locationRepository.existsLocation(fac, floor, positionA, positionAA)) {
             throw new IllegalArgumentException(
                     "Invalid location: " + fac + " / " + floor + " / " + positionA + " / " + positionAA);
         }
@@ -629,6 +1061,9 @@ public class FixedAssetService {
         } else if (locationMismatch) {
             note = mismatchNote(master, fac, floor, positionA, positionAA, note);
         }
+        if (!unknownMachine) {
+            note = picMismatchNote(master, requestPic, note);
+        }
         if (noQr) {
             note = noQrNote(note);
         }
@@ -636,7 +1071,7 @@ public class FixedAssetService {
         LocalDateTime updatedAt = LocalDateTime.now();
 
         // *_Act = ACTUAL location of this audit. MASTER is never modified.
-        int inserted = repository.insertAudit(
+        int inserted = auditRepository.insertAudit(
                 machineCode,
                 fac,
                 floor,
@@ -651,7 +1086,9 @@ public class FixedAssetService {
                 qrFloor,
                 qrPositionA,
                 qrPositionAA,
-                qrMismatch
+                qrMismatch,
+                // Machine not in MASTER: PIC sent by the form.
+                unknownMachine ? requestPic : master.pic()
         );
 
         if (inserted != 1) {
@@ -694,16 +1131,31 @@ public class FixedAssetService {
     }
 
     public List<String> getAuditedMachineCodes() {
-        return repository.findAuditedMachineCodes();
+        return auditRepository.findAuditedMachineCodes();
     }
 
     public List<FixedAssetQrMismatchDto> getQrMismatchAudits(String fac) {
         AuditPeriod period = currentAuditPeriod();
-        return repository.findQrMismatchAudits(
+        return auditRepository.findQrMismatchAudits(
                 trimToNull(fac),
                 period.startDateTime(),
                 period.nextStartDateTime()
         );
+    }
+
+    /**
+     * "3) Thay QR" = FixedAsset.AFTER (column CanAfter). Role from HSE_EmpID by
+     * userId; unknown employee -> denied.
+     */
+    private void requireQrReplacePermission(String userId) {
+        String role = hrDataRepository.findByCode(userId)
+                .orElseThrow(() -> new PermissionDeniedException(
+                        "Employee not found: " + userId))
+                .getRole();
+        if (!permissionService.can(role, PatrolGroup.FixedAsset, PatrolAction.AFTER)) {
+            throw new PermissionDeniedException(
+                    "User " + userId + " has no permission for QR replace (FixedAsset.after).");
+        }
     }
 
     /** Audited = any row in the period; QrMismatch = 1 is only a QR label status. */
@@ -720,6 +1172,12 @@ public class FixedAssetService {
         return hasText(value) ? value.trim() : null;
     }
 
+    /** Same normalization as EmailChecked in SQL (trim + lower); blank -> null (no filter). */
+    private String normalizePic(String pic) {
+        String trimmed = trimToNull(pic);
+        return trimmed == null ? null : trimmed.toLowerCase(Locale.ROOT);
+    }
+
     private String requireValue(String value, String fieldName) {
         String trimmed = value == null ? "" : value.trim();
         if (trimmed.isEmpty()) {
@@ -730,7 +1188,7 @@ public class FixedAssetService {
 
     private FixedAssetResolvedLocationDto resolveActualLocation(String floor, String positionAA) {
         List<FixedAssetResolvedLocationDto> locations =
-                repository.findLocationsByFloorAndPositionAA(floor, positionAA);
+                locationRepository.findLocationsByFloorAndPositionAA(floor, positionAA);
 
         if (locations.isEmpty()) {
             return null;
@@ -755,7 +1213,7 @@ public class FixedAssetService {
         }
 
         List<FixedAssetResolvedLocationDto> locations =
-                repository.findLocationsByFloorAndPositionAA(floor, positionAA).stream()
+                locationRepository.findLocationsByFloorAndPositionAA(floor, positionAA).stream()
                         .filter(location -> !hasText(positionA)
                                 || positionA.equals(location.getPositionA()))
                         .toList();
@@ -854,7 +1312,7 @@ public class FixedAssetService {
 
         if (labelIsActual && (noQrRow || selectedIsActual)) {
             LocalDateTime reprintAt = LocalDateTime.now();
-            int updated = repository.clearAuditQrReprint(
+            int updated = auditRepository.clearAuditQrReprint(
                     latest.getId(),
                     reprintAt,
                     userId
@@ -934,12 +1392,12 @@ public class FixedAssetService {
 
         fac = requireValue(fac, "Fac");
         positionA = requireValue(positionA, "PositionA");
-        if (!repository.existsLocation(fac, floor, positionA, positionAA)) {
+        if (!locationRepository.existsLocation(fac, floor, positionA, positionAA)) {
             throw new IllegalArgumentException(
                     "Invalid location: " + fac + " / " + floor + " / " + positionA + " / " + positionAA);
         }
 
-        int updated = repository.relocateAuditQrReprint(
+        int updated = auditRepository.relocateAuditQrReprint(
                 latest.getId(),
                 fac,
                 floor,
@@ -1044,6 +1502,18 @@ public class FixedAssetService {
      * NO_QR marker always first, before LOCATION_MISMATCH /
      * NOT_FOUND_IN_MASTER / ACTUAL_LOCATION_NOT_MAPPED; never added twice.
      */
+    /**
+     * PIC sent differs from the MASTER PIC: MASTER PIC is stored, the sent one
+     * is kept in the note ("PIC_MISMATCH | REQ={pic}"). Not sent -> unchanged.
+     */
+    private String picMismatchNote(MasterMachine master, String requestPic, String note) {
+        if (requestPic == null || requestPic.equals(master.pic())) {
+            return note;
+        }
+        String marker = PIC_MISMATCH_NOTE_PREFIX + " | REQ=" + requestPic;
+        return note == null || note.isBlank() ? marker : marker + " | " + note;
+    }
+
     private String noQrNote(String note) {
         if (note == null || note.isBlank()) {
             return NO_QR_NOTE_PREFIX;
@@ -1095,7 +1565,7 @@ public class FixedAssetService {
      * @return null only when F2_FIXED_ASSET has no row for the MachineCode.
      */
     private MasterMachine findMaster(String machineCode) {
-        List<FixedAssetMasterMachineDto> rows = repository.findMasterMachinesByCode(machineCode);
+        List<FixedAssetMasterMachineDto> rows = auditRepository.findMasterMachinesByCode(machineCode);
 
         if (rows.isEmpty()) {
             return null;
@@ -1121,6 +1591,7 @@ public class FixedAssetService {
                 row.getPositionA(),
                 row.getPositionAA(),
                 row.getFaName(),
+                row.getPic(),
                 locationResolved,
                 fac != null
         );
@@ -1208,7 +1679,24 @@ public class FixedAssetService {
     private AuditPeriod currentAuditPeriod() {
         LocalDate today = LocalDate.now();
         int periodStartMonth = ((today.getMonthValue() - 1) / 3) * 3 + 1;
-        LocalDate start = LocalDate.of(today.getYear(), periodStartMonth, 1);
+        return quarterPeriod(today.getYear(), periodStartMonth);
+    }
+
+    /** "YYYY-Qn" (n = 1..4, case-insensitive); blank -> current quarter. */
+    private AuditPeriod auditPeriod(String period) {
+        if (!hasText(period)) {
+            return currentAuditPeriod();
+        }
+        Matcher matcher = PERIOD_PATTERN.matcher(period.trim());
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException("Invalid period (YYYY-Qn): " + period);
+        }
+        int quarter = Integer.parseInt(matcher.group(2));
+        return quarterPeriod(Integer.parseInt(matcher.group(1)), (quarter - 1) * 3 + 1);
+    }
+
+    private AuditPeriod quarterPeriod(int year, int startMonth) {
+        LocalDate start = LocalDate.of(year, startMonth, 1);
         LocalDate nextStart = start.plusMonths(3);
 
         return new AuditPeriod(
@@ -1231,8 +1719,21 @@ public class FixedAssetService {
             String positionA,
             String positionAA,
             String faName,
+            String pic,
             boolean locationResolved,
             boolean mappingValid
+    ) {
+    }
+
+    /** One summary machine: audited = has an audit row in the period. */
+    private record MachineStat(
+            String machineCode,
+            String pic,
+            LocalDateTime firstAuditAt,
+            /* Same rule as countAuditedMasterMachinesInPeriod (latest audit in period). */
+            boolean audited,
+            boolean needsQrReprint,
+            List<FixedAssetSummaryMachineRowDto> rows
     ) {
     }
 

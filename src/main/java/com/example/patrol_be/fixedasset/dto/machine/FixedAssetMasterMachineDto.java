@@ -1,4 +1,4 @@
-package com.example.patrol_be.fixedasset.dto;
+package com.example.patrol_be.fixedasset.dto.machine;
 
 import lombok.Data;
 
@@ -15,6 +15,8 @@ public class FixedAssetMasterMachineDto {
     private String positionA;
     private String positionAA;
     private String faName;
+    /** EmailChecked, trimmed + lower-cased; null when blank. */
+    private String pic;
 
     public FixedAssetMasterMachineDto() {
     }
@@ -26,7 +28,8 @@ public class FixedAssetMasterMachineDto {
             String floor,
             String positionA,
             String positionAA,
-            String faName
+            String faName,
+            String pic
     ) {
         this.fac = fac;
         this.div = div;
@@ -35,5 +38,6 @@ public class FixedAssetMasterMachineDto {
         this.positionA = positionA;
         this.positionAA = positionAA;
         this.faName = faName;
+        this.pic = pic;
     }
 }

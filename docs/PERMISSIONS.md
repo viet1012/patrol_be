@@ -21,7 +21,7 @@ Service đọc DB **mỗi lần gọi** (không cache), nên sửa DB là có hi
 
 **Group**: `Patrol`, `Audit`, `QualityPatrol`, `AssetUpdate`, `FixedAsset`. Tên phải khớp enum `PatrolGroup` ở cả BE và FE.
 **Action**: `BEFORE`, `AFTER`, `RECHECK`, `SUMMARY`, tương ứng các cột `CanBefore`, `CanAfter`, `CanRecheck`, `CanSummary`. Trong JSON, key là chữ thường (`before`…).
-Ở group `FixedAsset`: BEFORE = kiểm kê, RECHECK = in lại QR.
+Ở group `FixedAsset`: BEFORE = kiểm kê, AFTER = thay QR (mục "3) Thay QR"), RECHECK = in lại QR.
 
 ## API
 
@@ -78,4 +78,4 @@ ORDER BY r.RoleCode, p.GroupCode;
 
 Thứ tự triển khai: DB (bước 1, 3) và BE (bước 2) trước, FE sau. Nếu insert `GroupCode` mới khi BE chưa có enum, BE chỉ ghi `log.warn` và bỏ qua dòng đó; app không lỗi.
 
-> Lưu ý: hiện chưa có API ghi dữ liệu nào ở BE enforce ma trận này. Ma trận chỉ được trả cho FE qua `/api/hr/me` và dùng ở `/api/hr/recheck`.
+> Lưu ý: API ghi dữ liệu duy nhất enforce ma trận này là `POST /api/fixed-assets/audit` khi `qrReplace = true`: cần `FixedAsset.after`, role lấy từ `HSE_EmpID` theo `userId` trong body; không có quyền -> 403 `PERMISSION_DENIED`. Ngoài ra ma trận chỉ được trả cho FE qua `/api/hr/me` và dùng ở `/api/hr/recheck`.

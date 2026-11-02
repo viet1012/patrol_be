@@ -44,3 +44,9 @@ speech:
   stt-url: http://192.168.122.16:7011
   transcribe:
     enabled: false
+
+# Fixed Asset machine scope: F2_FIXED_ASSET Div = div OR Factory = factory (compared trimmed).
+# MAP (F2_FIXED_ASSET_MAP) rows of div are used for every machine in scope.
+fixed-asset:
+  div: KVH
+  factory: Factory 2

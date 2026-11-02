@@ -1,4 +1,4 @@
-package com.example.patrol_be.fixedasset.dto;
+package com.example.patrol_be.fixedasset.dto.scan;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -44,4 +44,6 @@ public class FixedAssetScanInfoDto {
     /** Latest audit row: ReprintSts = 1 (QR replaced) and when; false / null without audit. */
     private boolean reprintSts;
     private LocalDateTime reprintAt;
+    /** MASTER EmailChecked (trimmed, lower-cased); null when not in MASTER or blank. */
+    private String pic;
 }

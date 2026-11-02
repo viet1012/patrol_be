@@ -1,4 +1,4 @@
-package com.example.patrol_be.fixedasset.dto;
+package com.example.patrol_be.fixedasset.dto.scan;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -25,4 +25,6 @@ public class FixedAssetQrMismatchDto {
     private String auditMode;
     private boolean reprintSts;
     private LocalDateTime reprintAt;
+    /** Audit row Pic: MASTER EmailChecked at audit time (null for old rows / no MASTER). */
+    private String pic;
 }

@@ -109,6 +109,30 @@ public class GlobalExceptionHandler {
 
 
 	// ============================================================
+	// PERMISSION DENIED (ma trận quyền Group × Action)
+	// ============================================================
+	@ExceptionHandler(PermissionDeniedException.class)
+	public ResponseEntity<ApiErrorResponse> handlePermissionDenied(
+			PermissionDeniedException exception
+	) {
+		log.warn(
+				"Permission denied: {}",
+				exception.getMessage()
+		);
+
+		return ResponseEntity
+				.status(HttpStatus.FORBIDDEN)
+				.body(
+						new ApiErrorResponse(
+								403,
+								exception.getMessage(),
+								"PERMISSION_DENIED"
+						)
+				);
+	}
+
+
+	// ============================================================
 	// BAD REQUEST
 	// ============================================================
 	@ExceptionHandler(IllegalArgumentException.class)
