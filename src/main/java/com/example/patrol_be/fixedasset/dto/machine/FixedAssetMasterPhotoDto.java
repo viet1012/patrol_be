@@ -12,7 +12,7 @@ public class FixedAssetMasterPhotoDto {
     private String div;
     private String machineCode;
     private String group;
-    /** File name under fixed-asset.photo-dir. */
+    /** File name under app.storage.fixed-asset-photo-dir. */
     private String photo3;
     /** Previous Photo3, kept when Photo3 is replaced. */
     private String photo3Old;

@@ -15,15 +15,16 @@ import com.example.patrol_be.patrol.dto.RiskSummaryDTO;
 import com.example.patrol_be.common.constants.PatrolConstants;
 import com.example.patrol_be.patrol.entity.PatrolReport;
 import com.example.patrol_be.patrol.repository.PatrolReportRepo;
+import jakarta.annotation.PostConstruct;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import com.example.patrol_be.common.config.StorageProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -33,13 +34,27 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PatrolReportService {
 
-	private static final Path BASE_DIR = Paths.get(System.getProperty("user.dir"));
-	private static final String IMAGE_FOLDER_NAME = "uploaded_images";
 	private final PatrolReportRepo repo;
-	private final Path imageFolderPath = BASE_DIR.resolve(IMAGE_FOLDER_NAME);
+	private final StorageProperties storage;
+	// app.storage.upload-root
+	private Path imageFolderPath;
+	// app.storage.ma-photo-dir (Type = MA); DB value MA/{file}
+	private Path maPhotoPath;
 
 	private final PatrolCommentService patrolCommentService;
 	private final PicResolver picResolver;
+
+	@PostConstruct
+	void initImageFolder() {
+		imageFolderPath = storage.uploadRootPath();
+		if (imageFolderPath == null) {
+			throw new IllegalStateException("app.storage.upload-root is not set");
+		}
+		maPhotoPath = storage.maPhotoPath();
+		if (maPhotoPath == null) {
+			throw new IllegalStateException("app.storage.ma-photo-dir is not set");
+		}
+	}
 
 	// ===========================
 	// MAIN FUNCTION
@@ -172,7 +187,7 @@ public class PatrolReportService {
 		}
 
 		// 3️⃣ Lưu ảnh mới (dùng lại logic saveImageFiles)
-		String newImageName = saveSingleImage(newImage);
+		String newImageName = saveSingleImage(newImage, report.getType());
 
 		// 4️⃣ Replace đúng vị trí
 		images.set(index, newImageName);
@@ -186,13 +201,19 @@ public class PatrolReportService {
 		return newImageName;
 	}
 
-	private String saveSingleImage(MultipartFile file) throws IOException {
+	/**
+	 * Saves one image of a report: Type = MA -> app.storage.ma-photo-dir,
+	 * returned (DB value) as MA/{file}; other types -> upload-root, {file}.
+	 */
+	private String saveSingleImage(MultipartFile file, String reportType) throws IOException {
 		if (file == null || file.isEmpty()) {
 			throw new RuntimeException("New image is empty");
 		}
 
-		if (!Files.exists(imageFolderPath)) {
-			Files.createDirectories(imageFolderPath);
+		boolean ma = isMa(reportType);
+		Path folder = ma ? maPhotoPath : imageFolderPath;
+		if (!Files.exists(folder)) {
+			Files.createDirectories(folder);
 		}
 
 		String ext = ".jpg";
@@ -205,15 +226,36 @@ public class PatrolReportService {
 		String fileName = System.currentTimeMillis()
 				+ "_" + UUID.randomUUID() + ext;
 
-		Path savePath = imageFolderPath.resolve(fileName);
+		Path savePath = folder.resolve(fileName);
 		file.transferTo(savePath.toFile());
 
-		return fileName;
+		return ma ? StorageProperties.MA_TYPE + "/" + fileName : fileName;
+	}
+
+	private boolean isMa(String reportType) {
+		return reportType != null
+				&& StorageProperties.MA_TYPE.equalsIgnoreCase(reportType.trim());
+	}
+
+	/**
+	 * DB image name -> file: MA/{file} in ma-photo-dir, else {upload-root}/MA
+	 * (old images); others under upload-root.
+	 */
+	private Path resolveImageFile(String imageName) {
+		String maPrefix = StorageProperties.MA_TYPE + "/";
+		if (imageName.startsWith(maPrefix)) {
+			return storage.resolveMaImage(imageName.substring(maPrefix.length()));
+		}
+		Path path = imageFolderPath.resolve(imageName).normalize();
+		if (!path.startsWith(imageFolderPath)) {
+			throw new IllegalArgumentException("Invalid image name: " + imageName);
+		}
+		return path;
 	}
 
 	private void deleteImageFile(String imageName) {
 		try {
-			Path path = imageFolderPath.resolve(imageName);
+			Path path = resolveImageFile(imageName);
 			Files.deleteIfExists(path);
 		} catch (Exception e) {
 			// không throw để tránh rollback DB
@@ -258,7 +300,7 @@ public class PatrolReportService {
 				.orElseThrow(() -> new RuntimeException("Report not found"));
 
 		// Save image file
-		String newImageName = saveSingleImage(image);
+		String newImageName = saveSingleImage(image, report.getType());
 
 		String imageNames = report.getImageNames();
 
@@ -292,27 +334,11 @@ public class PatrolReportService {
 		List<String> newImages = new ArrayList<>();
 
 		if (images != null && !images.isEmpty()) {
-			if (!Files.exists(imageFolderPath)) {
-				Files.createDirectories(imageFolderPath);
-			}
-
 			for (MultipartFile file : images) {
 				if (file == null || file.isEmpty()) continue;
 
-				String ext = ".jpg";
-				if (file.getOriginalFilename() != null &&
-						file.getOriginalFilename().contains(".")) {
-					ext = file.getOriginalFilename()
-							.substring(file.getOriginalFilename().lastIndexOf("."));
-				}
-
-				String fileName = System.currentTimeMillis()
-						+ "_" + UUID.randomUUID() + ext;
-
-				Path savePath = imageFolderPath.resolve(fileName);
-				file.transferTo(savePath.toFile());
-
-				newImages.add(fileName);
+				// MA -> ma-photo-dir (MA/{file}), others -> upload-root
+				newImages.add(saveSingleImage(file, report.getType()));
 			}
 		}
 
@@ -867,7 +893,7 @@ public class PatrolReportService {
 				}
 
 				String newImageName =
-						saveSingleImage(file);
+						saveSingleImage(file, report.getType());
 
 				images.add(
 						newImageName
@@ -913,26 +939,11 @@ public class PatrolReportService {
 		List<String> newImages = new ArrayList<>();
 
 		if (images != null && !images.isEmpty()) {
-			if (!Files.exists(imageFolderPath)) {
-				Files.createDirectories(imageFolderPath);
-			}
-
 			for (MultipartFile file : images) {
 				if (file == null || file.isEmpty()) continue;
 
-				String ext = ".jpg";
-				String original = file.getOriginalFilename();
-				if (original != null && original.contains(".")) {
-					ext = original.substring(original.lastIndexOf("."));
-				}
-
-				String fileName = System.currentTimeMillis()
-						+ "_" + UUID.randomUUID() + ext;
-
-				Path savePath = imageFolderPath.resolve(fileName);
-				file.transferTo(savePath.toFile());
-
-				newImages.add(fileName);
+				// MA -> ma-photo-dir (MA/{file}), others -> upload-root
+				newImages.add(saveSingleImage(file, report.getType()));
 			}
 		}
 

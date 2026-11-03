@@ -14,9 +14,12 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
+import com.example.patrol_be.common.config.StorageProperties;
+
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -26,6 +29,7 @@ public class AuthService {
 
     private final PatrolAccountRepository repo;
     private final HrDataRepository hseEmpRepo;
+    private final StorageProperties storage;
 
     public boolean existsByAccount(String account) {
         return repo.existsByAccount(account);
@@ -195,13 +199,14 @@ public class AuthService {
         // 👉 TẠO FILE PATH
         ////////////////////////////////////////////////////////////
 
-        String folderPath = "C:\\Users\\it.production\\OneDrive - MISUMI Group Inc\\IT Program - 18. Computer Record\\18. SPatrol_ForgotPassword\\";
+        // app.storage.forgot-password-dir
+        Path folderPath = storage.forgotPasswordPath();
+        if (folderPath == null) {
+            throw new IllegalStateException("app.storage.forgot-password-dir is not set");
+        }
 
         // tạo folder nếu chưa có
-        File folder = new File(folderPath);
-        if (!folder.exists()) {
-            folder.mkdirs();
-        }
+        Files.createDirectories(folderPath);
 
         // đặt tên file (tránh bị ghi đè)
         String time = LocalDateTime.now()
@@ -209,7 +214,7 @@ public class AuthService {
 
         String fileName = "account_" + account + "_" + time + ".xlsx";
 
-        String fullPath = folderPath + fileName;
+        String fullPath = folderPath.resolve(fileName).toString();
 
         ////////////////////////////////////////////////////////////
         // 👉 TẠO EXCEL

@@ -45,12 +45,23 @@ speech:
   transcribe:
     enabled: false
 
+# Every file storage path / image URL of the app (StorageProperties).
+# Override per machine with the env variable of each key. Use "/" in paths.
+app:
+  storage:
+    # Patrol: root folder; other types (not MA): /{Type}. View: /images/**
+    upload-root: "${UPLOAD_ROOT:D:/Patrol App/API/uploaded_images}"
+    # MA report images (DB value MA/{file}); old MA images stay in {upload-root}/MA. View: /images/MA/**
+    ma-photo-dir: "${MA_PHOTO_DIR:D:/Patrol App/API/MA/Photos}"
+    # Fixed Asset Photo3 (Thay QR). View: /images/FixedAsset/**
+    fixed-asset-photo-dir: "${FIXED_ASSET_PHOTO_DIR:D:/Patrol App/API/FixedAsset/Photos}"
+    # Forgot-password account Excel (AuthService). No view URL.
+    forgot-password-dir: "${FORGOT_PASSWORD_DIR:C:/Users/it.production/OneDrive - MISUMI Group Inc/IT Program - 18. Computer Record/18. SPatrol_ForgotPassword}"
+    # Base URL of /images/: images embedded in exported Patrol Excel are downloaded from here.
+    image-base-url: "${IMAGE_BASE_URL:http://192.168.122.16:8002/images/}"
+
 # Fixed Asset machine scope: F2_FIXED_ASSET Div = div OR Factory = factory (compared trimmed).
 # MAP (F2_FIXED_ASSET_MAP) rows of div are used for every machine in scope.
 fixed-asset:
   div: KVH
   factory: Factory 2
-  # Folder for Fixed Asset photos (Photo3 file names in F2_FIXED_ASSET point here),
-  # served at /images/FixedAsset/**. No shared upload root key exists (Patrol / MA use
-  # <user.dir>/uploaded_images in code), so this is the full path.
-  photo-dir: "D:/Viet/BE/patrol_be/uploaded_images/FixedAsset"

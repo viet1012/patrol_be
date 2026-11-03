@@ -5,8 +5,8 @@ import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditSaveResponse;
 import com.example.patrol_be.fixedasset.dto.machine.FixedAssetMasterPhotoDto;
 import com.example.patrol_be.fixedasset.repository.FixedAssetAuditRepository;
 import com.example.patrol_be.fixedasset.service.FixedAssetService.Photo3Update;
+import com.example.patrol_be.common.config.StorageProperties;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -15,7 +15,6 @@ import java.io.InputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -44,7 +43,7 @@ public class FixedAssetPhotoService {
 
     private final FixedAssetService fixedAssetService;
     private final FixedAssetAuditRepository auditRepository;
-    /** null when fixed-asset.photo-dir is blank, cannot be created or is not writable. */
+    /** app.storage.fixed-asset-photo-dir (created by StorageConfig); null when not set. */
     private final Path photoDir;
     /** Per-MachineCode (trimmed, upper-case) lock of the photo flow. */
     private final ConcurrentHashMap<String, MachineLock> machineLocks = new ConcurrentHashMap<>();
@@ -52,10 +51,10 @@ public class FixedAssetPhotoService {
     public FixedAssetPhotoService(
             FixedAssetService fixedAssetService,
             FixedAssetAuditRepository auditRepository,
-            @Value("${fixed-asset.photo-dir:}") String photoDir) {
+            StorageProperties storage) {
         this.fixedAssetService = fixedAssetService;
         this.auditRepository = auditRepository;
-        this.photoDir = initPhotoDir(photoDir);
+        this.photoDir = storage.fixedAssetPhotoPath();
     }
 
     public FixedAssetAuditSaveResponse saveAuditWithPhoto(
@@ -114,26 +113,6 @@ public class FixedAssetPhotoService {
         machineLocks.computeIfPresent(key, (k, existing) -> --existing.holders == 0 ? null : existing);
     }
 
-    private static Path initPhotoDir(String configured) {
-        if (configured == null || configured.isBlank()) {
-            log.warn("fixed-asset.photo-dir is not set: Fixed Asset photos will not be saved");
-            return null;
-        }
-        Path dir = Paths.get(configured.trim()).toAbsolutePath().normalize();
-        try {
-            Files.createDirectories(dir);
-        } catch (IOException | RuntimeException exception) {
-            log.warn("Cannot create Fixed Asset photo dir {}: photos will not be saved", dir, exception);
-            return null;
-        }
-        if (!Files.isWritable(dir)) {
-            log.warn("Fixed Asset photo dir {} is not writable: photos will not be saved", dir);
-            return null;
-        }
-        log.info("Fixed Asset photo dir: {}", dir);
-        return dir;
-    }
-
     private static void validatePhoto(MultipartFile photo) {
         if (!JPEG_CONTENT_TYPE.equalsIgnoreCase(photo.getContentType())) {
             throw new IllegalArgumentException("Photo must be image/jpeg");
@@ -149,8 +128,9 @@ public class FixedAssetPhotoService {
      */
     private WrittenPhoto writePhoto(FixedAssetAuditSaveRequest request, MultipartFile photo) {
         String machineCode = trimToEmpty(request.getMachineCode());
-        if (photoDir == null) {
-            log.warn("Fixed Asset photo not saved for {}: photo dir unavailable", machineCode);
+        // Checked per request: StorageConfig only warns when it cannot create the dir.
+        if (photoDir == null || !Files.isDirectory(photoDir) || !Files.isWritable(photoDir)) {
+            log.warn("Fixed Asset photo not saved for {}: photo dir unavailable ({})", machineCode, photoDir);
             return null;
         }
 

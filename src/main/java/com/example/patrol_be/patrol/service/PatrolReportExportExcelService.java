@@ -1,5 +1,6 @@
 package com.example.patrol_be.patrol.service;
 
+import com.example.patrol_be.common.config.StorageProperties;
 import com.example.patrol_be.patrol.dto.DivisionSummaryDTO;
 import com.example.patrol_be.patrol.dto.PatrolReportDTO;
 import lombok.RequiredArgsConstructor;
@@ -25,8 +26,8 @@ import java.util.List;
 public class PatrolReportExportExcelService {
 
 	private final PatrolReportService patrolReportService;
-
-	private static final String IMAGE_BASE_URL = "http://192.168.122.16:8002/images/";
+	// app.storage.image-base-url: images are downloaded from here to be embedded.
+	private final StorageProperties storage;
 
 	private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -1259,7 +1260,11 @@ public class PatrolReportExportExcelService {
 		}
 
 		try {
-			String imageUrl = IMAGE_BASE_URL + imageName.trim();
+			String imageBaseUrl = storage.imageBaseUrlWithSlash();
+			if (imageBaseUrl == null) {
+				throw new IllegalStateException("app.storage.image-base-url is not set");
+			}
+			String imageUrl = imageBaseUrl + imageName.trim();
 
 			byte[] originalBytes;
 

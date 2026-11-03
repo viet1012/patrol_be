@@ -10,10 +10,6 @@ spring:
         # Log any SQL statement slower than this many ms (logger org.hibernate.SQL_SLOW)
         log_slow_query: 500
 
-fixed-asset:
-  # Same value as application.yml for now.
-  photo-dir: "D:/Viet/BE/patrol_be/uploaded_images/FixedAsset"
-
 logging:
   level:
     # One "Session Metrics" block per Hibernate session: JDBC statement count/time, flushes, etc.

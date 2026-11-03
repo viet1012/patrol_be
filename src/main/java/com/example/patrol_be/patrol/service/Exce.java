@@ -8,8 +8,10 @@ import com.example.patrol_be.patrol.dto.QrCheckResponse;
 import com.example.patrol_be.patrol.dto.ReportRequest;
 import com.example.patrol_be.patrol.entity.PatrolReport;
 import com.example.patrol_be.patrol.repository.PatrolReportRepo;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.example.patrol_be.common.config.StorageProperties;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,19 +45,28 @@ public class Exce {
 			".webp"
 	);
 
-	private static final Path BASE_DIR =
-			Paths.get(System.getProperty("user.dir"))
-					.toAbsolutePath()
-					.normalize();
+	// app.storage.upload-root
+	private Path imageFolderPath;
+	// app.storage.ma-photo-dir (Type = MA); DB value stays MA/{file}
+	private Path maPhotoPath;
 
-	private static final Path IMAGE_FOLDER_PATH =
-			BASE_DIR.resolve("uploaded_images")
-					.normalize();
-
+	private final StorageProperties storage;
 	private final PatrolReportRepo reportRepo;
 	private final SttService sttService;
 	private final PatrolCommentService patrolCommentService;
 	private final PicResolver picResolver;
+
+	@PostConstruct
+	void initImageFolder() {
+		imageFolderPath = storage.uploadRootPath();
+		if (imageFolderPath == null) {
+			throw new IllegalStateException("app.storage.upload-root is not set");
+		}
+		maPhotoPath = storage.maPhotoPath();
+		if (maPhotoPath == null) {
+			throw new IllegalStateException("app.storage.ma-photo-dir is not set");
+		}
+	}
 
 	// ============================================================
 	// QR
@@ -452,7 +463,7 @@ public class Exce {
 	// SAVE IMAGES
 	// ============================================================
 	private void createImageDirectory() throws IOException {
-		Files.createDirectories(IMAGE_FOLDER_PATH);
+		Files.createDirectories(imageFolderPath);
 	}
 
 	private List<String> saveImageFiles(
@@ -510,6 +521,10 @@ public class Exce {
 
 					savedNames.add(fileName);
 
+				} else if (StorageProperties.MA_TYPE.equalsIgnoreCase(normalize(reportType))) {
+
+					savedNames.add(StorageProperties.MA_TYPE + "/" + fileName);
+
 				} else {
 
 					String safeFolderName =
@@ -564,14 +579,14 @@ public class Exce {
 //								+ UUID.randomUUID()
 //								+ extension;
 //
-//				Path savePath = IMAGE_FOLDER_PATH
+//				Path savePath = imageFolderPath
 //						.resolve(fileName)
 //						.normalize();
 //
 //				/*
 //				 * Chặn path traversal.
 //				 */
-//				if (!savePath.startsWith(IMAGE_FOLDER_PATH)) {
+//				if (!savePath.startsWith(imageFolderPath)) {
 //					throw new IOException(
 //							"Invalid image storage path."
 //					);
@@ -607,11 +622,16 @@ public class Exce {
 
 		// Patrol vẫn giữ folder cũ
 		if ("Patrol".equalsIgnoreCase(normalizedType)) {
-			return IMAGE_FOLDER_PATH;
+			return imageFolderPath;
+		}
+
+		// MA: folder riêng app.storage.ma-photo-dir
+		if (StorageProperties.MA_TYPE.equalsIgnoreCase(normalizedType)) {
+			return maPhotoPath;
 		}
 
 		if (isBlank(normalizedType)) {
-			return IMAGE_FOLDER_PATH
+			return imageFolderPath
 					.resolve("Unknown")
 					.normalize();
 		}
@@ -624,12 +644,12 @@ public class Exce {
 				);
 
 		Path folder =
-				IMAGE_FOLDER_PATH
+				imageFolderPath
 						.resolve(safeFolderName)
 						.normalize();
 
 		// chống ../ path traversal
-		if (!folder.startsWith(IMAGE_FOLDER_PATH)) {
+		if (!folder.startsWith(imageFolderPath)) {
 			throw new IllegalArgumentException(
 					"Invalid report type folder."
 			);
@@ -689,11 +709,11 @@ public class Exce {
 //			}
 //
 //			try {
-//				Path filePath = IMAGE_FOLDER_PATH
+//				Path filePath = imageFolderPath
 //						.resolve(fileName)
 //						.normalize();
 //
-//				if (!filePath.startsWith(IMAGE_FOLDER_PATH)) {
+//				if (!filePath.startsWith(imageFolderPath)) {
 //					continue;
 //				}
 //
@@ -728,9 +748,11 @@ public class Exce {
 
 			try {
 
+				// Non-Patrol names are stored as {Type}/{file}: only the file
+				// name is resolved inside the type folder.
 				Path filePath =
 						targetFolder
-								.resolve(fileName)
+								.resolve(Paths.get(fileName).getFileName())
 								.normalize();
 
 				if (!filePath.startsWith(targetFolder)) {
