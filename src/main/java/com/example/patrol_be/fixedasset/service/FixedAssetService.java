@@ -768,6 +768,16 @@ public class FixedAssetService {
 
     @Transactional
     public FixedAssetAuditSaveResponse saveAudit(FixedAssetAuditSaveRequest request) {
+        return saveAudit(request, null);
+    }
+
+    /**
+     * photo3: file already written by the "3) Thay QR" scan (null = no photo).
+     * It is set as MASTER Photo3 in this transaction only when the rescan writes
+     * the audit row (clear / relocate); response photoSaved tells the caller.
+     */
+    @Transactional
+    public FixedAssetAuditSaveResponse saveAudit(FixedAssetAuditSaveRequest request, Photo3Update photo3) {
         if (request == null) {
             throw new IllegalArgumentException("Request body is required");
         }
@@ -834,7 +844,8 @@ public class FixedAssetService {
                         qrFloor,
                         qrPositionA,
                         qrPositionAA,
-                        Boolean.TRUE.equals(request.getConfirmLocationMismatch())
+                        Boolean.TRUE.equals(request.getConfirmLocationMismatch()),
+                        photo3
                 );
             }
 
@@ -1229,6 +1240,7 @@ public class FixedAssetService {
      *   ReprintSts = 1; QrMismatch / *_Qr (audit-time label) are kept;
      * - otherwise the machine may have moved -> confirmation, then *_Act and
      *   *_Qr are overwritten, QrMismatch stays 1 and ReprintSts stays 0.
+     * photo3 (optional) becomes MASTER Photo3 in the two writing branches.
      */
     private FixedAssetAuditSaveResponse rescanQrReprint(
             FixedAssetLatestAuditDto latest,
@@ -1242,7 +1254,8 @@ public class FixedAssetService {
             String qrFloor,
             String qrPositionA,
             String qrPositionAA,
-            boolean confirmed) {
+            boolean confirmed,
+            Photo3Update photo3) {
         if (qrFloor == null || qrPositionAA == null) {
             throw new IllegalArgumentException(
                     "QrFloor and QrPositionAA are required: machine " + machineCode
@@ -1321,7 +1334,7 @@ public class FixedAssetService {
                 throw new IllegalStateException("Fixed Asset QR reprint flag was not cleared");
             }
 
-            return new FixedAssetAuditSaveResponse(
+            return applyPhoto3(new FixedAssetAuditSaveResponse(
                     true,
                     false,
                     true,
@@ -1352,7 +1365,7 @@ public class FixedAssetService {
                     false,
                     true,
                     reprintAt
-            );
+            ), machineCode, photo3, userId);
         }
 
         if (!confirmed) {
@@ -1412,7 +1425,7 @@ public class FixedAssetService {
             throw new IllegalStateException("Fixed Asset audit location was not updated");
         }
 
-        return new FixedAssetAuditSaveResponse(
+        return applyPhoto3(new FixedAssetAuditSaveResponse(
                 true,
                 false,
                 true,
@@ -1442,7 +1455,32 @@ public class FixedAssetService {
                 false,
                 false,
                 null
-        );
+        ), machineCode, photo3, userId);
+    }
+
+    /** Sets MASTER Photo3 / Photo3_Old in the current transaction. */
+    private FixedAssetAuditSaveResponse applyPhoto3(
+            FixedAssetAuditSaveResponse response,
+            String machineCode,
+            Photo3Update photo3,
+            String userId) {
+        if (photo3 == null) {
+            return response;
+        }
+        if (auditRepository.updateMasterPhoto3(
+                machineCode, photo3.photo3(), photo3.photo3Old(), userId) < 1) {
+            throw new IllegalStateException("Fixed Asset Photo3 was not saved: " + machineCode);
+        }
+        response.setPhotoSaved(true);
+        response.setPhoto3(photo3.photo3());
+        return response;
+    }
+
+    /**
+     * New MASTER Photo3 file name; photo3Old = renamed old file of the same name,
+     * null -> Photo3_Old takes the current Photo3 (when not blank).
+     */
+    public record Photo3Update(String photo3, String photo3Old) {
     }
 
     /** Flagged machine scanned without qrReplace: row unchanged, reprint info returned. */

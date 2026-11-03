@@ -17,6 +17,7 @@ import org.springframework.stereotype.Repository;
 
 import com.example.patrol_be.fixedasset.dto.audit.FixedAssetLatestAuditDto;
 import com.example.patrol_be.fixedasset.dto.machine.FixedAssetMasterMachineDto;
+import com.example.patrol_be.fixedasset.dto.machine.FixedAssetMasterPhotoDto;
 import com.example.patrol_be.fixedasset.dto.scan.FixedAssetQrMismatchDto;
 
 /** Scan (MASTER lookup), audit check / save, latest audit, QR mismatch and reprint. */
@@ -92,6 +93,64 @@ public class FixedAssetAuditRepository {
                 div,
                 factory,
                 machineCode);
+    }
+
+    /** Photo columns of the machine's MASTER row in scope; null when not in MASTER. */
+    public FixedAssetMasterPhotoDto findMasterPhoto(String machineCode) {
+        String sql = """
+                SELECT TOP 1
+                    LTRIM(RTRIM(fa.Div)) AS Div,
+                    LTRIM(RTRIM(fa.MachineCode)) AS MachineCode,
+                    LTRIM(RTRIM(fa.[Group])) AS [Group],
+                    fa.Photo3,
+                    fa.Photo3_Old
+                FROM F2Database.dbo.F2_FIXED_ASSET fa
+                """
+                + "WHERE " + SCOPE_CONDITION + "\n"
+                + """
+                    AND fa.MachineCode IS NOT NULL
+                    AND LTRIM(RTRIM(fa.MachineCode)) = ?
+                ORDER BY fa.Div, fa.[Group]
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (resultSet, rowNum) -> new FixedAssetMasterPhotoDto(
+                        resultSet.getString("Div"),
+                        resultSet.getString("MachineCode"),
+                        resultSet.getString("Group"),
+                        resultSet.getString("Photo3"),
+                        resultSet.getString("Photo3_Old")),
+                div,
+                factory,
+                machineCode).stream().findFirst().orElse(null);
+    }
+
+    /**
+     * New Photo3 of the machine's MASTER rows in scope. Photo3_Old = photo3Old
+     * when given (old file renamed), else the current Photo3 when not NULL /
+     * blank (else kept). Only Photo3, Photo3_Old, UpdateDate and Updater change
+     * (location and other columns are kept).
+     */
+    public int updateMasterPhoto3(String machineCode, String photo3, String photo3Old, String updater) {
+        String sql = """
+                UPDATE fa
+                SET Photo3_Old = COALESCE(?, CASE
+                        WHEN NULLIF(LTRIM(RTRIM(fa.Photo3)), '') IS NOT NULL THEN fa.Photo3
+                        ELSE fa.Photo3_Old
+                    END),
+                    Photo3 = ?,
+                    UpdateDate = GETDATE(),
+                    Updater = ?
+                FROM F2Database.dbo.F2_FIXED_ASSET fa
+                """
+                + "WHERE " + SCOPE_CONDITION + "\n"
+                + """
+                    AND fa.MachineCode IS NOT NULL
+                    AND LTRIM(RTRIM(fa.MachineCode)) = ?
+                """;
+
+        return jdbcTemplate.update(sql, photo3Old, photo3, updater, div, factory, machineCode);
     }
 
     public FixedAssetLatestAuditDto findLatestAuditInPeriod(

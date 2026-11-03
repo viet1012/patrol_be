@@ -50,3 +50,7 @@ speech:
 fixed-asset:
   div: KVH
   factory: Factory 2
+  # Folder for Fixed Asset photos (Photo3 file names in F2_FIXED_ASSET point here),
+  # served at /images/FixedAsset/**. No shared upload root key exists (Patrol / MA use
+  # <user.dir>/uploaded_images in code), so this is the full path.
+  photo-dir: "D:/Viet/BE/patrol_be/uploaded_images/FixedAsset"

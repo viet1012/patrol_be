@@ -2,13 +2,16 @@ package com.example.patrol_be.fixedasset.controller;
 
 import java.util.List;
 
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditCheckRequest;
 import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditCheckResponse;
@@ -27,6 +30,7 @@ import com.example.patrol_be.fixedasset.dto.scan.FixedAssetQrMismatchDto;
 import com.example.patrol_be.fixedasset.dto.scan.FixedAssetScanInfoDto;
 import com.example.patrol_be.fixedasset.dto.zone.FixedAssetZoneLockDto;
 import com.example.patrol_be.fixedasset.dto.zone.FixedAssetZoneProgressDto;
+import com.example.patrol_be.fixedasset.service.FixedAssetPhotoService;
 import com.example.patrol_be.fixedasset.service.FixedAssetService;
 
 @RestController
@@ -34,9 +38,11 @@ import com.example.patrol_be.fixedasset.service.FixedAssetService;
 @RequestMapping("/api/fixed-assets")
 public class FixedAssetController {
     private final FixedAssetService service;
+    private final FixedAssetPhotoService photoService;
 
-    public FixedAssetController(FixedAssetService service) {
+    public FixedAssetController(FixedAssetService service, FixedAssetPhotoService photoService) {
         this.service = service;
+        this.photoService = photoService;
     }
 
     // pic (optional, EmailChecked): limits the list to that PIC's machines.
@@ -182,5 +188,15 @@ public class FixedAssetController {
     @PostMapping("/audit")
     public FixedAssetAuditSaveResponse saveAudit(@RequestBody FixedAssetAuditSaveRequest request) {
         return service.saveAudit(request);
+    }
+
+    // "3) Thay QR" scan: part "data" = JSON body of /audit (application/json)
+    // + optional part "photo" (image/jpeg, <= 5MB). 2 parts stay under Tomcat maxPartCount.
+    @PostMapping(value = "/audit", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public FixedAssetAuditSaveResponse saveAuditWithPhoto(
+            @RequestPart("data") FixedAssetAuditSaveRequest request,
+            @RequestPart(value = "photo", required = false) MultipartFile photo
+    ) {
+        return photoService.saveAuditWithPhoto(request, photo);
     }
 }

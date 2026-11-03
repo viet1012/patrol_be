@@ -1,12 +1,10 @@
 package com.example.patrol_be.fixedasset.dto.audit;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Data
-@AllArgsConstructor
 public class FixedAssetAuditSaveResponse {
     private boolean success;
     private boolean saved;
@@ -42,4 +40,71 @@ public class FixedAssetAuditSaveResponse {
     /** Row state after this save: ReprintSts = 1 (QR replaced) and when. */
     private boolean reprintSts;
     private LocalDateTime reprintAt;
+    /** "3) Thay QR" photo written and MASTER Photo3 updated by this save. */
+    private boolean photoSaved;
+    /** New MASTER Photo3 file name; null when no photo was saved. */
+    private String photo3;
+
+    // Photo fields are set after construction (only the QR replace flow saves a photo).
+    public FixedAssetAuditSaveResponse(
+            boolean success,
+            boolean saved,
+            boolean alreadyAudited,
+            boolean needsQrReprint,
+            boolean unknownMachine,
+            boolean locationMismatch,
+            boolean requiresConfirmation,
+            String machineCode,
+            LocalDateTime updatedAt,
+            LocalDateTime lastAuditedAt,
+            String lastAuditedUserId,
+            String lastAuditedUserName,
+            String masterFac,
+            String masterFloor,
+            String masterPositionA,
+            String masterPositionAA,
+            String actualFac,
+            String actualFloor,
+            String actualPositionA,
+            String actualPositionAA,
+            String message,
+            boolean qrLabelNotReplaced,
+            String reprintQrFac,
+            String reprintQrFloor,
+            String reprintQrPositionA,
+            String reprintQrPositionAA,
+            boolean pendingQrReplace,
+            boolean reprintSts,
+            LocalDateTime reprintAt
+    ) {
+        this.success = success;
+        this.saved = saved;
+        this.alreadyAudited = alreadyAudited;
+        this.needsQrReprint = needsQrReprint;
+        this.unknownMachine = unknownMachine;
+        this.locationMismatch = locationMismatch;
+        this.requiresConfirmation = requiresConfirmation;
+        this.machineCode = machineCode;
+        this.updatedAt = updatedAt;
+        this.lastAuditedAt = lastAuditedAt;
+        this.lastAuditedUserId = lastAuditedUserId;
+        this.lastAuditedUserName = lastAuditedUserName;
+        this.masterFac = masterFac;
+        this.masterFloor = masterFloor;
+        this.masterPositionA = masterPositionA;
+        this.masterPositionAA = masterPositionAA;
+        this.actualFac = actualFac;
+        this.actualFloor = actualFloor;
+        this.actualPositionA = actualPositionA;
+        this.actualPositionAA = actualPositionAA;
+        this.message = message;
+        this.qrLabelNotReplaced = qrLabelNotReplaced;
+        this.reprintQrFac = reprintQrFac;
+        this.reprintQrFloor = reprintQrFloor;
+        this.reprintQrPositionA = reprintQrPositionA;
+        this.reprintQrPositionAA = reprintQrPositionAA;
+        this.pendingQrReplace = pendingQrReplace;
+        this.reprintSts = reprintSts;
+        this.reprintAt = reprintAt;
+    }
 }
