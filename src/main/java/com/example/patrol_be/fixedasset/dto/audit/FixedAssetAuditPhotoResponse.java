@@ -8,7 +8,7 @@ import lombok.Data;
 @AllArgsConstructor
 public class FixedAssetAuditPhotoResponse {
     private long auditId;
-    /** Saved file under fixed-asset-photo-dir: "before/{file}". */
+    /** Saved file under fixed-asset-photo-dir: "audit/{file}" or "before/{file}". */
     private String photoPath;
     /** Full URL via image-base-url; null when image-base-url is not set. */
     private String photoUrl;

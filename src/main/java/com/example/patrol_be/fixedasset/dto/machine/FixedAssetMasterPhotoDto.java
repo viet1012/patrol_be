@@ -16,4 +16,7 @@ public class FixedAssetMasterPhotoDto {
     private String photo3;
     /** Previous Photo3, kept when Photo3 is replaced. */
     private String photo3Old;
+    /** MASTER location: fallback photo file name of audit/ and before/. */
+    private String floor;
+    private String positionAA;
 }

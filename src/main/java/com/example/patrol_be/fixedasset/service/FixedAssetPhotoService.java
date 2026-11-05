@@ -6,7 +6,7 @@ import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditSaveRequest;
 import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditSaveResponse;
 import com.example.patrol_be.fixedasset.dto.machine.FixedAssetMasterPhotoDto;
 import com.example.patrol_be.fixedasset.repository.FixedAssetAuditRepository;
-import com.example.patrol_be.common.config.StorageProperties;
+import com.example.patrol_be.common.config.FixedAssetPhotoFolder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,8 +15,6 @@ import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -24,16 +22,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * "3) Thay QR" scan photo: the upload is written to a temp file in after/
- * first; inside the QR replace transaction it is renamed to
- * {Div}_{MachineCode}_{Floor_Act}_{AA_Act}_{Group}_3.jpg (Div / Group from
- * MASTER, *_Act of the audit row) and that file name becomes Photo3 of the
- * audit row (Photo3_Old = current MASTER Photo3; MASTER is not updated).
- * An existing file with the same name is renamed to {name}_{yyyyMMdd_HHmmss}.jpg.
+ * File names of every folder come from FixedAssetPhotoStorage.photoFileName:
+ * "{qr}_3.jpg" (raw QR content sent by FE, cleaned) when it contains the
+ * MachineCode, else a fallback built from MASTER; an existing file with the
+ * same name is renamed to {name}_{yyyyMMdd_HHmmss}.jpg first.
+ * "3) Thay QR" step 2 photo: the upload is written to a temp file in after/
+ * first; inside the QR replace transaction it is renamed to the new QR name
+ * (fallback {Div}_{MachineCode}_{Floor_Act}_{AA_Act}_{Group}_3.jpg, *_Act of
+ * the audit row) and that file name becomes Photo3 of the audit row
+ * (Photo3_Old = current MASTER Photo3; MASTER is not updated).
  * When the transaction fails or does not use the photo, the
  * new file is deleted and the old one renamed back. A failed write never fails
  * the request: QR replace runs without photo and photoSaved = false.
- * Also the audit before photo upload (before/{MachineCode}_{yyyyMMdd_HHmmss}.jpg, file only).
+ * Also the audit photo upload (audit/ or before/, file only).
  */
 @Slf4j
 @Service
@@ -41,10 +42,7 @@ public class FixedAssetPhotoService {
     private static final Set<String> AFTER_TYPES = Set.of(FixedAssetPhotoStorage.JPEG);
     private static final Set<String> BEFORE_TYPES =
             Set.of(FixedAssetPhotoStorage.JPEG, FixedAssetPhotoStorage.PNG);
-    private static final String EXTENSION = ".jpg";
     private static final String TEMP_PREFIX = ".tmp_";
-    private static final DateTimeFormatter OLD_TIME_FORMAT =
-            DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 
     private final FixedAssetService fixedAssetService;
     private final FixedAssetAuditRepository auditRepository;
@@ -102,12 +100,21 @@ public class FixedAssetPhotoService {
     }
 
     /**
-     * Before photo of one audit row: file before/{MachineCode}_{yyyyMMdd_HHmmss}.jpg
-     * (MachineCode of the audit row); nothing is written to the DB.
+     * Photo of one audit row (file only, nothing written to the DB):
+     * {folder}/{qr}_3.jpg; missing qr or qr without the audit row's MachineCode
+     * -> {Div}_{MachineCode}_{Floor}_{PositionAA}_{Group}_3.jpg from MASTER.
+     * Same name already there: the old file is renamed to {name}_{yyyyMMdd_HHmmss}.jpg.
+     * folder: AUDIT (Kiểm kê) or BEFORE (Thay QR step 1); AFTER is only
+     * written by the QR replace flow (saveAuditWithPhoto), so it is rejected here.
      * Only the audit's creator or a user with FixedAsset.before may upload.
      * null when the audit row does not exist.
      */
-    public FixedAssetAuditPhotoResponse uploadBeforePhoto(long auditId, String userId, MultipartFile photo) {
+    public FixedAssetAuditPhotoResponse uploadAuditPhoto(
+            long auditId, String userId, FixedAssetPhotoFolder folder, String qr, MultipartFile photo) {
+        if (folder == null || folder == FixedAssetPhotoFolder.AFTER) {
+            throw new IllegalArgumentException("Fixed Asset photo folder not allowed for this upload: " + folder
+                    + " (allowed: " + FixedAssetPhotoFolder.AUDIT + ", " + FixedAssetPhotoFolder.BEFORE + ")");
+        }
         if (photo == null || photo.isEmpty()) {
             throw new IllegalArgumentException("Photo file is required");
         }
@@ -118,30 +125,50 @@ public class FixedAssetPhotoService {
         }
         fixedAssetService.requireAuditPhotoPermission(userId, audit.getUserId());
 
-        Path target;
+        String machineCode = trimToEmpty(audit.getMachineCode());
+        // Same lock as the QR replace flow: same-name rename + write of one machine run one at a time.
+        String lockKey = machineCode.toUpperCase(Locale.ROOT);
+        MachineLock machineLock = acquireMachineLock(lockKey);
         try {
-            Path dir = photoStorage.folder(StorageProperties.FIXED_ASSET_BEFORE);
+            Path dir;
+            try {
+                dir = photoStorage.folder(folder);
+            } catch (IOException exception) {
+                throw new IllegalStateException("Fixed Asset photo dir unavailable", exception);
+            }
             if (dir == null) {
                 throw new IllegalStateException("Fixed Asset photo dir unavailable");
             }
-            target = photoStorage.resolve(dir,
-                    photoStorage.baseName(audit.getMachineCode(), LocalDateTime.now()) + EXTENSION);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Fixed Asset photo dir unavailable", exception);
-        }
 
-        try {
-            photoStorage.write(photo, target);
-        } catch (FileAlreadyExistsException exception) {
-            // Same machine + same second: the existing file is not ours.
-            throw new IllegalStateException("Fixed Asset photo already exists: " + target.getFileName(), exception);
-        } catch (IOException exception) {
-            deleteQuietly(target);
-            throw new IllegalStateException("Fixed Asset photo was not saved", exception);
-        }
+            FixedAssetMasterPhotoDto master = auditRepository.findMasterPhoto(machineCode);
+            String fileName = master == null
+                    ? photoStorage.photoFileName(qr, machineCode, null, null, null, null)
+                    : photoStorage.photoFileName(qr, machineCode,
+                            master.getDiv(), master.getFloor(), master.getPositionAA(), master.getGroup());
+            Path target = photoStorage.resolve(dir, fileName);
 
-        String photoPath = photoStorage.dbValue(StorageProperties.FIXED_ASSET_BEFORE, target);
-        return new FixedAssetAuditPhotoResponse(auditId, photoPath, photoStorage.url(photoPath));
+            Path renamedOld;
+            try {
+                renamedOld = photoStorage.moveExistingAside(target);
+            } catch (IOException exception) {
+                throw new IllegalStateException("Existing Fixed Asset photo could not be renamed: " + fileName, exception);
+            }
+            try {
+                photoStorage.write(photo, target);
+            } catch (IOException exception) {
+                // FileAlreadyExists: the file at target is not ours, keep it.
+                if (!(exception instanceof FileAlreadyExistsException)) {
+                    deleteQuietly(target);
+                    photoStorage.restoreAside(renamedOld, target);
+                }
+                throw new IllegalStateException("Fixed Asset photo was not saved", exception);
+            }
+
+            String photoPath = photoStorage.dbValue(folder, target);
+            return new FixedAssetAuditPhotoResponse(auditId, photoPath, photoStorage.url(photoPath));
+        } finally {
+            releaseMachineLock(lockKey, machineLock);
+        }
     }
 
     private MachineLock acquireMachineLock(String key) {
@@ -169,7 +196,7 @@ public class FixedAssetPhotoService {
         Path temp = null;
         try {
             // Checked per request: StorageConfig only warns when it cannot create the dir.
-            Path dir = photoStorage.folder(StorageProperties.FIXED_ASSET_AFTER);
+            Path dir = photoStorage.folder(FixedAssetPhotoFolder.AFTER);
             if (dir == null) {
                 log.warn("Fixed Asset photo not saved for {}: photo dir unavailable", machineCode);
                 return null;
@@ -181,9 +208,9 @@ public class FixedAssetPhotoService {
                 return null;
             }
 
-            temp = photoStorage.resolve(dir, TEMP_PREFIX + UUID.randomUUID() + EXTENSION);
+            temp = photoStorage.resolve(dir, TEMP_PREFIX + UUID.randomUUID() + FixedAssetPhotoStorage.EXTENSION);
             photoStorage.write(photo, temp);
-            return new PendingPhoto(dir, master, temp);
+            return new PendingPhoto(dir, master, request.getQr(), temp);
         } catch (IOException | RuntimeException exception) {
             log.warn("Fixed Asset photo not saved for {}", machineCode, exception);
             if (temp != null) {
@@ -219,32 +246,32 @@ public class FixedAssetPhotoService {
     private final class PendingPhoto {
         private final Path dir;
         private final FixedAssetMasterPhotoDto master;
+        /** Raw content of the new QR (request.qr). */
+        private final String qr;
         private final Path temp;
         private Path file;
         private Path renamedOld;
 
-        private PendingPhoto(Path dir, FixedAssetMasterPhotoDto master, Path temp) {
+        private PendingPhoto(Path dir, FixedAssetMasterPhotoDto master, String qr, Path temp) {
             this.dir = dir;
             this.master = master;
+            this.qr = qr;
             this.temp = temp;
         }
 
         /**
-         * Photo3Update: temp -> {Div}_{MachineCode}_{Floor_Act}_{AA_Act}_{Group}_3.jpg
-         * (an existing file of that name is renamed to {name}_{yyyyMMdd_HHmmss}.jpg
-         * first); returns the file name, null (logged, files restored) on failure.
+         * Photo3Update: temp -> {qr}_3.jpg (fallback
+         * {Div}_{MachineCode}_{Floor_Act}_{AA_Act}_{Group}_3.jpg); an existing file
+         * of that name is renamed to {name}_{yyyyMMdd_HHmmss}.jpg first. Returns the
+         * file name (= audit Photo3), null (logged, files restored) on failure.
          */
         String place(String floorAct, String positionAAAct) {
-            String baseName = photoStorage.photo3BaseName(
-                    master.getDiv(), master.getMachineCode(), floorAct, positionAAAct, master.getGroup());
+            String fileName = photoStorage.photoFileName(qr, master.getMachineCode(),
+                    master.getDiv(), floorAct, positionAAAct, master.getGroup());
             try {
-                Path target = photoStorage.resolve(dir, baseName + EXTENSION);
-                if (Files.exists(target)) {
-                    Path oldName = photoStorage.resolve(dir, baseName + "_"
-                            + LocalDateTime.now().format(OLD_TIME_FORMAT) + EXTENSION);
-                    // Fails (no overwrite) if that name already exists.
-                    Files.move(target, oldName);
-                    renamedOld = oldName;
+                Path target = photoStorage.resolve(dir, fileName);
+                renamedOld = photoStorage.moveExistingAside(target);
+                if (renamedOld != null) {
                     file = target;
                 }
                 Files.move(temp, target);
@@ -264,13 +291,7 @@ public class FixedAssetPhotoService {
                 deleteQuietly(file);
             }
             deleteQuietly(temp);
-            if (renamedOld != null) {
-                try {
-                    Files.move(renamedOld, file);
-                } catch (IOException exception) {
-                    log.warn("Cannot rename Fixed Asset photo {} back to {}", renamedOld, file, exception);
-                }
-            }
+            photoStorage.restoreAside(renamedOld, file);
             file = null;
             renamedOld = null;
         }

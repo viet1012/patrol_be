@@ -15,7 +15,7 @@ public record StorageProperties(
         String uploadRoot,
         /** MA report images (stored in DB as MA/{file}). Served at /images/MA/**. */
         String maPhotoDir,
-        /** Fixed Asset audit photos (before/, after/). Served at /images/FixedAsset/**. */
+        /** Fixed Asset audit photos (audit/, before/, after/). Served at /images/FixedAsset/**. */
         String fixedAssetPhotoDir,
         /** Forgot-password account Excel (AuthService). */
         String forgotPasswordDir,
@@ -24,9 +24,6 @@ public record StorageProperties(
 ) {
     /** Report Type saved in maPhotoDir; also the DB prefix / URL folder (MA/{file}). */
     public static final String MA_TYPE = "MA";
-    /** Sub folders of fixedAssetPhotoDir: audit before photo / "3) Thay QR" Photo3. */
-    public static final String FIXED_ASSET_BEFORE = "before";
-    public static final String FIXED_ASSET_AFTER = "after";
     /** URL folder of fixedAssetPhotoDir under /images/. */
     private static final String FIXED_ASSET_URL_FOLDER = "FixedAsset/";
 
@@ -77,9 +74,9 @@ public record StorageProperties(
     }
 
     /** fixedAssetPhotoDir/{folder}; null when fixedAssetPhotoDir not set. */
-    public Path fixedAssetPhotoPath(String folder) {
+    public Path fixedAssetPhotoPath(FixedAssetPhotoFolder folder) {
         Path root = fixedAssetPhotoPath();
-        return root == null ? null : root.resolve(folder).normalize();
+        return root == null ? null : root.resolve(folder.value()).normalize();
     }
 
     /**
@@ -104,7 +101,7 @@ public record StorageProperties(
         if (baseUrl == null || fileName == null || fileName.isBlank()) {
             return null;
         }
-        return baseUrl + FIXED_ASSET_URL_FOLDER + FIXED_ASSET_AFTER + "/"
+        return baseUrl + FIXED_ASSET_URL_FOLDER + FixedAssetPhotoFolder.AFTER.value() + "/"
                 + UriUtils.encodePathSegment(fileName.trim(), StandardCharsets.UTF_8);
     }
 

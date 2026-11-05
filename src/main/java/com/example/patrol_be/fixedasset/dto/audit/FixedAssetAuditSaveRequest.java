@@ -24,6 +24,8 @@ public class FixedAssetAuditSaveRequest {
     private Boolean needsQrReprint;
     // true only from "3) Thay QR": allows rescan / clear / relocate of a flagged machine.
     private Boolean qrReplace;
+    // "3) Thay QR" step 2: raw content of the new QR; names the after/ photo ({qr}_3.jpg).
+    private String qr;
     // PIC chosen on the form ("Ghi nhận máy thiếu QR"); MASTER PIC wins for known machines.
     private String pic;
 }

@@ -110,7 +110,9 @@ public class FixedAssetAuditRepository {
                     LTRIM(RTRIM(fa.MachineCode)) AS MachineCode,
                     LTRIM(RTRIM(fa.[Group])) AS [Group],
                     fa.Photo3,
-                    fa.Photo3_Old
+                    fa.Photo3_Old,
+                    LTRIM(RTRIM(fa.[Floor])) AS Floor,
+                    LTRIM(RTRIM(fa.PositionAA)) AS PositionAA
                 FROM F2Database.dbo.F2_FIXED_ASSET fa
                 """
                 + "WHERE " + SCOPE_CONDITION + "\n"
@@ -127,7 +129,9 @@ public class FixedAssetAuditRepository {
                         resultSet.getString("MachineCode"),
                         resultSet.getString("Group"),
                         resultSet.getString("Photo3"),
-                        resultSet.getString("Photo3_Old")),
+                        resultSet.getString("Photo3_Old"),
+                        resultSet.getString("Floor"),
+                        resultSet.getString("PositionAA")),
                 div,
                 factory,
                 machineCode).stream().findFirst().orElse(null);

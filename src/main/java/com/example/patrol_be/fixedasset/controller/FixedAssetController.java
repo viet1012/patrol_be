@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.patrol_be.common.config.FixedAssetPhotoFolder;
 import com.example.patrol_be.common.exception.ApiErrorResponse;
 import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditCheckRequest;
 import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditCheckResponse;
@@ -205,16 +206,24 @@ public class FixedAssetController {
         return photoService.saveAuditWithPhoto(request, photo);
     }
 
-    // Before photo of one audit row (file only, no DB write): part "file"
+    // Photo of one audit row (file only, no DB write): part "file"
     // (image/jpeg / image/png, <= 5MB) + userId (uploader: audit creator or
-    // FixedAsset.before permission). 404 when the audit row does not exist.
+    // FixedAsset.before permission) + type (case-insensitive): "audit" (Kiểm kê, default) /
+    // "before" (Thay QR step 1) + qr: raw scanned QR content, file name {qr}_3.jpg
+    // (missing / without the audit's MachineCode -> name from MASTER).
+    // 404 when the audit row does not exist.
     @PostMapping(value = "/audits/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadAuditPhoto(
             @PathVariable long id,
             @RequestParam String userId,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String qr,
             @RequestPart("file") MultipartFile file
     ) {
-        FixedAssetAuditPhotoResponse response = photoService.uploadBeforePhoto(id, userId, file);
+        FixedAssetPhotoFolder folder = type == null || type.isBlank()
+                ? FixedAssetPhotoFolder.AUDIT
+                : FixedAssetPhotoFolder.fromParam(type);
+        FixedAssetAuditPhotoResponse response = photoService.uploadAuditPhoto(id, userId, folder, qr, file);
         if (response == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(
                     404, "Fixed Asset audit not found: " + id, "NOT_FOUND"));
