@@ -478,6 +478,7 @@ public class FixedAssetAuditRepository {
         boolean filterFac = fac != null && !fac.isBlank();
         String sql = """
                 SELECT
+                    a.Id,
                     LTRIM(RTRIM(a.MachineCode)) AS MachineCode,
                     m.FAName,
                     m.AssetDate,
@@ -549,6 +550,7 @@ public class FixedAssetAuditRepository {
         return jdbcTemplate.query(
                 sql,
                 (resultSet, rowNum) -> new FixedAssetQrMismatchDto(
+                        resultSet.getLong("Id"),
                         resultSet.getString("MachineCode"),
                         resultSet.getDate("AssetDate") != null ? resultSet.getDate("AssetDate").toLocalDate() : null,
                         resultSet.getString("FAName"),

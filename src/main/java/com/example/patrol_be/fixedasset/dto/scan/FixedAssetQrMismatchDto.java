@@ -9,6 +9,8 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 public class FixedAssetQrMismatchDto {
+    /** Id of the F2_FIXED_ASSET_AUDIT row waiting for QR replacement (the row the QR replace updates). */
+    private long auditId;
     private String machineCode;
     private LocalDate assetDate; // import java.time.LocalDate;
     private String faName;
