@@ -32,6 +32,12 @@ public class StorageConfig {
         dirs.put("upload-root", storage.uploadRootPath());
         dirs.put("ma-photo-dir", storage.maPhotoPath());
         dirs.put("fixed-asset-photo-dir", storage.fixedAssetPhotoPath());
+        if (storage.fixedAssetPhotoPath() != null) {
+            dirs.put("fixed-asset-photo-dir/" + StorageProperties.FIXED_ASSET_BEFORE,
+                    storage.fixedAssetPhotoPath(StorageProperties.FIXED_ASSET_BEFORE));
+            dirs.put("fixed-asset-photo-dir/" + StorageProperties.FIXED_ASSET_AFTER,
+                    storage.fixedAssetPhotoPath(StorageProperties.FIXED_ASSET_AFTER));
+        }
         dirs.put("forgot-password-dir", storage.forgotPasswordPath());
 
         StringBuilder block = new StringBuilder("app.storage:");

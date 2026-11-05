@@ -21,7 +21,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
 
-        // Fixed Asset Photo3 (more specific than /images/**, so it wins).
+        // Fixed Asset photos incl. before/ and after/ (more specific than /images/**, so it wins).
         Path fixedAssetPhotoDir = storage.fixedAssetPhotoPath();
         if (fixedAssetPhotoDir != null) {
             registry.addResourceHandler("/images/FixedAsset/**")

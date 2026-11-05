@@ -53,7 +53,7 @@ app:
     upload-root: "${UPLOAD_ROOT:D:/Patrol App/API/uploaded_images}"
     # MA report images (DB value MA/{file}); old MA images stay in {upload-root}/MA. View: /images/MA/**
     ma-photo-dir: "${MA_PHOTO_DIR:D:/Patrol App/API/MA/Photos}"
-    # Fixed Asset Photo3 (Thay QR). View: /images/FixedAsset/**
+    # Fixed Asset photos: before/ (audit before photo, file only), after/ (Photo3, Thay QR). View: /images/FixedAsset/**
     fixed-asset-photo-dir: "${FIXED_ASSET_PHOTO_DIR:D:/Patrol App/API/FixedAsset/Photos}"
     # Forgot-password account Excel (AuthService). No view URL.
     forgot-password-dir: "${FORGOT_PASSWORD_DIR:C:/Users/it.production/OneDrive - MISUMI Group Inc/IT Program - 18. Computer Record/18. SPatrol_ForgotPassword}"

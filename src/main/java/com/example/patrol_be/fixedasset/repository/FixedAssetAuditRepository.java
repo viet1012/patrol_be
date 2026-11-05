@@ -4,17 +4,24 @@ import static com.example.patrol_be.fixedasset.repository.FixedAssetSql.PIC_EXPR
 import static com.example.patrol_be.fixedasset.repository.FixedAssetSql.SCOPE_CONDITION;
 import static com.example.patrol_be.fixedasset.repository.FixedAssetSql.toLocalDateTime;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.ArgumentPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditPhotoTargetDto;
 import com.example.patrol_be.fixedasset.dto.audit.FixedAssetLatestAuditDto;
 import com.example.patrol_be.fixedasset.dto.machine.FixedAssetMasterMachineDto;
 import com.example.patrol_be.fixedasset.dto.machine.FixedAssetMasterPhotoDto;
@@ -68,7 +75,7 @@ public class FixedAssetAuditRepository {
                 + "WHERE " + SCOPE_CONDITION + "\n"
                 + """
                     AND fa.MachineCode IS NOT NULL
-                    AND LTRIM(RTRIM(fa.MachineCode)) = ?
+                    AND UPPER(LTRIM(RTRIM(fa.MachineCode))) = UPPER(LTRIM(RTRIM(?)))
                 GROUP BY
                     LTRIM(RTRIM(map.Fac)),
                     LTRIM(RTRIM(fa.Div)),
@@ -127,31 +134,21 @@ public class FixedAssetAuditRepository {
     }
 
     /**
-     * New Photo3 of the machine's MASTER rows in scope. Photo3_Old = photo3Old
-     * when given (old file renamed), else the current Photo3 when not NULL /
-     * blank (else kept). Only Photo3, Photo3_Old, UpdateDate and Updater change
-     * (location and other columns are kept).
+     * SET part of the "3) Thay QR" photo on audit row a (MASTER is only read):
+     * Photo3 = new "after/{file}", Photo3_Old = current MASTER Photo3 of the
+     * row's machine (first row in scope, as findMasterPhoto; NULL when none /
+     * blank). Params: photo3, div, factory.
      */
-    public int updateMasterPhoto3(String machineCode, String photo3, String photo3Old, String updater) {
-        String sql = """
-                UPDATE fa
-                SET Photo3_Old = COALESCE(?, CASE
-                        WHEN NULLIF(LTRIM(RTRIM(fa.Photo3)), '') IS NOT NULL THEN fa.Photo3
-                        ELSE fa.Photo3_Old
-                    END),
-                    Photo3 = ?,
-                    UpdateDate = GETDATE(),
-                    Updater = ?
-                FROM F2Database.dbo.F2_FIXED_ASSET fa
-                """
-                + "WHERE " + SCOPE_CONDITION + "\n"
-                + """
-                    AND fa.MachineCode IS NOT NULL
-                    AND LTRIM(RTRIM(fa.MachineCode)) = ?
-                """;
-
-        return jdbcTemplate.update(sql, photo3Old, photo3, updater, div, factory, machineCode);
-    }
+    private static final String AUDIT_PHOTO3_SET = ",\n"
+            + "    Photo3 = ?,\n"
+            + "    Photo3_Old = (\n"
+            + "        SELECT TOP 1 NULLIF(LTRIM(RTRIM(fa.Photo3)), '')\n"
+            + "        FROM F2Database.dbo.F2_FIXED_ASSET fa\n"
+            + "        WHERE " + SCOPE_CONDITION + "\n"
+            + "            AND fa.MachineCode IS NOT NULL\n"
+            + "            AND LTRIM(RTRIM(fa.MachineCode)) = LTRIM(RTRIM(a.MachineCode))\n"
+            + "        ORDER BY fa.Div, fa.[Group]\n"
+            + "    )\n";
 
     public FixedAssetLatestAuditDto findLatestAuditInPeriod(
             String machineCode,
@@ -256,7 +253,28 @@ public class FixedAssetAuditRepository {
         return value == null ? null : value.trim();
     }
 
-    public int insertAudit(
+    /** Id / MachineCode (trimmed) / creator UserId (trimmed) of one audit row; null when not found. */
+    public FixedAssetAuditPhotoTargetDto findAuditPhotoTarget(long id) {
+        String sql = """
+                SELECT
+                    Id,
+                    LTRIM(RTRIM(MachineCode)) AS MachineCode,
+                    LTRIM(RTRIM(UserId)) AS UserId
+                FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT
+                WHERE Id = ?
+                """;
+
+        return jdbcTemplate.query(
+                sql,
+                (resultSet, rowNum) -> new FixedAssetAuditPhotoTargetDto(
+                        resultSet.getLong("Id"),
+                        resultSet.getString("MachineCode"),
+                        resultSet.getString("UserId")),
+                id).stream().findFirst().orElse(null);
+    }
+
+    /** Id of the inserted row; null when nothing was inserted. */
+    public Long insertAudit(
             String machineCode,
             String facAct,
             String floorAct,
@@ -297,8 +315,7 @@ public class FixedAssetAuditRepository {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
-        return jdbcTemplate.update(
-                sql,
+        ArgumentPreparedStatementSetter args = new ArgumentPreparedStatementSetter(new Object[] {
                 machineCode,
                 facAct,
                 floorAct,
@@ -314,7 +331,16 @@ public class FixedAssetAuditRepository {
                 qrPositionA,
                 qrPositionAA,
                 qrMismatch ? 1 : 0,
-                pic);
+                pic});
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        int inserted = jdbcTemplate.update(connection -> {
+            PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            args.setValues(statement);
+            return statement;
+        }, keyHolder);
+
+        Number id = keyHolder.getKey();
+        return inserted == 1 && id != null ? id.longValue() : null;
     }
 
     /**
@@ -351,26 +377,45 @@ public class FixedAssetAuditRepository {
      * its ACTUAL location). Only ReprintSts / ReprintAt / ReprintUserId change:
      * QrMismatch, *_Qr (audit-time label, kept as history), *_Act, Note,
      * AuditMode and audit user / time are kept.
+     * photo3 (optional, "after/{file}"): Photo3 / Photo3_Old of the same row in
+     * the same statement (see AUDIT_PHOTO3_SET).
      */
     public int clearAuditQrReprint(
             long id,
             LocalDateTime reprintAt,
-            String reprintUserId) {
+            String reprintUserId,
+            String photo3) {
         String sql = """
-                UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
+                UPDATE a
                 SET ReprintSts = 1,
                     ReprintAt = ?,
-                    ReprintUserId = ?
-                WHERE Id = ?
+                    ReprintUserId = ?"""
+                + (photo3 == null ? "\n" : AUDIT_PHOTO3_SET)
+                + """
+                FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT a
+                WHERE a.Id = ?
                 """;
 
-        return jdbcTemplate.update(sql, Timestamp.valueOf(reprintAt), reprintUserId, id);
+        List<Object> params = new ArrayList<>();
+        params.add(Timestamp.valueOf(reprintAt));
+        params.add(reprintUserId);
+        addPhoto3Params(params, photo3);
+        params.add(id);
+        return jdbcTemplate.update(sql, params.toArray());
+    }
+
+    private void addPhoto3Params(List<Object> params, String photo3) {
+        if (photo3 != null) {
+            params.add(photo3);
+            params.add(div);
+            params.add(factory);
+        }
     }
 
     /**
      * Confirmed move of a flagged machine: overwrites ACTUAL and QR label
      * location, QrMismatch stays 1 and ReprintSts stays 0. Audit user / time
-     * are kept.
+     * are kept. photo3 (optional): as clearAuditQrReprint.
      */
     public int relocateAuditQrReprint(
             long id,
@@ -381,9 +426,10 @@ public class FixedAssetAuditRepository {
             String qrFac,
             String qrFloor,
             String qrPositionA,
-            String qrPositionAA) {
+            String qrPositionAA,
+            String photo3) {
         String sql = """
-                UPDATE F2Database.dbo.F2_FIXED_ASSET_AUDIT
+                UPDATE a
                 SET QrMismatch = 1,
                     ReprintSts = 0,
                     Fac_Act = ?,
@@ -393,12 +439,15 @@ public class FixedAssetAuditRepository {
                     Fac_Qr = ?,
                     Floor_Qr = ?,
                     A_Qr = ?,
-                    AA_Qr = ?
-                WHERE Id = ?
+                    AA_Qr = ?"""
+                + (photo3 == null ? "\n" : AUDIT_PHOTO3_SET)
+                + """
+                FROM F2Database.dbo.F2_FIXED_ASSET_AUDIT a
+                WHERE a.Id = ?
                 """;
 
-        return jdbcTemplate.update(
-                sql,
+        // Arrays.asList: location values may be null.
+        List<Object> params = new ArrayList<>(Arrays.asList(
                 fac,
                 floor,
                 positionA,
@@ -406,8 +455,10 @@ public class FixedAssetAuditRepository {
                 qrFac,
                 qrFloor,
                 qrPositionA,
-                qrPositionAA,
-                id);
+                qrPositionAA));
+        addPhoto3Params(params, photo3);
+        params.add(id);
+        return jdbcTemplate.update(sql, params.toArray());
     }
 
     /**

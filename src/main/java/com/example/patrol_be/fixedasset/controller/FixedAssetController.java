@@ -2,9 +2,12 @@ package com.example.patrol_be.fixedasset.controller;
 
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,8 +16,10 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.patrol_be.common.exception.ApiErrorResponse;
 import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditCheckRequest;
 import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditCheckResponse;
+import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditPhotoResponse;
 import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditSaveRequest;
 import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditSaveResponse;
 import com.example.patrol_be.fixedasset.dto.audit.FixedAssetAuditSummaryDto;
@@ -198,5 +203,22 @@ public class FixedAssetController {
             @RequestPart(value = "photo", required = false) MultipartFile photo
     ) {
         return photoService.saveAuditWithPhoto(request, photo);
+    }
+
+    // Before photo of one audit row (file only, no DB write): part "file"
+    // (image/jpeg / image/png, <= 5MB) + userId (uploader: audit creator or
+    // FixedAsset.before permission). 404 when the audit row does not exist.
+    @PostMapping(value = "/audits/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadAuditPhoto(
+            @PathVariable long id,
+            @RequestParam String userId,
+            @RequestPart("file") MultipartFile file
+    ) {
+        FixedAssetAuditPhotoResponse response = photoService.uploadBeforePhoto(id, userId, file);
+        if (response == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiErrorResponse(
+                    404, "Fixed Asset audit not found: " + id, "NOT_FOUND"));
+        }
+        return ResponseEntity.ok(response);
     }
 }

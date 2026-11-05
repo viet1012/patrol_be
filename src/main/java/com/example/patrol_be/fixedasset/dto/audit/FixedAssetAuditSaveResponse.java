@@ -40,12 +40,16 @@ public class FixedAssetAuditSaveResponse {
     /** Row state after this save: ReprintSts = 1 (QR replaced) and when. */
     private boolean reprintSts;
     private LocalDateTime reprintAt;
-    /** "3) Thay QR" photo written and MASTER Photo3 updated by this save. */
+    /** "3) Thay QR" photo written and audit Photo3 updated by this save. */
     private boolean photoSaved;
-    /** New MASTER Photo3 file name; null when no photo was saved. */
+    /** New audit Photo3 (file name in after/); null when no photo was saved. */
     private String photo3;
+    /** {image-base-url}FixedAsset/after/{photo3}; null when no photo / base URL not set. */
+    private String photo3Url;
+    /** Id of the saved / existing audit row; null when no row (confirmation needed). */
+    private Long auditId;
 
-    // Photo fields are set after construction (only the QR replace flow saves a photo).
+    // Photo fields and auditId are set after construction (only the QR replace flow saves a photo).
     public FixedAssetAuditSaveResponse(
             boolean success,
             boolean saved,

@@ -1,10 +1,12 @@
 package com.example.patrol_be.common.config;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.web.util.UriUtils;
 
 /** Every file storage path / image URL of the app (application.yml app.storage). */
 @ConfigurationProperties("app.storage")
@@ -13,7 +15,7 @@ public record StorageProperties(
         String uploadRoot,
         /** MA report images (stored in DB as MA/{file}). Served at /images/MA/**. */
         String maPhotoDir,
-        /** Fixed Asset Photo3 (Thay QR). Served at /images/FixedAsset/**. */
+        /** Fixed Asset audit photos (before/, after/). Served at /images/FixedAsset/**. */
         String fixedAssetPhotoDir,
         /** Forgot-password account Excel (AuthService). */
         String forgotPasswordDir,
@@ -22,6 +24,11 @@ public record StorageProperties(
 ) {
     /** Report Type saved in maPhotoDir; also the DB prefix / URL folder (MA/{file}). */
     public static final String MA_TYPE = "MA";
+    /** Sub folders of fixedAssetPhotoDir: audit before photo / "3) Thay QR" Photo3. */
+    public static final String FIXED_ASSET_BEFORE = "before";
+    public static final String FIXED_ASSET_AFTER = "after";
+    /** URL folder of fixedAssetPhotoDir under /images/. */
+    private static final String FIXED_ASSET_URL_FOLDER = "FixedAsset/";
 
     public Path uploadRootPath() {
         return toPath(uploadRoot);
@@ -67,6 +74,38 @@ public record StorageProperties(
 
     public Path fixedAssetPhotoPath() {
         return toPath(fixedAssetPhotoDir);
+    }
+
+    /** fixedAssetPhotoDir/{folder}; null when fixedAssetPhotoDir not set. */
+    public Path fixedAssetPhotoPath(String folder) {
+        Path root = fixedAssetPhotoPath();
+        return root == null ? null : root.resolve(folder).normalize();
+    }
+
+    /**
+     * Full URL of a Fixed Asset photo DB value ("before/{file}"):
+     * {image-base-url}FixedAsset/{value}; null when blank or image-base-url not set.
+     */
+    public String fixedAssetPhotoUrl(String photo) {
+        String baseUrl = imageBaseUrlWithSlash();
+        if (baseUrl == null || photo == null || photo.isBlank()) {
+            return null;
+        }
+        return baseUrl + FIXED_ASSET_URL_FOLDER + photo.trim();
+    }
+
+    /**
+     * Full URL of an audit Photo3 (file name only, stored in after/):
+     * {image-base-url}FixedAsset/after/{URL-encoded name}; null when blank or
+     * image-base-url not set. Photo3_Old / MASTER Photo3 use fixedAssetPhotoUrl.
+     */
+    public String fixedAssetAfterPhotoUrl(String fileName) {
+        String baseUrl = imageBaseUrlWithSlash();
+        if (baseUrl == null || fileName == null || fileName.isBlank()) {
+            return null;
+        }
+        return baseUrl + FIXED_ASSET_URL_FOLDER + FIXED_ASSET_AFTER + "/"
+                + UriUtils.encodePathSegment(fileName.trim(), StandardCharsets.UTF_8);
     }
 
     public Path forgotPasswordPath() {

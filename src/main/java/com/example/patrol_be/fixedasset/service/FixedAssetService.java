@@ -773,7 +773,7 @@ public class FixedAssetService {
 
     /**
      * photo3: file already written by the "3) Thay QR" scan (null = no photo).
-     * It is set as MASTER Photo3 in this transaction only when the rescan writes
+     * It is set as Photo3 of the audit row in this transaction only when the rescan writes
      * the audit row (clear / relocate); response photoSaved tells the caller.
      */
     @Transactional
@@ -796,6 +796,10 @@ public class FixedAssetService {
         String auditMode = normalizeAuditMode(request.getMode());
         // NO_QR: machine has no QR label (form "Ghi nhận máy thiếu QR").
         boolean noQr = NO_QR_MODE.equals(auditMode);
+        // Not NO_QR: control characters removed, trimmed, upper-cased (must be in MASTER, see below).
+        if (!noQr) {
+            machineCode = requireValue(normalizeMachineCode(machineCode), "MachineCode");
+        }
         // Same normalization as EmailChecked; null when not sent.
         String requestPic = normalizePic(request.getPic());
         // QR label location (Manual mode); stored as sent, null -> not mismatched.
@@ -825,14 +829,14 @@ public class FixedAssetService {
             // Flagged machine outside "3) Thay QR" (incl. NO_QR rows / NO_QR
             // mode): nothing is written, FE is pointed to the replace flow.
             if (latestAudit.isNeedsQrReprint() && !Boolean.TRUE.equals(request.getQrReplace())) {
-                return pendingQrReplace(latestAudit, machineCode);
+                return withAuditId(pendingQrReplace(latestAudit, machineCode), latestAudit.getId());
             }
 
             // Rescan of a flagged machine: decided by the scanned QR label
             // (still under the UPDLOCK above), no new row. NO_QR keeps the
             // mark branch below.
             if (latestAudit.isNeedsQrReprint() && !noQr) {
-                return rescanQrReprint(
+                return withAuditId(rescanQrReprint(
                         latestAudit,
                         machineCode,
                         userId,
@@ -846,7 +850,7 @@ public class FixedAssetService {
                         qrPositionAA,
                         Boolean.TRUE.equals(request.getConfirmLocationMismatch()),
                         photo3
-                );
+                ), latestAudit.getId());
             }
 
             // QR mismatch on an already audited machine: flag the existing row
@@ -869,7 +873,7 @@ public class FixedAssetService {
             // Row state after the save: mark keeps old *_Qr where nothing was
             // sent (COALESCE), otherwise the row is unchanged.
             boolean rowFlagged = qrMismatch || latestAudit.isNeedsQrReprint();
-            return new FixedAssetAuditSaveResponse(
+            return withAuditId(new FixedAssetAuditSaveResponse(
                     true,
                     false,
                     true,
@@ -904,10 +908,19 @@ public class FixedAssetService {
                     // mark resets the replacement status
                     !qrMismatch && latestAudit.isReprintSts(),
                     qrMismatch ? null : latestAudit.getReprintAt()
-            );
+            ), latestAudit.getId());
         }
 
         MasterMachine master = findMaster(machineCode);
+        // Not NO_QR: machine must exist in MASTER (nothing inserted otherwise),
+        // saved with the MASTER MachineCode instead of the value sent.
+        if (!noQr) {
+            if (master == null) {
+                throw new IllegalArgumentException(
+                        "Mã máy " + machineCode + " không có trong danh sách");
+            }
+            machineCode = master.machineCode();
+        }
         // NO_QR picks all 4 levels from the MAP cascade (validated by
         // existsLocation below): no Floor + PositionAA resolve, so Fac_Act /
         // A_Act are never dropped as "not in MAP".
@@ -958,7 +971,7 @@ public class FixedAssetService {
                     note = noQrNote(note);
                 }
                 LocalDateTime updatedAt = LocalDateTime.now();
-                int inserted = auditRepository.insertAudit(
+                Long auditId = auditRepository.insertAudit(
                         machineCode,
                         null,
                         floor,
@@ -977,11 +990,11 @@ public class FixedAssetService {
                         master.pic()
                 );
 
-                if (inserted != 1) {
+                if (auditId == null) {
                     throw new IllegalStateException("Fixed Asset audit was not saved");
                 }
 
-                return new FixedAssetAuditSaveResponse(
+                return withAuditId(new FixedAssetAuditSaveResponse(
                         true,
                         true,
                         false,
@@ -1011,7 +1024,7 @@ public class FixedAssetService {
                         false,
                         false,
                         null
-                );
+                ), auditId);
             }
         }
 
@@ -1082,7 +1095,7 @@ public class FixedAssetService {
         LocalDateTime updatedAt = LocalDateTime.now();
 
         // *_Act = ACTUAL location of this audit. MASTER is never modified.
-        int inserted = auditRepository.insertAudit(
+        Long auditId = auditRepository.insertAudit(
                 machineCode,
                 fac,
                 floor,
@@ -1102,11 +1115,11 @@ public class FixedAssetService {
                 unknownMachine ? requestPic : master.pic()
         );
 
-        if (inserted != 1) {
+        if (auditId == null) {
             throw new IllegalStateException("Fixed Asset audit was not saved");
         }
 
-        return new FixedAssetAuditSaveResponse(
+        return withAuditId(new FixedAssetAuditSaveResponse(
                 true,
                 true,
                 false,
@@ -1138,7 +1151,13 @@ public class FixedAssetService {
                 false,
                 false,
                 null
-        );
+        ), auditId);
+    }
+
+    /** Sets the id of the saved / existing audit row on the response. */
+    private FixedAssetAuditSaveResponse withAuditId(FixedAssetAuditSaveResponse response, long auditId) {
+        response.setAuditId(auditId);
+        return response;
     }
 
     public List<String> getAuditedMachineCodes() {
@@ -1169,6 +1188,25 @@ public class FixedAssetService {
         }
     }
 
+    /**
+     * Before photo upload: the audit's creator (UserId), else FixedAsset.BEFORE
+     * (column CanBefore). Role from HSE_EmpID by userId; unknown employee -> denied.
+     */
+    public void requireAuditPhotoPermission(String userId, String auditUserId) {
+        String uploader = requireValue(userId, "UserId");
+        if (auditUserId != null && uploader.equalsIgnoreCase(auditUserId.trim())) {
+            return;
+        }
+        String role = hrDataRepository.findByCode(uploader)
+                .orElseThrow(() -> new PermissionDeniedException(
+                        "Employee not found: " + uploader))
+                .getRole();
+        if (!permissionService.can(role, PatrolGroup.FixedAsset, PatrolAction.BEFORE)) {
+            throw new PermissionDeniedException(
+                    "User " + uploader + " has no permission to upload the audit photo (FixedAsset.before).");
+        }
+    }
+
     /** Audited = any row in the period; QrMismatch = 1 is only a QR label status. */
     private boolean isAudited(FixedAssetLatestAuditDto latestAudit) {
         return latestAudit != null;
@@ -1177,6 +1215,13 @@ public class FixedAssetService {
     /** Latest row when it still needs QR reprint, else null (reprint* fields stay null). */
     private FixedAssetLatestAuditDto qrReprintRow(FixedAssetLatestAuditDto latestAudit) {
         return latestAudit != null && latestAudit.isNeedsQrReprint() ? latestAudit : null;
+    }
+
+    /** Control characters (\r \n \t ...) removed, trimmed, upper-cased; "" when null. */
+    private String normalizeMachineCode(String machineCode) {
+        return machineCode == null
+                ? ""
+                : machineCode.replaceAll("\\p{Cntrl}", "").trim().toUpperCase(Locale.ROOT);
     }
 
     private String trimToNull(String value) {
@@ -1240,7 +1285,7 @@ public class FixedAssetService {
      *   ReprintSts = 1; QrMismatch / *_Qr (audit-time label) are kept;
      * - otherwise the machine may have moved -> confirmation, then *_Act and
      *   *_Qr are overwritten, QrMismatch stays 1 and ReprintSts stays 0.
-     * photo3 (optional) becomes MASTER Photo3 in the two writing branches.
+     * photo3 (optional) becomes the audit row's Photo3 in the two writing branches.
      */
     private FixedAssetAuditSaveResponse rescanQrReprint(
             FixedAssetLatestAuditDto latest,
@@ -1325,10 +1370,15 @@ public class FixedAssetService {
 
         if (labelIsActual && (noQrRow || selectedIsActual)) {
             LocalDateTime reprintAt = LocalDateTime.now();
+            // *_Act are kept by the clear: photo named after the row's Floor_Act / AA_Act.
+            String photo3File = photo3 == null
+                    ? null
+                    : photo3.place(latest.getFloorAct(), latest.getPositionAAAct());
             int updated = auditRepository.clearAuditQrReprint(
                     latest.getId(),
                     reprintAt,
-                    userId
+                    userId,
+                    photo3File
             );
             if (updated != 1) {
                 throw new IllegalStateException("Fixed Asset QR reprint flag was not cleared");
@@ -1365,7 +1415,7 @@ public class FixedAssetService {
                     false,
                     true,
                     reprintAt
-            ), machineCode, photo3, userId);
+            ), photo3File);
         }
 
         if (!confirmed) {
@@ -1410,6 +1460,8 @@ public class FixedAssetService {
                     "Invalid location: " + fac + " / " + floor + " / " + positionA + " / " + positionAA);
         }
 
+        // *_Act are overwritten with the selected location: photo named after it.
+        String photo3File = photo3 == null ? null : photo3.place(floor, positionAA);
         int updated = auditRepository.relocateAuditQrReprint(
                 latest.getId(),
                 fac,
@@ -1419,7 +1471,8 @@ public class FixedAssetService {
                 qrFac,
                 qrFloor,
                 qrPositionA,
-                qrPositionAA
+                qrPositionAA,
+                photo3File
         );
         if (updated != 1) {
             throw new IllegalStateException("Fixed Asset audit location was not updated");
@@ -1455,32 +1508,36 @@ public class FixedAssetService {
                 false,
                 false,
                 null
-        ), machineCode, photo3, userId);
+        ), photo3File);
     }
 
-    /** Sets MASTER Photo3 / Photo3_Old in the current transaction. */
+    /**
+     * Photo fields of the response; audit Photo3 / Photo3_Old were already
+     * written by the same UPDATE as the reprint columns (MASTER is not updated).
+     * photo3File null = no photo placed.
+     */
     private FixedAssetAuditSaveResponse applyPhoto3(
             FixedAssetAuditSaveResponse response,
-            String machineCode,
-            Photo3Update photo3,
-            String userId) {
-        if (photo3 == null) {
+            String photo3File) {
+        if (photo3File == null) {
             return response;
         }
-        if (auditRepository.updateMasterPhoto3(
-                machineCode, photo3.photo3(), photo3.photo3Old(), userId) < 1) {
-            throw new IllegalStateException("Fixed Asset Photo3 was not saved: " + machineCode);
-        }
         response.setPhotoSaved(true);
-        response.setPhoto3(photo3.photo3());
+        response.setPhoto3(photo3File);
         return response;
     }
 
     /**
-     * New MASTER Photo3 file name; photo3Old = renamed old file of the same name,
-     * null -> Photo3_Old takes the current Photo3 (when not blank).
+     * "3) Thay QR" photo already uploaded to after/, placed under its final
+     * name once the audit row's Floor_Act / AA_Act are known (inside the
+     * transaction, before the audit UPDATE). Returns the file name (= audit
+     * Photo3, without "after/"); null when it could not be placed (QR replace
+     * continues without photo). Photo3_Old is set from the current MASTER
+     * Photo3 by the repository.
      */
-    public record Photo3Update(String photo3, String photo3Old) {
+    @FunctionalInterface
+    public interface Photo3Update {
+        String place(String floorAct, String positionAAAct);
     }
 
     /** Flagged machine scanned without qrReplace: row unchanged, reprint info returned. */
